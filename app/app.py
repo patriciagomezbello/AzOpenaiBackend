@@ -6,9 +6,6 @@ import openai
 from flask import Flask, request, jsonify
 from azure.identity import DefaultAzureCredential
 from azure.search.documents import SearchClient
-from approaches.retrievethenread import RetrieveThenReadApproach
-from approaches.readretrieveread import ReadRetrieveReadApproach
-from approaches.readdecomposeask import ReadDecomposeAsk
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from azure.storage.blob import BlobServiceClient
 
@@ -53,11 +50,6 @@ blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
 
 # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
 # or some derivative, here we include several for exploration purposes
-ask_approaches = {
-    "rtr": RetrieveThenReadApproach(search_client, AZURE_OPENAI_GPT_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT),
-    "rrr": ReadRetrieveReadApproach(search_client, AZURE_OPENAI_GPT_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT),
-    "rda": ReadDecomposeAsk(search_client, AZURE_OPENAI_GPT_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT)
-}
 
 chat_approaches = {
     "rrr": ChatReadRetrieveReadApproach(search_client, AZURE_OPENAI_CHATGPT_DEPLOYMENT, AZURE_OPENAI_GPT_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT)
@@ -81,20 +73,7 @@ def content_file(path):
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
     return blob.readall(), 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
     
-@app.route("/ask", methods=["POST"])
-def ask():
-    ensure_openai_token()
-    approach = request.json["approach"]
-    try:
-        impl = ask_approaches.get(approach)
-        if not impl:
-            return jsonify({"error": "unknown approach"}), 400
-        r = impl.run(request.json["question"], request.json.get("overrides") or {})
-        return jsonify(r)
-    except Exception as e:
-        logging.exception("Exception in /ask")
-        return jsonify({"error": str(e)}), 500
-    
+
 @app.route("/chat", methods=["POST"])
 def chat():
     ensure_openai_token()
