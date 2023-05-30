@@ -63,6 +63,8 @@ def blob_name_from_file_page(filename, page = 0):
 def upload_blobs_docs(filename):
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.containerdocs)
+    if not blob_container.exists():
+        blob_container.create_container()
     with open(filename,"rb") as data:
             blob_container.upload_blob(os.path.basename(filename), data, overwrite=True)
 

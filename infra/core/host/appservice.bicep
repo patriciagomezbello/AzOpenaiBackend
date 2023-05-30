@@ -53,7 +53,7 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       functionAppScaleLimit: functionAppScaleLimit != -1 ? functionAppScaleLimit : null
       healthCheckPath: healthCheckPath
       cors: {
-        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com' ], allowedOrigins)
+        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com', 'http://localhost:5173', 'https://green-coast-0e6ebe703.3.azurestaticapps.net' ], allowedOrigins)
       }
     }
     clientAffinityEnabled: clientAffinityEnabled
