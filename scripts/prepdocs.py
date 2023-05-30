@@ -27,6 +27,7 @@ parser.add_argument("--category", help="Value for the category field in the sear
 parser.add_argument("--skipblobs", action="store_true", help="Skip uploading individual pages to Azure Blob Storage")
 parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
 parser.add_argument("--container", help="Azure Blob Storage container name")
+parser.add_argument("--containerdocs", help="Azure Blob Storage container name for full docs")
 parser.add_argument("--storagekey", required=False, help="Optional. Use this Azure Blob Storage account key instead of the current user identity to login (use az login to set current user for Azure)")
 parser.add_argument("--tenantid", required=False, help="Optional. Use this to define the Azure directory where to authenticate)")
 parser.add_argument("--searchservice", help="Name of the Azure Cognitive Search service where content should be indexed (must exist already)")
@@ -58,6 +59,12 @@ def blob_name_from_file_page(filename, page = 0):
         return os.path.splitext(os.path.basename(filename))[0] + f"-{page}" + ".pdf"
     else:
         return os.path.basename(filename)
+    
+def upload_blobs_docs(filename):
+    blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
+    blob_container = blob_service.get_container_client(args.containerdocs)
+    with open(filename,"rb") as data:
+            blob_container.upload_blob(os.path.basename(filename), data, overwrite=True)
 
 def upload_blobs(filename):
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
@@ -310,6 +317,9 @@ else:
         else:
             if not args.skipblobs:
                 upload_blobs(filename)
+                upload_blobs_docs(filename)
             page_map = get_document_text(filename)
             sections = create_sections(os.path.basename(filename), page_map)
             index_sections(os.path.basename(filename), sections)
+    
+            

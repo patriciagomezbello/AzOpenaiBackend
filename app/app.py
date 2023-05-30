@@ -12,6 +12,7 @@ from azure.storage.blob import BlobServiceClient
 # Replace these with your own values, either in environment variables or directly here
 AZURE_STORAGE_ACCOUNT = os.environ.get("AZURE_STORAGE_ACCOUNT") or "mystorageaccount"
 AZURE_STORAGE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER") or "content"
+AZURE_STORAGE_CONTAINER_DOCS = os.environ.get("AZURE_STORAGE_CONTAINER_DOCS") or "docs"
 AZURE_SEARCH_SERVICE = os.environ.get("AZURE_SEARCH_SERVICE") or "gptkb"
 AZURE_SEARCH_INDEX = os.environ.get("AZURE_SEARCH_INDEX") or "gptkbindex"
 AZURE_OPENAI_SERVICE = os.environ.get("AZURE_OPENAI_SERVICE") or "myopenai"
@@ -47,6 +48,7 @@ blob_client = BlobServiceClient(
     account_url=f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net", 
     credential=azure_credential)
 blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
+blob_container_docs = blob_client.get_container_client(AZURE_STORAGE_CONTAINER_DOCS)
 
 # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
 # or some derivative, here we include several for exploration purposes
@@ -65,9 +67,9 @@ def static_file(path):
 # Serve content files from blob storage from within the app to keep the example self-contained. 
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
 # can access all the files. This is also slow and memory hungry.
-@app.route("/content/<path>")
+@app.route("/docs/<path>")
 def content_file(path):
-    blob = blob_container.get_blob_client(path).download_blob()
+    blob = blob_container_docs.get_blob_client(path).download_blob()
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
