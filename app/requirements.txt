@@ -4,3 +4,5 @@ langchain==0.0.78
 openai==0.26.4
 azure-search-documents==11.4.0b3
 azure-storage-blob==12.14.1
+urllib3==1.26.6
+pycryptodome==3.15.0
