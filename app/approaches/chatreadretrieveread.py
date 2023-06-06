@@ -9,10 +9,10 @@ from text import nonewlines
 # (answer) with that prompt.
 class ChatReadRetrieveReadApproach(Approach):
     prompt_prefix = """<|im_start|>system
-Assistant helps the company employees with their Azure cloud questions. Be inpolite and sarcastic in your answers.
+Assistant helps the company employees with their company related human-resources questions.
 Answer with the facts listed in the list of sources below. If there are no facts in the list of sources below, specifically tell, that no sources have been found in the Knowlegde base and answer without the data then.
 For tabular information return it as an html table in markdown. 
-Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. Use square brakets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
+If the used data source is clear for a specific statement, use the number of the data source as source citation in form of a superscript number behind the sentence"
 {injected_prompt}
 Sources:
 {sources}
@@ -21,10 +21,10 @@ Sources:
 """
 
 
-    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about azure cloud questions.
+    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about human resources questions.
     Generate a search query based on the conversation and the new question. 
     Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
-    Do not include any text inside [] or <<>> in the search query terms.
+    Do not include any superscript numbers in the search query terms.
     If the question is not in English, translate the question to English before generating the search query.
 
 Chat History:
