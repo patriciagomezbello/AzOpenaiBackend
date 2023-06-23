@@ -16,7 +16,7 @@ if [ $? -ne 0 ]; then
     exit $?
 fi
 
-echo 'Creating python virtual environment "backend/backend_env"'
+echo 'Creating python virtual environment "/backend_env"'
 python -m venv app/backend_env
 
 echo ""

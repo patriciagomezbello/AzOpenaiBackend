@@ -4,6 +4,7 @@ import time
 import logging
 import openai
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from azure.identity import DefaultAzureCredential
 from azure.search.documents import SearchClient
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
@@ -17,10 +18,13 @@ AZURE_SEARCH_INDEX = os.environ.get("AZURE_SEARCH_INDEX") or "gptkbindex"
 AZURE_OPENAI_SERVICE = os.environ.get("AZURE_OPENAI_SERVICE") or "myopenai"
 AZURE_OPENAI_GPT_DEPLOYMENT = os.environ.get("AZURE_OPENAI_GPT_DEPLOYMENT") or "davinci"
 AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.environ.get("AZURE_OPENAI_CHATGPT_DEPLOYMENT") or "chat"
+AZURE_OPENAI_EMB_DEPLOYMENT = os.environ.get("AZURE_OPENAI_EMB_DEPLOYMENT") or "embedding"
 
 KB_FIELDS_CONTENT = os.environ.get("KB_FIELDS_CONTENT") or "content"
 KB_FIELDS_CATEGORY = os.environ.get("KB_FIELDS_CATEGORY") or "category"
 KB_FIELDS_SOURCEPAGE = os.environ.get("KB_FIELDS_SOURCEPAGE") or "sourcepage"
+
+ENVIRONMENT = os.environ.get("SERVER_ENVIRONMENT") or "remote"
 
 # Use the current user identity to authenticate with Azure OpenAI, Cognitive Search and Blob Storage (no secrets needed, 
 # just use 'az login' locally, and managed identity when deployed on Azure). If you need to use keys, use separate AzureKeyCredential instances with the 
@@ -52,10 +56,21 @@ blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
 # or some derivative, here we include several for exploration purposes
 
 chat_approaches = {
-    "rrr": ChatReadRetrieveReadApproach(search_client, AZURE_OPENAI_CHATGPT_DEPLOYMENT, AZURE_OPENAI_GPT_DEPLOYMENT, KB_FIELDS_SOURCEPAGE, KB_FIELDS_CONTENT)
+    "rrr": ChatReadRetrieveReadApproach(
+        search_client, 
+        AZURE_OPENAI_CHATGPT_DEPLOYMENT, 
+        AZURE_OPENAI_GPT_DEPLOYMENT, 
+        AZURE_OPENAI_EMB_DEPLOYMENT, 
+        KB_FIELDS_SOURCEPAGE, 
+        KB_FIELDS_CONTENT
+        )
 }
 
 app = Flask(__name__)
+
+#for local development, this is needed, in the .azure/ENV/.env a SERVER_ENVIRONMENT needs to have "local"
+if ENVIRONMENT == "local":
+    CORS(app)
 
 @app.route("/", defaults={"path": "index.html"})
 @app.route("/<path:path>")
