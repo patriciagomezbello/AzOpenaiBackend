@@ -9,7 +9,7 @@ from text import nonewlines
 # (answer) with that prompt.
 class ChatReadRetrieveReadApproach(Approach):
     prompt_prefix = """<|im_start|>system
-Assistant helps the company employees with their company related human-resources questions.
+Assistant helps the company employees with their company related human-resources questions. Relate every question to the company Telekom.
 Answer with the facts listed in the list of sources below. If there are no facts in the list of sources below, specifically tell, that no sources have been found in the Knowlegde base and answer without the data then.
 For tabular information return it as an html table in markdown. 
 If the used data source is clear for a specific statement, use the number of the data source as source citation in form of a superscript number behind the sentence"
@@ -61,11 +61,15 @@ Search query:
             stop=["\n"])
         query_text = completion.choices[0].text
 
-        # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
+        print("step 1 completed")
 
+        # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
+        print(f"{overrides.get('retrieval_mode')} is the retrieval mode")
         # If retrieval mode includes vectors, compute an embedding for the query
         if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
             query_vector = openai.Embedding.create(engine=self.embedding_deployment, input=query_text)["data"][0]["embedding"]
+            print("query vector")
+
         else:
             query_vector = None
 
@@ -102,6 +106,7 @@ Search query:
         else:
             prompt = prompt_override.format(sources=content, chat_history=self.get_chat_history_as_text(history), follow_up_questions_prompt=follow_up_questions_prompt)
 
+        print("step 2 done")
         # STEP 3: Generate a contextual and content specific answer using the search results and chat history
         completion = openai.Completion.create(
             engine=self.chatgpt_deployment, 
@@ -110,7 +115,7 @@ Search query:
             max_tokens=1024, 
             n=1, 
             stop=["<|im_end|>", "<|im_start|>"])
-
+        print("step 3 done")
         return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
     
     def get_chat_history_as_text(self, history, include_last_turn=True, approx_max_tokens=1000) -> str:
