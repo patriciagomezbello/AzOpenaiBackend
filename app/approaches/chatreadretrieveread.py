@@ -1,6 +1,6 @@
 import openai
 from azure.search.documents import SearchClient
-from azure.search.documents.models import QueryType
+from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
 
