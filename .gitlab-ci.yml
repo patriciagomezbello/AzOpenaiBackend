@@ -4,8 +4,7 @@ stages: # List of stages for jobs, and their order of execution
   - infrastructure
   - data
 
-# TODO: will be replaced with own image when microsoft fixes bug (https://github.com/Azure/azure-dev/issues/2197)
-image: mcr.microsoft.com/azure-dev-cli-apps:latest 
+image: alzdns.azurecr.io/azdcli-deploy:latest
 
 # for this include to work, either an existing test stage must be in the pipeline (is default, when no -> stages: <- is definded)
 # or the stage simply needs to be added to the stages
@@ -29,6 +28,7 @@ all-job:
      # This job runs in the build stage, which runs first.
   stage: all
   script:
+    - az login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd auth login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd up
   when: manual
@@ -38,6 +38,7 @@ infrastructure-job:
     - azure-dev01-docker  
   stage: infrastructure   
   script:
+    - az login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd auth login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd provision
   when: manual
@@ -47,6 +48,7 @@ data-job:
    - azure-dev01-docker      
   stage: data  
   script:
+    - az login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd auth login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - ./scripts/prepdocs.sh
   when: manual

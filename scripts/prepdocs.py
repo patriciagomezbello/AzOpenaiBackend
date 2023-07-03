@@ -1,4 +1,5 @@
 import os
+import platform
 import argparse
 import glob
 import html
@@ -391,35 +392,54 @@ else:
             remote_hash = blob_hashmap[os.path.basename(filename)]
             if local_hash != remote_hash:
                 # different hashes, upload file again
-                print (f'{filename} changed, will be processed again')
+                try:
+                    print (f'{filename} changed, will be processed again')
+                    upload_blobs(filename)
+                    upload_blobs_docs(filename)
+                    page_map = get_document_text(filename)
+                    sections = create_sections(os.path.basename(filename), page_map)
+                    index_sections(os.path.basename(filename), sections)
+                    overview[0] += 1
+                except:
+                    print("something went wrong, clearing up state now")
+                    remove_blobs(filename)
+                    remove_blobs_docs(filename)
+                    remove_from_index(filename)
+                    break
+
+        else:
+            try:
+                # only in local, upload file
+                print (f'{filename} only local, will be processed')
                 upload_blobs(filename)
                 upload_blobs_docs(filename)
                 page_map = get_document_text(filename)
                 sections = create_sections(os.path.basename(filename), page_map)
                 index_sections(os.path.basename(filename), sections)
-                overview[0] += 1
-        else:
-            # only in local, upload file
-            print (f'{filename} only local, will be processed')
-            upload_blobs(filename)
-            upload_blobs_docs(filename)
-            page_map = get_document_text(filename)
-            sections = create_sections(os.path.basename(filename), page_map)
-            index_sections(os.path.basename(filename), sections)
-            overview[1] += 1
+                overview[1] += 1
+            except:
+                print("something went wrong, clearing up state now")
+                remove_blobs(filename)
+                remove_blobs_docs(filename)
+                remove_from_index(filename)
+                break
 
     # loop through blob files
     for filename in blob_hashmap:
-        filename_check = f'./data/{filename}'
-        # debug
-        print(filename_check)
-        print(local_hashmap)
-        # debug end
+        if platform.system() == 'Windows':
+            filename_check = f'./data\\{filename}'
+        else:
+            filename_check = f'./data/{filename}'
+            
         if filename_check not in local_hashmap:
             # only in remote, remove file
-            print (f'{filename} only remote, will be removed from blob and index')
-            remove_blobs(filename)
-            remove_blobs_docs(filename)
-            remove_from_index(filename)
-            overview[2] += 1
+            try:
+                print (f'{filename} only remote, will be removed from blob and index')
+                remove_blobs(filename)
+                remove_blobs_docs(filename)
+                remove_from_index(filename)
+                overview[2] += 1
+            except:
+                print("something went wrong with the deletion of files, please contact the Azure Team")
+                break
     print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
