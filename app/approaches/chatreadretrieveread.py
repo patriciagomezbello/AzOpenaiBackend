@@ -3,38 +3,20 @@ from azure.search.documents import SearchClient
 from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
+from approaches.token import addTokenCount
+from context import main_prefix, sources_prefix,chat_history_prefix, keyword_prefix, question_postfix, question_prefix, end_postfix
 
-# Simple retrieve-then-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
+# Simple read-retrieve-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
 # top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion 
 # (answer) with that prompt.
+
+
+
 class ChatReadRetrieveReadApproach(Approach):
-    prompt_prefix = """<|im_start|>system
-Assistant helps the company employees with their company related human-resources questions. Relate every question to the company Telekom.
-Answer with the facts listed in the list of sources below. If there are no facts in the list of sources below, specifically tell, that no sources have been found in the Knowlegde base and answer without the data then.
-For tabular information return it as an html table in markdown. 
-If the used data source is clear for a specific statement, use the number of the data source as source citation in form of a superscript number behind the sentence"
-{injected_prompt}
-Sources:
-{sources}
-<|im_end|>
-{chat_history}
-"""
 
+    prompt_prefix = f"{main_prefix}\n" + "{injected_prompt}\n" + f"{sources_prefix}\n" + "{sources}\n" +f"{end_postfix}"+ "{chat_history}"
 
-    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about human resources questions.
-    Generate a search query based on the conversation and the new question. 
-    Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
-    Do not include any superscript numbers in the search query terms.
-    If the question is not in English, translate the question to English before generating the search query.
-
-Chat History:
-{chat_history}
-
-Question:
-{question}
-
-Search query:
-"""
+    query_prompt_template = f"{keyword_prefix}\n{chat_history_prefix}\n" + "{chat_history}\n" +f"{question_prefix}\n" + "{question}\n" + f"{question_postfix}"
 
     def __init__(self, search_client: SearchClient, chatgpt_deployment: str, gpt_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
         self.search_client = search_client
@@ -43,6 +25,8 @@ Search query:
         self.embedding_deployment = embedding_deployment
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
+    
+
 
     def run(self, history: list[dict], overrides: dict) -> any:
         use_semantic_captions = True if overrides.get("semantic_captions") else False
@@ -50,26 +34,31 @@ Search query:
         exclude_category = overrides.get("exclude_category") or None
         filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
+        usedTokens: dict = {}
+
         # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
         prompt = self.query_prompt_template.format(chat_history=self.get_chat_history_as_text(history, include_last_turn=False), question=history[-1]["user"])
         completion = openai.Completion.create(
-            engine=self.gpt_deployment, 
+            engine=self.chatgpt_deployment, 
             prompt=prompt, 
             temperature=0.0, 
             max_tokens=32, 
             n=1, 
             stop=["\n"])
         query_text = completion.choices[0].text
-
-        print("step 1 completed")
+        
+        print(completion)
+        addTokenCount(usedTokens, completion)
 
         # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
         print(f"{overrides.get('retrieval_mode')} is the retrieval mode")
         # If retrieval mode includes vectors, compute an embedding for the query
         if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
-            query_vector = openai.Embedding.create(engine=self.embedding_deployment, input=query_text)["data"][0]["embedding"]
-            print("query vector")
-
+            query_vector_embedding = openai.Embedding.create(
+                engine=self.embedding_deployment, 
+                input=query_text)
+            query_vector = query_vector_embedding.data[0].embedding
+            addTokenCount(usedTokens, query_vector_embedding)
         else:
             query_vector = None
 
@@ -81,7 +70,7 @@ Search query:
             r = self.search_client.search(query_text, 
                                           filter=filter,
                                           query_type=QueryType.SEMANTIC, 
-                                          query_language="en-us", 
+                                          query_language= overrides.get("language") or "en-us", 
                                           query_speller="lexicon", 
                                           semantic_configuration_name="default", 
                                           top=top, 
@@ -95,18 +84,17 @@ Search query:
             results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) for doc in r]
         content = "\n".join(results)
 
-        follow_up_questions_prompt = self.follow_up_questions_prompt_content if overrides.get("suggest_followup_questions") else ""
         
         # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
         prompt_override = overrides.get("prompt_template")
-        if prompt_override is None:
-            prompt = self.prompt_prefix.format(injected_prompt="", sources=content, chat_history=self.get_chat_history_as_text(history), follow_up_questions_prompt=follow_up_questions_prompt)
+        if prompt_override is None or prompt_override == "":
+            prompt = self.prompt_prefix.format(injected_prompt="", sources=content, chat_history=self.get_chat_history_as_text(history))
         elif prompt_override.startswith(">>>"):
-            prompt = self.prompt_prefix.format(injected_prompt=prompt_override[3:] + "\n", sources=content, chat_history=self.get_chat_history_as_text(history), follow_up_questions_prompt=follow_up_questions_prompt)
+            prompt = self.prompt_prefix.format(injected_prompt=prompt_override[3:] + "\n", sources=content, chat_history=self.get_chat_history_as_text(history))
         else:
-            prompt = prompt_override.format(sources=content, chat_history=self.get_chat_history_as_text(history), follow_up_questions_prompt=follow_up_questions_prompt)
+            prompt = prompt_override.format(sources=content, chat_history=self.get_chat_history_as_text(history))
 
-        print("step 2 done")
+        print(prompt)
         # STEP 3: Generate a contextual and content specific answer using the search results and chat history
         completion = openai.Completion.create(
             engine=self.chatgpt_deployment, 
@@ -115,7 +103,11 @@ Search query:
             max_tokens=1024, 
             n=1, 
             stop=["<|im_end|>", "<|im_start|>"])
-        print("step 3 done")
+
+        addTokenCount(usedTokens, completion)
+
+        print(usedTokens)
+
         return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
     
     def get_chat_history_as_text(self, history, include_last_turn=True, approx_max_tokens=1000) -> str:
@@ -125,3 +117,5 @@ Search query:
             if len(history_text) > approx_max_tokens*4:
                 break    
         return history_text
+    
+    

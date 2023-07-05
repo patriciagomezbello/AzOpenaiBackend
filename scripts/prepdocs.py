@@ -7,6 +7,8 @@ import io
 import re
 import time
 import hashlib
+import markdown2
+import pdfkit
 import openai
 from pypdf import PdfReader, PdfWriter
 from azure.identity import AzureDeveloperCliCredential
@@ -16,6 +18,8 @@ from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import *
 from azure.search.documents import SearchClient
 from azure.ai.formrecognizer import DocumentAnalysisClient
+from md2pdf.core import md2pdf
+
 
 MAX_SECTION_LENGTH = 1000
 SENTENCE_SEARCH_LIMIT = 100
@@ -26,6 +30,7 @@ parser = argparse.ArgumentParser(
     epilog="Example: prepdocs.py '..\data\*' --storageaccount myaccount --container mycontainer --searchservice mysearch --index myindex -v"
     )
 parser.add_argument("files", help="Files to be processed")
+parser.add_argument("--files2convert", help="Files to be processed (in .md format)")
 parser.add_argument("--category", help="Value for the category field in the search index for all sections indexed in this run")
 parser.add_argument("--skipblobs", action="store_true", help="Skip uploading individual pages to Azure Blob Storage")
 parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
@@ -355,6 +360,19 @@ def invalidFileName(string):
         return True
     return False
 
+# handle data2convert folder to get a unique approach only using pdf files
+
+for filename in glob.glob(args.files2convert):
+    file = os.path.splitext(filename)
+
+    if file[1] == ".md":
+        md2pdf(f"./data/{(file[0].split('/')[2])}.pdf",
+        md_content=None,
+        md_file_path=filename,
+        css_file_path=None,
+        base_url=None)
+
+
 # here the code execution starts
 if args.removeall:
     remove_blobs(None)
@@ -362,6 +380,7 @@ if args.removeall:
 else:
     # create index (or not if it already exists)
     create_search_index()
+
 
     # init blob in main script for docs comparison
     docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
@@ -374,6 +393,8 @@ else:
     blob_list = docs_container.list_blobs()
 
     overview = [0,0,0]
+
+
 
     # create md5 byte hashes and add them to hashmaps for comparison
     for filename in glob.glob(args.files):
