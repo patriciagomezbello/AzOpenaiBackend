@@ -372,7 +372,6 @@ for filename in glob.glob(args.files2convert):
         css_file_path=None,
         base_url=None)
 
-
 # here the code execution starts
 if args.removeall:
     remove_blobs(None)
@@ -380,7 +379,6 @@ if args.removeall:
 else:
     # create index (or not if it already exists)
     create_search_index()
-
 
     # init blob in main script for docs comparison
     docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)

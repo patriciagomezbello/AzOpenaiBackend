@@ -1,23 +1,49 @@
 import openai
+import json
+import os
+import time
 from azure.search.documents import SearchClient
 from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
 from approaches.token import addTokenCount
-from context import main_prefix, sources_prefix,chat_history_prefix, keyword_prefix, question_postfix, question_prefix, end_postfix
+import logging
+from opencensus.ext.azure.log_exporter import AzureLogHandler
 
-# Simple read-retrieve-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
+global ENVIRONMENT
+ENVIRONMENT = os.environ.get("SERVER_ENVIRONMENT") or "remote"
+
+
+# Chat-read-retrieve-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
 # top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion 
 # (answer) with that prompt.
 
-
-
 class ChatReadRetrieveReadApproach(Approach):
+    
+    #TODO: implement try except finally for have logging also in case of timeouts
 
+    if ENVIRONMENT == "remote":
+        logger = logging.getLogger(__name__)
+        logger.addHandler(AzureLogHandler())
+    else:
+        logger = ""
+
+    # initialize empty config variables to satisfy linter
+    main_prefix, sources_prefix, end_postfix, keyword_prefix, chat_history_prefix, question_prefix, question_postfix = "", "", "", "", "", "", ""
+
+    # Load the JSON config file for the context
+    with open('./context.json', 'r') as f:
+        data = json.load(f)
+
+    # Create variables from the keys and values in the JSON object to establish the context
+    for key, value in data.items():
+        globals()[key] = value
+
+    # initialize string with fixed context variables in f"" string and formatable string in brackets only
     prompt_prefix = f"{main_prefix}\n" + "{injected_prompt}\n" + f"{sources_prefix}\n" + "{sources}\n" +f"{end_postfix}"+ "{chat_history}"
-
     query_prompt_template = f"{keyword_prefix}\n{chat_history_prefix}\n" + "{chat_history}\n" +f"{question_prefix}\n" + "{question}\n" + f"{question_postfix}"
 
+    # init function for the extended approach class for crrr
     def __init__(self, search_client: SearchClient, chatgpt_deployment: str, gpt_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
         self.search_client = search_client
         self.chatgpt_deployment = chatgpt_deployment
@@ -26,9 +52,9 @@ class ChatReadRetrieveReadApproach(Approach):
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
     
-
-
+    # executable function that is connected to the chat api -> receives and responds like chatgpt but with enterprise data‚
     def run(self, history: list[dict], overrides: dict) -> any:
+        start_chat = time.perf_counter()
         use_semantic_captions = True if overrides.get("semantic_captions") else False
         top = overrides.get("top") or 3
         exclude_category = overrides.get("exclude_category") or None
@@ -38,6 +64,11 @@ class ChatReadRetrieveReadApproach(Approach):
 
         # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
         prompt = self.query_prompt_template.format(chat_history=self.get_chat_history_as_text(history, include_last_turn=False), question=history[-1]["user"])
+        
+        # start timing request
+        start_keyword = time.perf_counter()
+
+        # completion request to openAI
         completion = openai.Completion.create(
             engine=self.chatgpt_deployment, 
             prompt=prompt, 
@@ -46,18 +77,23 @@ class ChatReadRetrieveReadApproach(Approach):
             n=1, 
             stop=["\n"])
         query_text = completion.choices[0].text
-        
-        print(completion)
+
+        # save time for completion request for keyword optimization and add token count to request token object
+        keyword_request_time = time.perf_counter() - start_keyword
         addTokenCount(usedTokens, completion)
 
         # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
-        print(f"{overrides.get('retrieval_mode')} is the retrieval mode")
         # If retrieval mode includes vectors, compute an embedding for the query
         if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
+
+            start_embedding = time.perf_counter()
+
             query_vector_embedding = openai.Embedding.create(
                 engine=self.embedding_deployment, 
                 input=query_text)
             query_vector = query_vector_embedding.data[0].embedding
+
+            embedding_request_time = time.perf_counter() - start_embedding
             addTokenCount(usedTokens, query_vector_embedding)
         else:
             query_vector = None
@@ -65,6 +101,8 @@ class ChatReadRetrieveReadApproach(Approach):
         # Only keep the text query if the retrieval mode uses text, otherwise drop it
         if overrides.get("retrieval_mode") == "vectors":
             query_text = None
+
+        start_cog_search = time.perf_counter()
 
         if overrides.get("semantic_ranker"):
             r = self.search_client.search(query_text, 
@@ -78,6 +116,9 @@ class ChatReadRetrieveReadApproach(Approach):
                                           vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
         else:
             r = self.search_client.search(query_text, filter=filter, top=top, vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+        
+        cog_search_request_time = time.perf_counter() - start_cog_search
+        
         if use_semantic_captions:
             results = [doc[self.sourcepage_field] + ": " + nonewlines(" . ".join([c.text for c in doc['@search.captions']])) for doc in r]
         else:
@@ -94,8 +135,9 @@ class ChatReadRetrieveReadApproach(Approach):
         else:
             prompt = prompt_override.format(sources=content, chat_history=self.get_chat_history_as_text(history))
 
-        print(prompt)
         # STEP 3: Generate a contextual and content specific answer using the search results and chat history
+        main_llm_req_start = time.perf_counter()
+
         completion = openai.Completion.create(
             engine=self.chatgpt_deployment, 
             prompt=prompt, 
@@ -103,10 +145,28 @@ class ChatReadRetrieveReadApproach(Approach):
             max_tokens=1024, 
             n=1, 
             stop=["<|im_end|>", "<|im_start|>"])
-
+        
+        main_llm_req_time = time.perf_counter() - main_llm_req_start
         addTokenCount(usedTokens, completion)
 
-        print(usedTokens)
+        chat_time = time.perf_counter() - start_chat
+
+        properties = {"custom_dimensions": {
+                          "usedTokens": usedTokens,
+                          "full_chat_time": chat_time, 
+                          "keyword_opt_time": keyword_request_time,
+                          "embedding_time": embedding_request_time or 0,
+                          "search_time": cog_search_request_time,
+                          "main_req_time": main_llm_req_time
+                          }
+                        }
+        
+        #TODO: fix logging for local and remote setup
+        #if ENVIRONMENT == "remote":
+        # Use properties in logging statements
+        #logger.warning('action', extra=properties)
+
+        print(properties)
 
         return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
     
@@ -117,5 +177,3 @@ class ChatReadRetrieveReadApproach(Approach):
             if len(history_text) > approx_max_tokens*4:
                 break    
         return history_text
-    
-    
