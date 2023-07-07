@@ -22,6 +22,9 @@ class ChatReadRetrieveReadApproach(Approach):
     
     #TODO: implement try except finally for have logging also in case of timeouts
 
+    global r_dec
+    r_dec = 3
+
     if ENVIRONMENT == "remote":
         logger = logging.getLogger(__name__)
         logger.addHandler(AzureLogHandler())
@@ -54,7 +57,10 @@ class ChatReadRetrieveReadApproach(Approach):
     
     # executable function that is connected to the chat api -> receives and responds like chatgpt but with enterprise data‚
     def run(self, history: list[dict], overrides: dict) -> any:
+        
+        #start logging full request time
         start_chat = time.perf_counter()
+        
         use_semantic_captions = True if overrides.get("semantic_captions") else False
         top = overrides.get("top") or 3
         exclude_category = overrides.get("exclude_category") or None
@@ -79,7 +85,8 @@ class ChatReadRetrieveReadApproach(Approach):
         query_text = completion.choices[0].text
 
         # save time for completion request for keyword optimization and add token count to request token object
-        keyword_request_time = time.perf_counter() - start_keyword
+        keyword_request_time = round(time.perf_counter() - start_keyword, r_dec)
+
         addTokenCount(usedTokens, completion)
 
         # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
@@ -93,8 +100,10 @@ class ChatReadRetrieveReadApproach(Approach):
                 input=query_text)
             query_vector = query_vector_embedding.data[0].embedding
 
-            embedding_request_time = time.perf_counter() - start_embedding
+            embedding_request_time = round(time.perf_counter() - start_embedding, r_dec)
+
             addTokenCount(usedTokens, query_vector_embedding)
+
         else:
             query_vector = None
 
@@ -117,7 +126,7 @@ class ChatReadRetrieveReadApproach(Approach):
         else:
             r = self.search_client.search(query_text, filter=filter, top=top, vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
         
-        cog_search_request_time = time.perf_counter() - start_cog_search
+        cog_search_request_time = round(time.perf_counter() - start_cog_search, r_dec)
         
         if use_semantic_captions:
             results = [doc[self.sourcepage_field] + ": " + nonewlines(" . ".join([c.text for c in doc['@search.captions']])) for doc in r]
@@ -146,10 +155,11 @@ class ChatReadRetrieveReadApproach(Approach):
             n=1, 
             stop=["<|im_end|>", "<|im_start|>"])
         
-        main_llm_req_time = time.perf_counter() - main_llm_req_start
+        main_llm_req_time = round(time.perf_counter() - main_llm_req_start, r_dec)
+
         addTokenCount(usedTokens, completion)
 
-        chat_time = time.perf_counter() - start_chat
+        chat_time = round(time.perf_counter() - start_chat, r_dec)
 
         properties = {"custom_dimensions": {
                           "usedTokens": usedTokens,
