@@ -28,8 +28,8 @@ all-job:
      # This job runs in the build stage, which runs first.
   stage: all
   script:
-    - az login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd up
   when: manual
 
@@ -38,8 +38,8 @@ infrastructure-job:
     - azure-dev01-docker  
   stage: infrastructure   
   script:
-    - az login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd provision
   when: manual
 
@@ -48,7 +48,7 @@ data-job:
    - azure-dev01-docker      
   stage: data  
   script:
-    - az login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID -client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - ./scripts/prepdocs.sh
   when: manual
