@@ -1,129 +1,132 @@
-# ChatGPT + Telekom data with Azure OpenAI and Cognitive Search
+## <span style="color: #e20074">T-Chat as a Service </span>
+- ChatGPT + Telekom data with Azure OpenAI and Cognitive Search
 
-# Currently in development: forked from Microsoft Azure Sample Repository (https://github.com/Azure-Samples/azure-search-openai-demo/tree/main)
+- Currently in development state, no final branch or feature structure yet
+- forked from Microsoft Azure Sample Repository (https://github.com/Azure-Samples/azure-search-openai-demo/tree/main) and adjusted (by using the vector branch, adding logs, extracting prompt and cleaning up unnecessary components)
 
-# TODO: integrate documenation of repo usage
-[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=brightgreen&logo=github)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=599293758&machine=standardLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json&location=WestUs2)
-[![Open in Remote - Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Remote%20-%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/azure-samples/azure-search-openai-demo)
+## How to run and use locally?
 
-This sample demonstrates a few approaches for creating ChatGPT-like experiences over your own data using the Retrieval Augmented Generation pattern. It uses Azure OpenAI Service to access the ChatGPT model (gpt-35-turbo), and Azure Cognitive Search for data indexing and retrieval.
+this works in bash and powershell, required are Python 3.10 or higher, azd and az cli
 
-The repo includes sample data so it's ready to try end to end. In this sample application we use a fictitious company called Contoso Electronics, and the experience allows its employees to ask questions about the benefits, internal policies, as well as job descriptions and roles.
+login 
 
-![RAG Architecture](docs/appcomponents.png)
+``` bash
+# login with azd and az cli's
+azd auth login
+az login #required currently for getting access to services
+```
 
-## Features
+deploy/update everything 
 
-* Chat and Q&A interfaces
-* Explores various options to help users evaluate the trustworthiness of responses with citations, tracking of source content, etc.
-* Shows possible approaches for data preparation, prompt construction, and orchestration of interaction between model (ChatGPT) and retriever (Cognitive Search)
-* Settings directly in the UX to tweak the behavior and experiment with options
 
-![Chat screen](docs/chatscreen.png)
+``` bash
+# bundles backend, deploys infrastructure and 
+# deploys backend to app service 
+azd up 
+```
 
-## Getting Started
 
-> **IMPORTANT:** In order to deploy and run this example, you'll need an **Azure subscription with access enabled for the Azure OpenAI service**. You can request access [here](https://aka.ms/oaiapply). You can also visit [here](https://azure.microsoft.com/free/cognitive-search/) to get some free Azure credits to get you started.
+##### Pending TODO:
+- update infrastructure from MS Repository, as OpenAI will currently trigger errors for ```azd up```and ```azd provision```
 
-> **AZURE RESOURCE COSTS** by default this sample will create Azure App Service and Azure Cognitive Search resources that have a monthly cost, as well as Form Recognizer resource that has cost per document page. You can switch them to free versions of each of them if you want to avoid this cost by changing the parameters file under the infra folder (though there are some limits to consider; for example, you can have up to 1 free Cognitive Search resource per subscription, and the free Form Recognizer resource only analyzes the first 2 pages of each document.)
+deploy application code
 
-### Prerequisites
+``` bash
+# deploys backend to app service 
+azd deploy
+```
 
-#### To Run Locally
-- [Azure Developer CLI](https://aka.ms/azure-dev/install)
-- [Python 3+](https://www.python.org/downloads/)
-    - **Important**: Python and the pip package manager must be in the path in Windows for the setup scripts to work.
-    - **Important**: Ensure you can run `python --version` from console. On Ubuntu, you might need to run `sudo apt install python-is-python3` to link `python` to `python3`.    
-- [Node.js](https://nodejs.org/en/download/)
-- [Git](https://git-scm.com/downloads)
-- [Powershell 7+ (pwsh)](https://github.com/powershell/powershell) - For Windows users only.
-   - **Important**: Ensure you can run `pwsh.exe` from a PowerShell command. If this fails, you likely need to upgrade PowerShell.
+start python server locally (for development)
 
->NOTE: Your Azure Account must have `Microsoft.Authorization/roleAssignments/write` permissions, such as [User Access Administrator](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles#user-access-administrator) or [Owner](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles#owner).  
+``` bash
+# navigate to the repository folder
+appscripts/start.sh
+```
+with pwsh
 
-#### To Run in GitHub Codespaces or VS Code Remote Containers
+``` powershell
+# navigate to the repository folder
+./appscripts/start.ps1
+```
 
-You can run this repo virtually by using GitHub Codespaces or VS Code Remote Containers.  Click on one of the buttons below to open this repo in one of those options.
+update data locally (will update real search service)
 
-[![Open in GitHub Codespaces](https://img.shields.io/static/v1?style=for-the-badge&label=GitHub+Codespaces&message=Open&color=brightgreen&logo=github)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=599293758&machine=standardLinux32gb&devcontainer_path=.devcontainer%2Fdevcontainer.json&location=WestUs2)
-[![Open in Remote - Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Remote%20-%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/azure-samples/azure-search-openai-demo)
+- this will synchronise the local/repository data with a storage account and act depending on if it is new (will be uploaded and processed), only in the storage account (will be deleted from storage and search), or changed (will be updated in storage and search)
+- the comparison is done via using md5 hashes, which is a mitigated security issue in gitlab, as we do not use it for encryption, but comparison.
 
-### Installation
+``` bash
+# navigate to the repository folder
+scripts/prepdocs.sh
+```
+with pwsh
 
-#### Project Initialization
+``` powershell
+# navigate to the repository folder
+./scripts/prepdocs.ps1
+```
 
-1. Create a new folder and switch to it in the terminal
-1. Run `azd auth login`
-1. Run `azd init -t azure-search-openai-demo`
-    * For the target location, the regions that currently support the models used in this sample are **East US** or **South Central US**. For an up-to-date list of regions and models, check [here](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/concepts/models)
+##### testing the api without UI (localhost:5000/chat or 127.0.0.1:5000/chat)
 
-#### Starting from scratch:
+- example json with overrides and chat message for using as json body against api
 
-Execute the following command, if you don't have any pre-existing Azure services and want to start from a fresh deployment.
+```json
+{
+	"history": [
+		{
+			"user": "what do I need to do to get an Azure Subscription?"
+		}
+	],
+	"approach": "rrr",
+	"overrides": {
+		"semantic_ranker": true,
+		"semantic_captions": false,
+		"top": 3,
+		"temperature": 0.3,
+		"retrieval_mode": "hybrid",
+		"languague": "en-US"
+	}
+}
+```
 
-1. Run `azd up` - This will provision Azure resources and deploy this sample to those resources, including building the search index based on the files found in the `./data` folder.
-1. After the application has been successfully deployed you will see a URL printed to the console.  Click that URL to interact with the application in your browser.  
+##### using with localhost based UI
 
-It will look like the following:
+- [Clone or Download UI Repository](https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend)
+- Prerequisites: 
+    - nodejs must be installed
+    - SERVER_ENVIRONMENT in .env in .azure needs to be "local" to disable cors issues
 
-!['Output from running azd up'](assets/endpoint.png)
-    
-> NOTE: It may take a minute for the application to be fully deployed. If you see a "Python Developer" welcome screen, then wait a minute and refresh the page.
+- configure .env for local usage
 
-#### Use existing resources:
+``` bash
+# put these 3 lines in .env or ask someone from the team to send you one
+VITE_MODEL_CONFIG={"local": {"enc":"gpt-3.5-turbo-0301","ctoken": 4097,"url": "http://127.0.0.1:5000", "type":"custom", "apiId": "placeholder"}}
+VITE_MSAL_CLIENT_ID=client_id for local login and auth against (TODO: allow auth disabling for local usage)
+VITE_MSAL_TENANT_ID=https://login.microsoftonline.com/TENANT_ID
+```
 
-1. Run `azd env set AZURE_OPENAI_SERVICE {Name of existing OpenAI service}`
-1. Run `azd env set AZURE_OPENAI_RESOURCE_GROUP {Name of existing resource group that OpenAI service is provisioned to}`
-1. Run `azd env set AZURE_OPENAI_CHATGPT_DEPLOYMENT {Name of existing ChatGPT deployment}`. Only needed if your ChatGPT deployment is not the default 'chat'.
-1. Run `azd env set AZURE_OPENAI_GPT_DEPLOYMENT {Name of existing GPT deployment}`. Only needed if your ChatGPT deployment is not the default 'davinci'.
-1. Run `azd up`
+``` bash
+# navigate into UI repository
+# install all dependencies
+npm i 
 
-> NOTE: You can also use existing Search and Storage Accounts.  See `./infra/main.parameters.json` for list of environment variables to pass to `azd env set` to configure those existing resources.
+# start development server on localhost:5173
+npm run dev
+```
 
-#### Deploying or re-deploying a local clone of the repo:
-* Simply run `azd up`
+# Pipeline and Repository structure?
 
-#### Running locally:
-1. Run `azd login`
-2. Change dir to `app`
-3. Run `./start.ps1` or `./start.sh` or run the "VS Code Task: Start App" to start the project locally.
+Pipeline is splitted into different approaches currently
+##### Pending TODO: 
+- find final solution for using infrastructure and code deployment clean (MS consultant can help here), .env must be excluded if relevant data like appinsights con string will be inside
 
-#### Sharing Environments
+- current status: 3 steps, one for deploying everything, one for infrastructure and one for data update
 
-Run the following if you want to give someone else access to completely deployed and existing environment.
+Repository currently uses several branches in maybe? bad practice
 
-1. Install the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
-1. Run `azd init -t azure-search-openai-demo`
-1. Run `azd env refresh -e {environment name}` - Note that they will need the azd environment name, subscription Id, and location to run this command - you can find those values in your `./azure/{env name}/.env` file.  This will populate their azd environment's .env file with all the settings needed to run the app locally.
-1. Run `pwsh ./scripts/roles.ps1` - This will assign all of the necessary roles to the user so they can run the app locally.  If they do not have the necessary permission to create roles in the subscription, then you may need to run this script for them. Just be sure to set the `AZURE_PRINCIPAL_ID` environment variable in the azd .env file or in the active shell to their Azure Id, which they can get with `az account show`.
+- main branch is most uptodate and represents one (and the main) environment
+- instance 2 for example is another environment, the deployment there would trigger another resource group
 
-### Quickstart
+##### Pending TODO:
+ - same issue, we need a nice working solution for gitlab to manage different environments clean and nice with azd, using full and partial deployment of infrastructure or code or data only. Also the .env needs to be integrated smoothly, maybe we even will use more than one.
 
-* In Azure: navigate to the Azure WebApp deployed by azd. The URL is printed out when azd completes (as "Endpoint"), or you can find it in the Azure portal.
-* Running locally: navigate to 127.0.0.1:5000
 
-Once in the web app:
-* Try different topics in chat or Q&A context. For chat, try follow up questions, clarifications, ask to simplify or elaborate on answer, etc.
-* Explore citations and sources
-* Click on "settings" to try different options, tweak prompts, etc.
-
-## Resources
-
-* [Revolutionize your Enterprise Data with ChatGPT: Next-gen Apps w/ Azure OpenAI and Cognitive Search](https://aka.ms/entgptsearchblog)
-* [Azure Cognitive Search](https://learn.microsoft.com/azure/search/search-what-is-azure-search)
-* [Azure OpenAI Service](https://learn.microsoft.com/azure/cognitive-services/openai/overview)
-
-### Note
->Note: The PDF documents used in this demo contain information generated using a language model (Azure OpenAI Service). The information contained in these documents is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.
-
-### FAQ
-
-***Question***: Why do we need to break up the PDFs into chunks when Azure Cognitive Search supports searching large documents?
-
-***Answer***: Chunking allows us to limit the amount of information we send to OpenAI due to token limits. By breaking up the content, it allows us to easily find potential chunks of text that we can inject into OpenAI. The method of chunking we use leverages a sliding window of text such that sentences that end one chunk will start the next. This allows us to reduce the chance of losing the context of the text.
-
-### Troubleshooting
-
-If you see this error while running `azd deploy`: `read /tmp/azd1992237260/backend_env/lib64: is a directory`, then delete the `./app/backend/backend_env folder` and re-run the `azd deploy` command.  This issue is being tracked here: https://github.com/Azure/azure-dev/issues/1237
-
-If the web app fails to deploy and you receive a '404 Not Found' message in your browser, run 'azd deploy'. 

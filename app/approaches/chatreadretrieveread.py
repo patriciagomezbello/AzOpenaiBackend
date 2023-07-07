@@ -25,12 +25,6 @@ class ChatReadRetrieveReadApproach(Approach):
     global r_dec
     r_dec = 4
 
-    # if ENVIRONMENT == "remote":
-    #     logger = logging.getLogger(__name__)
-    #     logger.addHandler(AzureLogHandler())
-    # else:
-    #     logger = ""
-
     # initialize empty config variables to satisfy linter
     main_prefix, sources_prefix, end_postfix, keyword_prefix, chat_history_prefix, question_prefix, question_postfix = "", "", "", "", "", "", ""
 
@@ -162,23 +156,32 @@ class ChatReadRetrieveReadApproach(Approach):
 
         chat_time = round(time.perf_counter() - start_chat, r_dec)
 
-        properties = {"custom_dimensions": {
-                          "usedTokens": usedTokens,
-                          "full_chat_time": chat_time, 
-                          "keyword_opt_time": keyword_request_time,
-                          "embedding_time": embedding_request_time,
-                          "search_time": cog_search_request_time,
-                          "main_req_time": main_llm_req_time
-                          }
-                        }
+        # define logs for applicationinsights
+        log_values = {
+            "search_type": overrides.get("retrieval_mode"),
+            "full_chat_time": chat_time, 
+            "keyword_opt_time": keyword_request_time,
+            "embedding_time": embedding_request_time,
+            "search_time": cog_search_request_time,
+            "main_req_time": main_llm_req_time
+            }
         
-        #TODO: fix logging for local and remote setup
-        #if ENVIRONMENT == "remote":
-        # Use properties in logging statements
-        #logger.warning('action', extra=properties)
+        # add dynamically all used tokens
+        for key, value in usedTokens.items():
+            log_values[key] = value
 
-        print(properties)
+        # add to properties for usage in logger
+        properties = {"custom_dimensions": log_values}
 
+        #TODO: implement .env (not pushed to gitlab) logic for the logs 
+        # logger = logging.getLogger(__name__)
+        # logger.addHandler(AzureLogHandler('put in connectionstring here')
+        # logger.warning('chat_request', extra=properties)
+
+        # if ENVIRONMENT != "remote":
+        #     print(log_values)
+
+        print(log_values)
         return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
     
     def get_chat_history_as_text(self, history, include_last_turn=True, approx_max_tokens=1000) -> str:
