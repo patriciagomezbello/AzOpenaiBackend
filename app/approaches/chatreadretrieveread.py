@@ -23,13 +23,13 @@ class ChatReadRetrieveReadApproach(Approach):
     #TODO: implement try except finally for have logging also in case of timeouts
 
     global r_dec
-    r_dec = 3
+    r_dec = 4
 
-    if ENVIRONMENT == "remote":
-        logger = logging.getLogger(__name__)
-        logger.addHandler(AzureLogHandler())
-    else:
-        logger = ""
+    # if ENVIRONMENT == "remote":
+    #     logger = logging.getLogger(__name__)
+    #     logger.addHandler(AzureLogHandler())
+    # else:
+    #     logger = ""
 
     # initialize empty config variables to satisfy linter
     main_prefix, sources_prefix, end_postfix, keyword_prefix, chat_history_prefix, question_prefix, question_postfix = "", "", "", "", "", "", ""
@@ -106,6 +106,7 @@ class ChatReadRetrieveReadApproach(Approach):
 
         else:
             query_vector = None
+            embedding_request_time = 0
 
         # Only keep the text query if the retrieval mode uses text, otherwise drop it
         if overrides.get("retrieval_mode") == "vectors":
@@ -165,7 +166,7 @@ class ChatReadRetrieveReadApproach(Approach):
                           "usedTokens": usedTokens,
                           "full_chat_time": chat_time, 
                           "keyword_opt_time": keyword_request_time,
-                          "embedding_time": embedding_request_time or 0,
+                          "embedding_time": embedding_request_time,
                           "search_time": cog_search_request_time,
                           "main_req_time": main_llm_req_time
                           }
