@@ -1,6 +1,7 @@
 stages: # List of stages for jobs, and their order of execution
   - test      
   - all
+  - code
   - infrastructure
   - data
 
@@ -31,6 +32,17 @@ all-job:
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
     - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - azd up
+  when: manual
+
+code-job:  
+  tags:
+    - azure-dev01-docker
+     # This job runs in the build stage, which runs first.
+  stage: code
+  script:
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+    - azd deploy
   when: manual
 
 infrastructure-job:
