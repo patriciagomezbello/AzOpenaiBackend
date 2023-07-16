@@ -9,6 +9,7 @@ from text import nonewlines
 from approaches.token import addTokenCount
 import logging
 from opencensus.ext.azure.log_exporter import AzureLogHandler
+from approaches.extractCitedSources import extractCitedSources
 
 global ENVIRONMENT
 ENVIRONMENT = os.environ.get("SERVER_ENVIRONMENT") or "remote"
@@ -182,7 +183,10 @@ class ChatReadRetrieveReadApproach(Approach):
         #     print(log_values)
 
         print(log_values)
-        return {"data_points": results, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
+        
+        # get list of citatiuons in text and provide it as text seperated by a new line
+        citationList = extractCitedSources(completion.choices[0].text)
+        return {"data_points": citationList, "answer": completion.choices[0].text, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
     
     def get_chat_history_as_text(self, history, include_last_turn=True, approx_max_tokens=1000) -> str:
         history_text = ""
