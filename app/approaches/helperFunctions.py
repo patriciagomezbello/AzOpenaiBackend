@@ -57,10 +57,9 @@ def getCitationObject(text):
                 pageNum = int(page.group(1)) + 1  # real page numbers start with 1, whereas indexing starts with 0
             else:
                 pageNum = None  # If no page number is found, set pageNum to None
-            
-            
+
             # Append a new dictionary (map) to the citationObject list containing the relevant information
-            citationObject.append({"positionInText": i, "docName": docName, "Page": pageNum})
+            citationObject.append({"positionInText": i + 1, "docName": re.sub(r'-\d+', '', docName), "Page": pageNum})
     
     # Return the list of citationObjects
     return citationObject

@@ -1,11 +1,10 @@
 import openai
-import json
 import time
 from azure.search.documents import SearchClient
 from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
-from approaches.helperFunctions import addTokenCount, extractCitedSources, num_tokens, replaceCitations
+from approaches.helperFunctions import addTokenCount, getCitationObject, num_tokens, replaceCitations
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 
 # Chat-read-retrieve-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
@@ -14,20 +13,54 @@ from opencensus.ext.azure.log_exporter import AzureLogHandler
 
 class ChatReadRetrieveReadApproach(Approach):
 
-    # initialize empty config variables to satisfy linter
-    main_prefix, sources_prefix, end_postfix, keyword_prefix, chat_history_prefix, question_prefix, question_postfix = "", "", "", "", "", "", ""
+    # # initialize empty config variables to satisfy linter
+    # main_prefix, sources_prefix, end_postfix, keyword_prefix, chat_history_prefix, question_prefix, question_postfix = "", "", "", "", "", "", ""
 
-    # Load the JSON config file for the context
-    with open('./context.json', 'r') as f:
-        data = json.load(f)
+    # # Load the JSON config file for the context
+    # with open('./context.json', 'r') as f:
+    #     data = json.load(f)
 
-    # Create variables from the keys and values in the JSON object to establish the context
-    for key, value in data.items():
-        globals()[key] = value
+    # # Create variables from the keys and values in the JSON object to establish the context
+    # for key, value in data.items():
+    #     globals()[key] = value
 
-    # initialize string with fixed context variables in f"" string and formatable string in brackets only
-    prompt_prefix = f"{main_prefix}\n" + "{injected_prompt}\n" + f"{sources_prefix}\n" + "{sources}\n" +f"{end_postfix}"+ "{chat_history}"
-    query_prompt_template = f"{keyword_prefix}\n{chat_history_prefix}\n" + "{chat_history}\n" +f"{question_prefix}\n" + "{question}\n" + f"{question_postfix}"
+    # # initialize string with fixed context variables in f"" string and formatable string in brackets only
+    # prompt_prefix = f"{main_prefix}\n" + "{injected_prompt}\n" + f"{sources_prefix}\n" + "{sources}\n" +f"{end_postfix}"+ "{chat_history}"
+    # query_prompt_template = f"{keyword_prefix}\n{chat_history_prefix}\n" + "{chat_history}\n" +f"{question_prefix}\n" + "{question}\n" + f"{question_postfix}"
+    
+    # TODO: Fix loading json or python file context
+    # TODO: implement and evaluate changes from ms repository, as vector search was merged
+    
+    prompt_prefix = """<|im_start|>system
+Assistant helps the company employees with their human-resources questions. Be brief and precise in your response. 
+Answer only with the facts listed in the list of sources below and if it is realted to human resource topics. If there isn't enough information below or questions to other topics, say you don't know. Do not generate answers not related to the sources below.
+In case of ambiguity questions ask clarifying questions. 
+Each source has a name followed by a colon and the actual information. Always include the source name for each fact you use in the response.
+Use square brackts to reference the source and list each source separately e.g. [info1.pdf][info2.pdf]. Don't list sources in case you haven't find any information in the sources or of questions that are not related to human resource topics."
+{injected_prompt}
+Sources:
+{sources}
+<|im_end|>
+{chat_history}
+"""
+
+
+    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about human resources questions.
+    Generate a search query based on the conversation and the new question. 
+    Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
+    Do not include any superscript numbers in the search query terms.
+    If the question is not in English, translate the question to English before generating the search query.
+
+Chat History:
+{chat_history}
+
+Question:
+{question}
+
+Search query:
+"""
+
+
 
     # init function for the extended approach class for crrr
     def __init__(self, search_client: SearchClient, chatgpt_deployment: str, gpt_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
@@ -72,7 +105,7 @@ class ChatReadRetrieveReadApproach(Approach):
                 completion = openai.Completion.create(
                     engine=self.chatgpt_deployment, 
                     prompt=prompt, 
-                    temperature=5, 
+                    temperature=0.0, 
                     max_tokens=32, 
                     n=1, 
                     stop=["\n"])
@@ -262,7 +295,7 @@ class ChatReadRetrieveReadApproach(Approach):
             return -1
         
         # Extract sources with specific information to be used by potential frontend for single pages and full document usage
-        citationList = extractCitedSources(completion.choices[0].text)
+        citationList = getCitationObject(completion.choices[0].text)
         
         # Replace Citations by bracket sources for better readability in frontend, can be replaced together with data_points
         citatedAnswer = replaceCitations(completion.choices[0].text)
