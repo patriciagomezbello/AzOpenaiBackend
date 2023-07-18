@@ -3,8 +3,11 @@ import mimetypes
 import time
 import logging
 import openai
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from azure.identity import DefaultAzureCredential
 from azure.search.documents import SearchClient
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
@@ -66,42 +69,49 @@ chat_approaches = {
         )
 }
 
-app = Flask(__name__)
+app = FastAPI()
 
-#for local development, this is needed, in the .azure/ENV/.env a SERVER_ENVIRONMENT needs to have "local"
 if ENVIRONMENT == "local":
-    CORS(app)
+    print('local env cors')
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-@app.route("/", defaults={"path": "index.html"})
-@app.route("/<path:path>")
-def static_file(path):
+
+@app.get("/{path:path}", response_class=HTMLResponse)
+async def static_file(path: str):
     return app.send_static_file(path)
 
-# Serve content files from blob storage from within the app to keep the example self-contained. 
-# *** NOTE *** this assumes that the content files are public, or at least that all users of the app
-# can access all the files. This is also slow and memory hungry.
-@app.route("/content/<path>")
-def content_file(path):
+@app.get("/content/{path:path}", response_class=HTMLResponse)
+async def content_file(path: str):
     blob = blob_container.get_blob_client(path).download_blob()
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return blob.readall(), 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
-    
+    return HTMLResponse(blob.readall(), headers={"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"})
 
-@app.route("/chat", methods=["POST"])
-def chat():
+@app.post("/chat", response_class=JSONResponse)
+async def chat(request: Request):
     ensure_openai_token()
-    approach = request.json["approach"]
+    json_body = await request.json()
+    approach = json_body["approach"]
     try:
         impl = chat_approaches.get(approach)
         if not impl:
-            return jsonify({"error": "unknown approach"}), 400
-        r = impl.run(request.json["history"], request.json.get("overrides") or {})
-        return jsonify(r)
+            return JSONResponse({"error": "unknown approach"}, status_code=400)
+        r = impl.run(json_body["history"], json_body.get("overrides") or {})
+        if r != -1:
+            return JSONResponse(r)
+        else:
+            return JSONResponse({"error": "error"}, status_code=500)
+    
     except Exception as e:
         logging.exception("Exception in /chat")
-        return jsonify({"error": str(e)}), 500
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 def ensure_openai_token():
     global openai_token
@@ -110,4 +120,4 @@ def ensure_openai_token():
         openai.api_key = openai_token.token
     
 if __name__ == "__main__":
-    app.run()
+    uvicorn.run(app, host="127.0.0.1", port=5000)
