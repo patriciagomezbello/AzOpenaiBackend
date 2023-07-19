@@ -82,7 +82,7 @@ def content_file(path):
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return blob.readall(), 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
+    return blob.readall(), 200, {"Content-Type": mime_type, "content-disposition": f"inline; filename={path}"}
     
 
 @app.route("/chat", methods=["POST"])
