@@ -12,7 +12,7 @@ from azure.storage.blob import BlobServiceClient
 
 # Replace these with your own values, either in environment variables or directly here
 AZURE_STORAGE_ACCOUNT = os.environ.get("AZURE_STORAGE_ACCOUNT") or "mystorageaccount"
-AZURE_STORAGE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER") or "content"
+AZURE_STORAGE_CONTAINER_DOCS = os.environ.get("AZURE_STORAGE_CONTAINER_DOCS") or "docs"
 AZURE_SEARCH_SERVICE = os.environ.get("AZURE_SEARCH_SERVICE") or "gptkb"
 AZURE_SEARCH_INDEX = os.environ.get("AZURE_SEARCH_INDEX") or "gptkbindex"
 AZURE_OPENAI_SERVICE = os.environ.get("AZURE_OPENAI_SERVICE") or "myopenai"
@@ -50,7 +50,7 @@ search_client = SearchClient(
 blob_client = BlobServiceClient(
     account_url=f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net", 
     credential=azure_credential)
-blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
+blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER_DOCS)
 
 # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
 # or some derivative, here we include several for exploration purposes
@@ -72,10 +72,6 @@ app = Flask(__name__)
 if ENVIRONMENT == "local":
     CORS(app)
 
-@app.route("/", defaults={"path": "index.html"})
-@app.route("/<path:path>")
-def static_file(path):
-    return app.send_static_file(path)
 
 # Serve content files from blob storage from within the app to keep the example self-contained. 
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
@@ -86,7 +82,7 @@ def content_file(path):
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return blob.readall(), 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
+    return blob.readall(), 200, {"Content-Type": mime_type, "content-disposition": f"inline; filename={path}"}
     
 
 @app.route("/chat", methods=["POST"])
@@ -97,8 +93,12 @@ def chat():
         impl = chat_approaches.get(approach)
         if not impl:
             return jsonify({"error": "unknown approach"}), 400
-        r = impl.run(request.json["history"], request.json.get("overrides") or {})
-        return jsonify(r)
+        else:
+            
+            r = impl.run(request.json["history"], request.json.get("overrides") or {})
+            if r == -1:
+                return jsonify({"error": "error"}), 500
+            return jsonify(r)
     except Exception as e:
         logging.exception("Exception in /chat")
         return jsonify({"error": str(e)}), 500
