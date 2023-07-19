@@ -3,10 +3,8 @@ import mimetypes
 import time
 import logging
 import openai
-import uvicorn
-from fastapi import FastAPI, Request, HTTPException,Response
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 from azure.identity import DefaultAzureCredential
 from azure.search.documents import SearchClient
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
@@ -14,7 +12,7 @@ from azure.storage.blob import BlobServiceClient
 
 # Replace these with your own values, either in environment variables or directly here
 AZURE_STORAGE_ACCOUNT = os.environ.get("AZURE_STORAGE_ACCOUNT") or "mystorageaccount"
-AZURE_STORAGE_CONTAINER_DOCS = os.environ.get("AZURE_STORAGE_CONTAINER_DOCS") or "docs"
+AZURE_STORAGE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER") or "content"
 AZURE_SEARCH_SERVICE = os.environ.get("AZURE_SEARCH_SERVICE") or "gptkb"
 AZURE_SEARCH_INDEX = os.environ.get("AZURE_SEARCH_INDEX") or "gptkbindex"
 AZURE_OPENAI_SERVICE = os.environ.get("AZURE_OPENAI_SERVICE") or "myopenai"
@@ -52,7 +50,7 @@ search_client = SearchClient(
 blob_client = BlobServiceClient(
     account_url=f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net", 
     credential=azure_credential)
-blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER_DOCS)
+blob_container = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
 
 # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
 # or some derivative, here we include several for exploration purposes
@@ -68,46 +66,41 @@ chat_approaches = {
         )
 }
 
-app = FastAPI()
+app = Flask(__name__)
 
+#for local development, this is needed, in the .azure/ENV/.env a SERVER_ENVIRONMENT needs to have "local"
 if ENVIRONMENT == "local":
-    print('local env cors')
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    CORS(app)
 
 
-
-@app.get("/content/{path:path}", response_class=HTMLResponse)
-async def content_file(path: str):
+# Serve content files from blob storage from within the app to keep the example self-contained. 
+# *** NOTE *** this assumes that the content files are public, or at least that all users of the app
+# can access all the files. This is also slow and memory hungry.
+@app.route("/content/<path>")
+def content_file(path):
     blob = blob_container.get_blob_client(path).download_blob()
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
-    return HTMLResponse(blob.readall(), headers={"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"})
+    return blob.readall(), 200, {"Content-Type": mime_type, "Content-Disposition": f"inline; filename={path}"}
+    
 
-@app.post("/chat", response_class=JSONResponse)
-async def chat(request: Request):
+@app.route("/chat", methods=["POST"])
+def chat():
     ensure_openai_token()
-    json_body = await request.json()
-    approach = json_body["approach"]
+    approach = request.json["approach"]
     try:
         impl = chat_approaches.get(approach)
         if not impl:
-            return JSONResponse({"error": "unknown approach"}, status_code=400)
-        r = impl.run(json_body["history"], json_body.get("overrides") or {})
-        if r != -1:
-            return JSONResponse(r)
+            return jsonify({"error": "unknown approach"}), 400
+        if r == -1:
+            return jsonify({"error": "error"}), 500
         else:
-            return JSONResponse({"error": "error"}, status_code=500)
-    
+            r = impl.run(request.json["history"], request.json.get("overrides") or {})
+            return jsonify(r)
     except Exception as e:
         logging.exception("Exception in /chat")
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return jsonify({"error": str(e)}), 500
 
 def ensure_openai_token():
     global openai_token
@@ -116,4 +109,4 @@ def ensure_openai_token():
         openai.api_key = openai_token.token
     
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=5000)
+    app.run()

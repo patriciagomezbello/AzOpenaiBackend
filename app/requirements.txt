@@ -1,7 +1,7 @@
 azure-identity==1.13.0b3
+Flask==2.3.2
+Flask-Cors==4.0.0
 langchain==0.0.208
-uvicorn==0.23.1
-fastapi==0.100.0
 openai==0.27.8
 --extra-index-url https://pkgs.dev.azure.com/azure-sdk/public/_packaging/azure-sdk-for-python/pypi/simple/
 azure-search-documents==11.4.0a20230509004
@@ -9,4 +9,3 @@ azure-storage-blob==12.14.1
 urllib3==1.26.6
 tiktoken==0.4.0
 opencensus-ext-azure
-
