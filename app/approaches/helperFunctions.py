@@ -59,7 +59,7 @@ def getCitationObject(text):
                 pageNum = None  # If no page number is found, set pageNum to None
 
             # Append a new dictionary (map) to the citationObject list containing the relevant information
-            citationObject.append({"positionInText": i + 1, "docName": re.sub(r'-\d+', '', docName), "Page": pageNum})
+            citationObject.append({"positionInText": i + 1, "docName": re.sub(r'-\d+.pdf', '.pdf', docName), "Page": pageNum})
     
     # Return the list of citationObjects
     return citationObject
