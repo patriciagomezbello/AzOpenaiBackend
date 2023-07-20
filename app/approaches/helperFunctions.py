@@ -4,7 +4,6 @@ import tiktoken
 available_encodings = ["p50k_base", "cl100k_base", "r50k_base"]
 available_models    = ["gpt-4", "gpt-35-turbo", "text-embedding-ada-002", "davinci"]
 
-
 def num_tokens(string: str, encoding_name: str) -> int:
     """Returns the number of tokens in a text string."""
     if encoding_name in available_models:
