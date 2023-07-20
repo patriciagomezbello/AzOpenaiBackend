@@ -4,6 +4,18 @@
 - Currently in development state, no final branch or feature structure yet
 - forked from Microsoft Azure Sample Repository (https://github.com/Azure-Samples/azure-search-openai-demo/tree/main) and adjusted (by using the vector branch, adding logs, extracting prompt and cleaning up unnecessary components)
 
+
+## Current Structure
+
+- */app* contains the python backend app
+	-  */approaches* contains the approaches (currently only one)
+		* chatreadretrieveread.py contains the backend process for the /chat api
+		* helperfunctions.py contains functions that are used in the approaches (for logging, handling sources in responses etc.)
+	- app.py contains the flask code that exposes the /chat and /content/{path} api for potential frontends
+	- context.py contains the context of the backend, that is given to chatgpt, how to act etc.)
+	- requirements.txt contains the python packages for the backend
+
+
 ## How to run and use locally?
 
 this works in bash and powershell, required are Python 3.10 or higher, azd and az cli

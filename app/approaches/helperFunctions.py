@@ -44,20 +44,18 @@ def filter_duplicates(list_of_dicts):
 def getCitationObject(text):
     # Initialize an empty list to store citation objects
     citationObject = []
-    print(text)
     # Define a regular expression pattern to match citations within square brackets
     pattern = r'\[(.*?)\]'
     # Find all matching citations in the text using the pattern
     citationResults = re.findall(pattern, text)
     
-    print(citationResults)
     # Check if there are any citation results found in the text
     if len(citationResults) > 0:
         # Define a regular expression pattern to extract the page number from the document name
         getPagePattern = r"-([0-9]+)(?:-\d)?\."
         
         # Loop through the citations found in the text
-        for i, docName in enumerate(citationResults):
+        for docName in enumerate(citationResults):
             # Extract the page number from the document name using the getPagePattern
             page = re.search(getPagePattern, docName)
             
@@ -110,5 +108,4 @@ def replaceCitations(text, sources):
                 source_mapping[key] = source_num
             # Replace the source with the number
             text = text.replace("[{}]".format(source), "[{}]".format(source_num))
-            print(text)
     return text
