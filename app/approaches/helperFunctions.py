@@ -55,8 +55,10 @@ def getCitationObject(text):
         getPagePattern = r"-([0-9]+)(?:-\d)?\."
         
         # Loop through the citations found in the text
-        for docName in enumerate(citationResults):
+        # the "i" must stay !!!!!
+        for i, docName in enumerate(citationResults):
             # Extract the page number from the document name using the getPagePattern
+
             page = re.search(getPagePattern, docName)
             
             # If a valid page number is found, convert it to an integer and add 1
