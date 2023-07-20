@@ -31,17 +31,27 @@ def extractCitedSources(text):
     citationResults = re.findall(pattern, text)
     return citationResults
 
+def filter_duplicates(list_of_dicts):
+    unique_values = set()
+    filtered_list = []
+    for d in list_of_dicts:
+        if (d['docName'], d['page']) not in unique_values:
+            unique_values.add((d['docName'], d['page']))
+            filtered_list.append(d)
+    return filtered_list
+
 # Define a function to extract citation information from a given text
 # In this function, getCitationObject takes a text input and extracts citation information, creating a list of dictionaries containing information about each citation, such as its position in the text, URL, and associated page number.
 def getCitationObject(text):
     # Initialize an empty list to store citation objects
     citationObject = []
-    
+    print(text)
     # Define a regular expression pattern to match citations within square brackets
     pattern = r'\[(.*?)\]'
     # Find all matching citations in the text using the pattern
     citationResults = re.findall(pattern, text)
     
+    print(citationResults)
     # Check if there are any citation results found in the text
     if len(citationResults) > 0:
         # Define a regular expression pattern to extract the page number from the document name
@@ -59,21 +69,47 @@ def getCitationObject(text):
                 pageNum = None  # If no page number is found, set pageNum to None
 
             # Append a new dictionary (map) to the citationObject list containing the relevant information
-            citationObject.append({"positionInText": i + 1, "docName": re.sub(r'-\d+.pdf', '.pdf', docName), "Page": pageNum})
-    
+            citationObject.append({"docName": re.sub(r'-\d+.pdf', '.pdf', docName), "page": pageNum})
+
+
+    f_citationObject = filter_duplicates(citationObject)
     # Return the list of citationObjects
-    return citationObject
+    return f_citationObject
 
 import re
 
-def replaceCitations(text):
-    # Initialize source_count by zero (starts still at 1)
-    source_count = 0
+def replaceCitations(text, sources):
+# A dictionary to store the source mappings
+    source_mapping = {}
 
-    # subfunction that does replacement based on regex
-    def replace(match):
-        nonlocal source_count
-        source_count += 1
-        return "[{}]".format(source_count)
-    
-    return re.sub(r'\[(.*?)\]', replace, text)
+# A counter to generate unique replacement numbers
+    num = 1
+
+    # Loop through the sources in the text
+    for source in re.findall(r'\[(.*?)\]', text):
+        # Extract the docName and page from the source string
+        docName = re.sub(r'-\d+.pdf', '.pdf', source)
+
+        match1 = re.search(r'(?:.*-)(\d+)\.pdf', source)
+
+        if match1:
+            page = int(match1.group(1)) + 1
+        else:
+            page = 0
+
+        # Look for a matching source in the list
+        match = next((x for x in sources if x["docName"] == docName and x["page"] == int(page)), None)
+
+        # If there's a match, add it to the mapping
+        if match:
+            key = (match["docName"], match["page"])
+            if key in source_mapping:
+                source_num = source_mapping[key]
+            else:
+                source_num = num
+                num += 1
+                source_mapping[key] = source_num
+            # Replace the source with the number
+            text = text.replace("[{}]".format(source), "[{}]".format(source_num))
+            print(text)
+    return text

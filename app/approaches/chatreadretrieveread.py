@@ -298,7 +298,7 @@ Search query:
         citationList = getCitationObject(completion.choices[0].text)
         
         # Replace Citations by bracket sources for better readability in frontend, can be replaced together with data_points
-        citatedAnswer = replaceCitations(completion.choices[0].text)
+        citatedAnswer = replaceCitations(completion.choices[0].text, citationList)
 
         return {"data_points": citationList, "answer": citatedAnswer, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
     
