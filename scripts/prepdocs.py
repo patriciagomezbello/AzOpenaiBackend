@@ -20,6 +20,8 @@ from azure.search.documents import SearchClient
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from md2pdf.core import md2pdf
 
+#TODO: check new ms version and adjust
+
 
 MAX_SECTION_LENGTH = 1000
 SENTENCE_SEARCH_LIMIT = 100
