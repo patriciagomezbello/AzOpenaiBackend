@@ -1,35 +1,53 @@
 import openai
 import time
+from typing import Any, Sequence
 from azure.search.documents import SearchClient
 from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
-from approaches.helperFunctions import addTokenCount, getCitationObject, num_tokens, replaceCitations
-from opencensus.ext.azure.log_exporter import AzureLogHandler
-from context import prompt_prefix, query_prompt_template
+from core.helperFunctions import addTokenCount, getCitationObject, replaceCitations
+from core.messagebuilder import MessageBuilder
+from core.modelhelper import get_token_limit, num_tokens_from_messages
+#from opencensus.ext.azure.log_exporter import AzureLogHandler
+from context import system_message_chat_conversation, query_prompt_template
 
 # Chat-read-retrieve-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
 # top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion 
 # (answer) with that prompt.
 
 class ChatReadRetrieveReadApproach(Approach):
-    # TODO: implement and evaluate changes from ms repository, as vector search was merged
+    # Chat roles
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
     
-    prompt_prefix = prompt_prefix
+    system_message_chat_conversation = system_message_chat_conversation
     query_prompt_template = query_prompt_template
 
     # init function for the extended approach class for crrr
-    def __init__(self, search_client: SearchClient, chatgpt_deployment: str, gpt_deployment: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
+    def __init__(self, search_client: SearchClient, chatgpt_deployment: str, chatgpt_model: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
         self.search_client = search_client
         self.chatgpt_deployment = chatgpt_deployment
-        self.gpt_deployment = gpt_deployment
+        self.chatgpt_model = chatgpt_model
         self.embedding_deployment = embedding_deployment
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
-    
+        self.chatgpt_token_limit = get_token_limit(chatgpt_model)
+
     # executable function that is connected to the chat api -> receives and responds like chatgpt but with enterprise data‚
-    def run(self, history: list[dict], overrides: dict) -> any:
+    def run(self, history: Sequence[dict[str, str]], overrides: dict[str, Any]) -> Any:
         
+        #initialize overrides
+        has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
+        has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
+        use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
+        top = overrides.get("top") or 3
+        exclude_category = overrides.get("exclude_category") or None
+        filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
+
+        user_q = 'Generate search query for: ' + history[-1]["user"]
+
+
         # start logging full request time
         start_chat = time.perf_counter()
         
@@ -41,39 +59,48 @@ class ChatReadRetrieveReadApproach(Approach):
 
         # initialize logging times as zero for error handling
         chat_time, keyword_request_time, embedding_request_time, cog_search_request_time, main_llm_req_time = 0,0,0,0,0
-        
-        use_semantic_captions = True if overrides.get("semantic_captions") else False
-        top = overrides.get("top") or 3
-        exclude_category = overrides.get("exclude_category") or None
-        filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
+        # initialize usedTokens for logging
         usedTokens: dict = {}
-
         try:
+
             # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
-            prompt = self.query_prompt_template.format(chat_history=self.get_chat_history_as_text(history, include_last_turn=False), question=history[-1]["user"])
-            
+            messages = self.get_messages_from_history(
+            self.query_prompt_template,
+            self.chatgpt_model,
+            history,
+            user_q,
+            self.chatgpt_token_limit - len(user_q)
+            )
             # start timing request
             start_keyword = time.perf_counter()
 
             try: 
                 # completion request to openAI
-                completion = openai.Completion.create(
-                    engine=self.chatgpt_deployment, 
-                    prompt=prompt, 
+
+                print(messages)
+
+                chat_completion = openai.ChatCompletion.create(
+                    deployment_id=self.chatgpt_deployment,
+                    model=self.chatgpt_model,
+                    messages=messages, 
                     temperature=0.0, 
                     max_tokens=32, 
-                    n=1, 
-                    stop=["\n"])
-                query_text = completion.choices[0].text
+                    n=1)
+                
+                query_text = chat_completion.choices[0].message.content
 
-                addTokenCount(usedTokens, completion)
+                if query_text.strip() == "0":
+                    query_text = history[-1]["user"] # Use the last user input if we failed to generate a better query
+
+                addTokenCount(usedTokens, chat_completion)
 
             except Exception as e:
+                print(e)
                 raise Exception({
                     'exception': e.args[0], 
                     'info': {
-                        'tokens': num_tokens(prompt, 'cl100k_base')
+                        'tokens': num_tokens_from_messages(messages, self.chatgpt_model)
                     }
                     })
 
@@ -82,8 +109,9 @@ class ChatReadRetrieveReadApproach(Approach):
 
 
             # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
+
             # If retrieval mode includes vectors, compute an embedding for the query
-            if overrides.get("retrieval_mode") in ["vectors", "hybrid", None]:
+            if has_vector:
                 
                 start_embedding = time.perf_counter()
 
@@ -99,7 +127,7 @@ class ChatReadRetrieveReadApproach(Approach):
                     raise Exception({
                         'exception': e.args[0], 
                         'info': {
-                            'tokens': num_tokens(query_text, 'text-embedding-ada-002')
+                            'tokens': num_tokens_from_messages(query_text, 'text-embedding-ada-002')
                             }})
 
                 embedding_request_time = round(time.perf_counter() - start_embedding, r_dec)
@@ -108,12 +136,12 @@ class ChatReadRetrieveReadApproach(Approach):
                 query_vector = None
 
             # Only keep the text query if the retrieval mode uses text, otherwise drop it
-            if overrides.get("retrieval_mode") == "vectors":
+            if not has_text:
                 query_text = None
 
             start_cog_search = time.perf_counter()
 
-            if overrides.get("semantic_ranker"):
+            if overrides.get("semantic_ranker") and has_text:
                 try:
                     r = self.search_client.search(
                         query_text, 
@@ -124,7 +152,9 @@ class ChatReadRetrieveReadApproach(Approach):
                         semantic_configuration_name="default", 
                         top=top, 
                         query_caption="extractive|highlight-false" if use_semantic_captions else None,
-                        vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+                        vector=query_vector,
+                        top_k=50 if query_vector else None,
+                        vector_fields="embedding" if query_vector else None)
                     
                 except Exception as e: 
                     raise Exception({
@@ -140,7 +170,9 @@ class ChatReadRetrieveReadApproach(Approach):
                         query_text, 
                         filter=filter, 
                         top=top, 
-                        vector=Vector(value=query_vector, k=50, fields="embedding") if query_vector else None)
+                        vector=query_vector,
+                        top_k=50 if query_vector else None, 
+                        vector_fields="embedding" if query_vector else None)
                     
                 except Exception as e: 
                     raise Exception({
@@ -161,45 +193,40 @@ class ChatReadRetrieveReadApproach(Approach):
 
             
             # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
-            prompt_override = overrides.get("prompt_template")
-
-            if prompt_override is None or prompt_override == "":
-                prompt = self.prompt_prefix.format(
-                    injected_prompt="", 
-                    sources=content, 
-                    chat_history=self.get_chat_history_as_text(history)
-                    )
+            # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
+            prompt_override = overrides.get("prompt_override")
+            if prompt_override is None:
+                system_message = self.system_message_chat_conversation.format(injected_prompt="")
             elif prompt_override.startswith(">>>"):
-                prompt = self.prompt_prefix.format(
-                    injected_prompt=prompt_override[3:] + "\n", 
-                    sources=content, 
-                    chat_history=self.get_chat_history_as_text(history)
-                    )
-            else:
-                prompt = prompt_override.format(
-                    sources=content, 
-                    chat_history=self.get_chat_history_as_text(history)
-                    )
+                system_message = self.system_message_chat_conversation.format(injected_prompt=prompt_override[3:] + "\n")
 
             # STEP 3: Generate a contextual and content specific answer using the search results and chat history
             main_llm_req_start = time.perf_counter()
 
             try:
-                completion = openai.Completion.create(
-                    engine=self.chatgpt_deployment, 
-                    prompt=prompt, 
+
+                messages = self.get_messages_from_history(
+                    system_message + "\n\nSources:\n" + content,
+                    self.chatgpt_model,
+                    history,
+                    history[-1]["user"],
+                    max_tokens=self.chatgpt_token_limit)
+
+                chat_completion = openai.ChatCompletion.create(
+                    deployment_id=self.chatgpt_deployment,
+                    model=self.chatgpt_model,
+                    messages=messages, 
                     temperature=overrides.get("temperature") or 0.7, 
                     max_tokens=1024, 
-                    n=1, 
-                    stop=["<|im_end|>", "<|im_start|>"])
+                    n=1)
                 
-                addTokenCount(usedTokens, completion)
+                addTokenCount(usedTokens, chat_completion)
 
             except Exception as e: 
                     raise Exception({
                         'exception': e.args[0],
                         'info': {
-                            'prompt': num_tokens(prompt, 'cl100k_base'), 
+                            'prompt': num_tokens_from_messages(messages, self.chatgpt_model), 
                             'query_text': query_text
                             }})
             
@@ -248,17 +275,34 @@ class ChatReadRetrieveReadApproach(Approach):
             return -1
         
         # Extract sources with specific information to be used by potential frontend for single pages and full document usage
-        citationList = getCitationObject(completion.choices[0].text)
+
+        chat_content = chat_completion.choices[0].message.content
+
+        msg_to_display = '\n\n'.join([str(message) for message in messages])
+
+        citationList = getCitationObject(chat_content)
         
         # Replace Citations by bracket sources for better readability in frontend, can be replaced together with data_points
-        citatedAnswer = replaceCitations(completion.choices[0].text, citationList)
+        citatedAnswer = replaceCitations(chat_content, citationList)
 
-        return {"data_points": citationList, "answer": citatedAnswer, "thoughts": f"Searched for:<br>{query_text}<br><br>Prompt:<br>" + prompt.replace('\n', '<br>')}
+        print(citatedAnswer)
+
+        return {"data_points": citationList, "answer": citatedAnswer, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
     
-    def get_chat_history_as_text(self, history, include_last_turn=True, approx_max_tokens=1000) -> str:
-        history_text = ""
-        for h in reversed(history if include_last_turn else history[:-1]):
-            history_text = """<|im_start|>user""" +"\n" + h["user"] + "\n" + """<|im_end|>""" + "\n" + """<|im_start|>assistant""" + "\n" + (h.get("bot") + """<|im_end|>""" if h.get("bot") else "") + "\n" + history_text
-            if len(history_text) > approx_max_tokens*4:
-                break    
-        return history_text
+    def get_messages_from_history(self, system_prompt: str, model_id: str, history: Sequence[dict[str, str]], user_conv: str, max_tokens: int = 4096):
+        message_builder = MessageBuilder(system_prompt, model_id)
+
+        user_content = user_conv
+
+        message_builder.append_message(self.USER, user_content)
+
+        for h in reversed(history[:-1]):
+            if h.get("bot"):
+                message_builder.append_message(self.ASSISTANT, h.get('bot'))
+            message_builder.append_message(self.USER, h.get('user'))
+            if message_builder.token_length > max_tokens:
+                break
+        
+        messages = message_builder.messages
+        print(messages)
+        return messages
