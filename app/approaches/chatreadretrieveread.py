@@ -78,8 +78,6 @@ class ChatReadRetrieveReadApproach(Approach):
             try: 
                 # completion request to openAI
 
-                print(messages)
-
                 chat_completion = openai.ChatCompletion.create(
                     deployment_id=self.chatgpt_deployment,
                     model=self.chatgpt_model,
@@ -96,7 +94,6 @@ class ChatReadRetrieveReadApproach(Approach):
                 addTokenCount(usedTokens, chat_completion)
 
             except Exception as e:
-                print(e)
                 raise Exception({
                     'exception': e.args[0], 
                     'info': {
@@ -238,7 +235,6 @@ class ChatReadRetrieveReadApproach(Approach):
         except Exception as e:
             exc = True
             errorMessage = e.args[0]
-            print(e)
 
         # define logs for applicationinsights
         log_values = {
@@ -281,13 +277,8 @@ class ChatReadRetrieveReadApproach(Approach):
         msg_to_display = '\n\n'.join([str(message) for message in messages])
 
         citationList = getCitationObject(chat_content)
-        
-        # Replace Citations by bracket sources for better readability in frontend, can be replaced together with data_points
-        citatedAnswer = replaceCitations(chat_content, citationList)
 
-        print(citatedAnswer)
-
-        return {"data_points": citationList, "answer": citatedAnswer, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
+        return {"data_points": citationList, "answer": chat_content, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
     
     def get_messages_from_history(self, system_prompt: str, model_id: str, history: Sequence[dict[str, str]], user_conv: str, max_tokens: int = 4096):
         message_builder = MessageBuilder(system_prompt, model_id)
@@ -304,5 +295,4 @@ class ChatReadRetrieveReadApproach(Approach):
                 break
         
         messages = message_builder.messages
-        print(messages)
         return messages

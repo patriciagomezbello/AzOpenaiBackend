@@ -63,11 +63,9 @@ def getCitationObject(text):
     # Return the list of citationObjects
     return f_citationObject
 
-import re
 
 def replaceCitations(text, sources):
 
-    print(f'vorher: {text}')
 # A dictionary to store the source mappings
     source_mapping = {}
 
