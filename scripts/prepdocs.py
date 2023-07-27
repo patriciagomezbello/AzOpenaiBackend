@@ -7,8 +7,6 @@ import io
 import re
 import time
 import hashlib
-import markdown2
-import pdfkit
 import openai
 from pypdf import PdfReader, PdfWriter
 from azure.identity import AzureDeveloperCliCredential
