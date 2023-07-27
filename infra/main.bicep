@@ -37,13 +37,18 @@ param formRecognizerResourceGroupLocation string = location
 
 param formRecognizerSkuName string = 'S0'
 
-param gptDeploymentName string = 'davinci'
+param gptDeploymentName string // Set in main.parameters.json
+param gptDeploymentCapacity int = 30
 param gptModelName string = 'text-davinci-003'
-param chatGptDeploymentName string = 'chat'
+param chatGptDeploymentName string // Set in main.parameters.json
+param chatGptDeploymentCapacity int = 119
 param chatGptModelName string = 'gpt-35-turbo'
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
+
+@description('Creates User Roles for current principal. Set to true if deploying as User.')
+param userRolesCreation bool = false
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -131,9 +136,11 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
           name: gptModelName
           version: '1'
         }
-        scaleSettings: {
-          scaleType: 'Standard'
+        sku: {
+          name: 'Standard'
+          capacity: gptDeploymentCapacity
         }
+        
       }
       {
         name: chatGptDeploymentName
@@ -142,8 +149,9 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
           name: chatGptModelName
           version: '0301'
         }
-        scaleSettings: {
-          scaleType: 'Standard'
+        sku: {
+          name: 'Standard'
+          capacity: chatGptDeploymentCapacity
         }
       }
     ]
@@ -208,68 +216,78 @@ module storage 'core/storage/storage-account.bicep' = {
 }
 
 // USER ROLES
-module openAiRoleUser 'core/security/role.bicep' = {
+module openAiRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
   scope: openAiResourceGroup
   name: 'openai-role-user'
   params: {
     principalId: principalId
     roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
-    principalType: 'User'
+    principalType: 'ServicePrincipal'
   }
 }
 
-module formRecognizerRoleUser 'core/security/role.bicep' = {
+module formRecognizerRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
   scope: formRecognizerResourceGroup
   name: 'formrecognizer-role-user'
   params: {
     principalId: principalId
     roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-    principalType: 'User'
+    principalType: 'ServicePrincipal'
   }
 }
 
-module storageRoleUser 'core/security/role.bicep' = {
+module storageRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
   scope: storageResourceGroup
   name: 'storage-role-user'
   params: {
     principalId: principalId
     roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-    principalType: 'User'
+    principalType: 'ServicePrincipal'
   }
 }
 
-module storageContribRoleUser 'core/security/role.bicep' = {
+module storageContribRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
   scope: storageResourceGroup
   name: 'storage-contribrole-user'
   params: {
     principalId: principalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-    principalType: 'User'
+    principalType: 'ServicePrincipal'
   }
 }
 
-module searchRoleUser 'core/security/role.bicep' = {
+module searchRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
   scope: searchServiceResourceGroup
   name: 'search-role-user'
   params: {
     principalId: principalId
     roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
-    principalType: 'User'
+    principalType: 'ServicePrincipal'
   }
 }
 
-module searchContribRoleUser 'core/security/role.bicep' = {
+module searchContribRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
   scope: searchServiceResourceGroup
   name: 'search-contrib-role-user'
   params: {
     principalId: principalId
     roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
-    principalType: 'User'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+module searchSvcContribRoleUser 'core/security/role.bicep' = if (userRolesCreation) {
+  scope: searchServiceResourceGroup
+  name: 'search-svccontrib-role-user'
+  params: {
+    principalId: principalId
+    roleDefinitionId: '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
+    principalType: 'ServicePrincipal'
   }
 }
 
 // SYSTEM IDENTITIES
-module openAiRoleBackend 'core/security/role.bicep' = {
+module openAiRoleBackend 'core/security/role.bicep' =  {
   scope: openAiResourceGroup
   name: 'openai-role-backend'
   params: {
