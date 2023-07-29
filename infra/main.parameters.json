@@ -50,8 +50,8 @@
     "gptDeploymentName": {
       "value": "${AZURE_OPENAI_GPT_DEPLOYMENT=davinci}"
     },
-    "userRolesCreation": {
-      "value": "${USER_ROLES_CREATION}"
+    "userRolesPrincipalType": {
+      "value": "${CURRENT_PRINCIPAL_TYPE=User}"
     }
   }
 }
