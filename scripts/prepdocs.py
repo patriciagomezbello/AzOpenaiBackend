@@ -290,7 +290,6 @@ def create_sections(filename, page_map):
 
         # Increase the total token count by the number of tokens in the current section's embedding
         sumToken += emb['usage']['total_tokens']
-        print(sumToken)
 
         # If total tokens reach more than embTokenLimitPerMinute and elapsedTime is greater than 60 seconds (1 min)
         if sumToken > embTokenLimitPerMinute and elapsedTime > 60:
@@ -300,8 +299,7 @@ def create_sections(filename, page_map):
             # Reset the sumToken count to 0 and update startTime
             sumToken = 0
             startTime = time.time()
-            print(sumToken)
-
+            
         # Yield the section with its id, content, embedding, category, sourcepage, and sourcefile
         yield {
             "id": re.sub("[^0-9a-zA-Z_-]","_",f"{filename}-{i}"),
