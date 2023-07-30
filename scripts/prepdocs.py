@@ -25,6 +25,8 @@ MAX_SECTION_LENGTH = 1100
 SENTENCE_SEARCH_LIMIT = 100
 SECTION_OVERLAP = 100
 
+embTokenLimitPerMinute = 120000
+
 parser = argparse.ArgumentParser(
     description="Prepare documents by extracting content from PDFs, splitting content into sections, uploading to blob storage, and indexing in a search index.",
     epilog="Example: prepdocs.py '..\data\*' --storageaccount myaccount --container mycontainer --searchservice mysearch --index myindex -v"
@@ -265,11 +267,46 @@ def split_text(page_map):
         
 
 def create_sections(filename, page_map):
+    # This function creates text sections from input provided in filename and page_map. 
+    # It utilizes OpenAI API to create embeddings for each section and yields the section and its metadata, 
+    # such as content, embedding, category, source page, and source file. It also checks for token limits (100,000 tokens) 
+    # and a cool-down period (60 seconds) to manage OpenAI API usage more efficiently.
+    
+    # Get the current time as startTime
+    startTime = time.time()
+
+    # Initialize sumToken variable to store the total token count in the text
+    sumToken = 0
+
+    # Loop through each section and its corresponding page number by enumerating the split_text function output
     for i, (section, pagenum) in enumerate(split_text(page_map)):
+        
+        # Create an embedding for the section using the OpenAI API
+        emb = openai.Embedding.create(engine=args.openaideployment, input=section)
+
+        # Get the current time and compute the elapsed time since startTime
+        currentTime = time.time()
+        elapsedTime = startTime - currentTime
+
+        # Increase the total token count by the number of tokens in the current section's embedding
+        sumToken += emb['usage']['total_tokens']
+        print(sumToken)
+
+        # If total tokens reach more than embTokenLimitPerMinute and elapsedTime is greater than 60 seconds (1 min)
+        if sumToken > embTokenLimitPerMinute and elapsedTime > 60:
+            # Sleep for 20 seconds
+            time.sleep(20)
+
+            # Reset the sumToken count to 0 and update startTime
+            sumToken = 0
+            startTime = time.time()
+            print(sumToken)
+
+        # Yield the section with its id, content, embedding, category, sourcepage, and sourcefile
         yield {
             "id": re.sub("[^0-9a-zA-Z_-]","_",f"{filename}-{i}"),
             "content": section,
-            "embedding": openai.Embedding.create(engine=args.openaideployment, input=section)["data"][0]["embedding"],
+            "embedding": emb["data"][0]["embedding"],
             "category": args.category,
             "sourcepage": blob_name_from_file_page(filename, pagenum),
             "sourcefile": filename
@@ -422,8 +459,9 @@ else:
                     sections = create_sections(os.path.basename(filename), page_map)
                     index_sections(os.path.basename(filename), sections)
                     overview[0] += 1
-                except:
+                except Exception as e:
                     print("something went wrong, clearing up state now")
+                    print("Error:", e)
                     remove_blobs(filename)
                     remove_blobs_docs(filename)
                     remove_from_index(filename)
@@ -439,8 +477,9 @@ else:
                 sections = create_sections(os.path.basename(filename), page_map)
                 index_sections(os.path.basename(filename), sections)
                 overview[1] += 1
-            except:
+            except Exception as e:
                 print("something went wrong, clearing up state now")
+                print("Error:", e)
                 remove_blobs(filename)
                 remove_blobs_docs(filename)
                 remove_from_index(filename)
@@ -461,7 +500,8 @@ else:
                 remove_blobs_docs(filename)
                 remove_from_index(filename)
                 overview[2] += 1
-            except:
+            except Exception as e:
                 print("something went wrong with the deletion of files, please contact the Azure Team")
+                print("Error:", e)
                 break
     print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
