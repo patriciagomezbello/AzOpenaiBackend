@@ -25,7 +25,7 @@ MAX_SECTION_LENGTH = 1100
 SENTENCE_SEARCH_LIMIT = 100
 SECTION_OVERLAP = 100
 
-embTokenLimitPerMinute = 120000
+embTokenLimitPerMinute = 80000
 
 parser = argparse.ArgumentParser(
     description="Prepare documents by extracting content from PDFs, splitting content into sections, uploading to blob storage, and indexing in a search index.",
@@ -267,48 +267,35 @@ def split_text(page_map):
         
 
 def create_sections(filename, page_map):
-    # This function creates text sections from input provided in filename and page_map. 
-    # It utilizes OpenAI API to create embeddings for each section and yields the section and its metadata, 
-    # such as content, embedding, category, source page, and source file. It also checks for token limits (100,000 tokens) 
-    # and a cool-down period (60 seconds) to manage OpenAI API usage more efficiently.
-    
-    # Get the current time as startTime
-    startTime = time.time()
-
-    # Initialize sumToken variable to store the total token count in the text
-    sumToken = 0
-
-    # Loop through each section and its corresponding page number by enumerating the split_text function output
+    # Loop through the text and page numbers created by split_text function
     for i, (section, pagenum) in enumerate(split_text(page_map)):
-        
-        # Create an embedding for the section using the OpenAI API
-        emb = openai.Embedding.create(engine=args.openaideployment, input=section)
+        try:
+            # Attempt to create an OpenAI Embedding for the input text section
+            emb = openai.Embedding.create(engine=args.openaideployment, input=section)
+        except Exception as e:
+            # If an exception occurs, print the error message
+            print(e)
+            # Extract any number from the error message
+            number = re.search(r'\d+', str(e))
+            # Convert the number to integer, if not found, default to 10 seconds
+            secondsToWait = int(number.group()) if number else 10
+            # Print the wait time
+            print(f"Waiting now for {secondsToWait} seconds")
+            # Wait for the specified time before trying again
+            time.sleep(secondsToWait)
+            # Retry creating the OpenAI Embedding for the input section
+            emb = openai.Embedding.create(engine=args.openaideployment, input=section)
 
-        # Get the current time and compute the elapsed time since startTime
-        currentTime = time.time()
-        elapsedTime = startTime - currentTime
-
-        # Increase the total token count by the number of tokens in the current section's embedding
-        sumToken += emb['usage']['total_tokens']
-
-        # If total tokens reach more than embTokenLimitPerMinute and elapsedTime is greater than 60 seconds (1 min)
-        if sumToken > embTokenLimitPerMinute and elapsedTime > 60:
-            # Sleep for 20 seconds
-            time.sleep(20)
-
-            # Reset the sumToken count to 0 and update startTime
-            sumToken = 0
-            startTime = time.time()
-            
-        # Yield the section with its id, content, embedding, category, sourcepage, and sourcefile
+        # Return a dictionary with the processed section details, like id, content, embedding, etc.
         yield {
-            "id": re.sub("[^0-9a-zA-Z_-]","_",f"{filename}-{i}"),
+            "id": re.sub("[^0-9a-zA-Z_-]", "_", f"{filename}-{i}"),
             "content": section,
             "embedding": emb["data"][0]["embedding"],
             "category": args.category,
             "sourcepage": blob_name_from_file_page(filename, pagenum),
             "sourcefile": filename
         }
+        
 
 def create_search_index():
     if args.verbose: print(f"Ensuring search index {args.index} exists")
