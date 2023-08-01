@@ -1,4 +1,4 @@
-import os
+import os, sys
 import platform
 import argparse
 import glob
@@ -384,6 +384,25 @@ def invalidFileName(string):
     if re.search(pattern, string):
         return True
     return False
+
+
+def delete_non_pdf_files(files):
+    for filename in files:
+        if not filename.endswith(".pdf"):
+            try:
+                file = os.path.dirname(args.files) + '/' + filename 
+                os.remove(file)
+                print(f"Deleted: {file}")
+            except FileNotFoundError:
+                print(f"File not found: {file}")
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
+                sys.exit(99)
+                
+
+# delete on pdf files from the data directory first
+
+delete_non_pdf_files(os.listdir(os.path.dirname(args.files)))
 
 # handle data2convert folder to get a unique approach only using pdf files
 
