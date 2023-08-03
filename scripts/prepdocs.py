@@ -8,6 +8,10 @@ import re
 import time
 import hashlib
 import openai
+import pdfkit
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from PIL import Image
 from pypdf import PdfReader, PdfWriter
 from azure.identity import AzureDeveloperCliCredential
 from azure.core.credentials import AzureKeyCredential
@@ -408,13 +412,44 @@ delete_non_pdf_files(os.listdir(os.path.dirname(args.files)))
 
 for filename in glob.glob(args.files2convert):
     file = os.path.splitext(filename)
-
+    target = f"./data/{(file[0].split('/')[2])}.pdf"
+    
+    # handle markdown
     if file[1] == ".md":
-        md2pdf(f"./data/{(file[0].split('/')[2])}.pdf",
+        md2pdf(target,
         md_content=None,
         md_file_path=filename,
         css_file_path=None,
         base_url=None)
+
+    # handle html
+    elif file[1] == ".html":
+        print(file)
+        print(filename)
+        print(target)
+        pdfkit.from_file(filename, target)
+
+    # handle pictures
+    elif file[1] in [".jpg", ".jpeg", ".png"]:
+        thecanvas = canvas.Canvas(target, pagesize=A4)
+        img = Image.open(filename)
+        img_width, img_height = img.size
+        aspect_ratio = img_width / img_height
+        canvas_width, canvas_height = A4
+        if aspect_ratio > 1:
+            # Bild ist breiter als hoch, Skalierung an der Breite orientieren
+            img_width = canvas_width
+            img_height = int(img_width / aspect_ratio)
+        else:
+            # Bild ist höher als breit, Skalierung an der Höhe orientieren
+            img_height = canvas_height
+            img_width = int(img_height * aspect_ratio)
+        x = (canvas_width - img_width) / 2
+        y = (canvas_height - img_height) / 2
+        thecanvas.drawImage(filename, x, y, width=img_width, height=img_height)
+        # PDF-Dokument speichern
+        thecanvas.save()
+
 
 # here the code execution starts
 if args.removeall:
@@ -435,8 +470,6 @@ else:
     blob_list = docs_container.list_blobs()
 
     overview = [0,0,0]
-
-
 
     # create md5 byte hashes and add them to hashmaps for comparison
     for filename in glob.glob(args.files):

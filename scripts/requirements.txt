@@ -1,11 +1,10 @@
 pypdf==3.11.0
-azure-identity==1.13.0b4
---extra-index-url https://pkgs.dev.azure.com/azure-sdk/public/_packaging/azure-sdk-for-python/pypi/simple/
-azure-search-documents==11.4.0a20230509004
+azure-identity==1.13.0
+azure-search-documents==11.4.0b6
 azure-ai-formrecognizer==3.2.1
 azure-storage-blob==12.14.1
-urllib3==1.26.6
-pycryptodome==3.15.0
 openai[datalib]==0.27.8
-md2pdf
+md2pdf==1.0.1
+pdfkit==1.0.0
+reportlab==4.0.4
 
