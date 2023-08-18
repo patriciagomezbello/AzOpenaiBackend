@@ -17,7 +17,20 @@ from azure.identity import AzureDeveloperCliCredential
 from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient
 from azure.search.documents.indexes import SearchIndexClient
-from azure.search.documents.indexes.models import *
+from azure.search.documents.indexes.models import (
+    HnswParameters,
+    PrioritizedFields,
+    SearchableField,
+    SearchField,
+    SearchFieldDataType,
+    SearchIndex,
+    SemanticConfiguration,
+    SemanticField,
+    SemanticSettings,
+    SimpleField,
+    VectorSearch,
+    VectorSearchAlgorithmConfiguration,
+)
 from azure.search.documents import SearchClient
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from md2pdf.core import md2pdf
@@ -295,7 +308,9 @@ def create_sections(filename, page_map):
             "id": re.sub("[^0-9a-zA-Z_-]", "_", f"{filename}-{i}"),
             "content": section,
             "embedding": emb["data"][0]["embedding"],
+            "doclang": None,
             "category": args.category,
+            "accesskeys": None,
             "sourcepage": blob_name_from_file_page(filename, pagenum),
             "sourcefile": filename
         }
@@ -311,10 +326,12 @@ def create_search_index():
             fields=[
                 SimpleField(name="id", type="Edm.String", key=True),
                 SearchableField(name="content", type="Edm.String", analyzer_name="en.microsoft"),
-                SearchField(name="embedding", type=SearchFieldDataType.Collection(SearchFieldDataType.Single), 
+                SearchField(name="embedding", type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
                             hidden=False, searchable=True, filterable=False, sortable=False, facetable=False,
-                            dimensions=1536, vector_search_configuration="default"),
+                            vector_search_dimensions=1536, vector_search_configuration="default"),
+                SimpleField(name="doclang", type="Edm.String", filterable=True, facetable=True),
                 SimpleField(name="category", type="Edm.String", filterable=True, facetable=True),
+                SimpleField(name="accesskeys", type="Collection(Edm.String)", filterable=True, retrievable=False),
                 SimpleField(name="sourcepage", type="Edm.String", filterable=True, facetable=True),
                 SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True)
             ],
