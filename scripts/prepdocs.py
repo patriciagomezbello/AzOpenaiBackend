@@ -9,6 +9,7 @@ import time
 import hashlib
 import openai
 import pdfkit
+from langdetect import detect
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from PIL import Image
@@ -29,7 +30,7 @@ from azure.search.documents.indexes.models import (
     SemanticSettings,
     SimpleField,
     VectorSearch,
-    VectorSearchAlgorithmConfiguration,
+    VectorSearchAlgorithmConfiguration
 )
 from azure.search.documents import SearchClient
 from azure.ai.formrecognizer import DocumentAnalysisClient
@@ -281,9 +282,16 @@ def split_text(page_map):
             
         if start + SECTION_OVERLAP < end:
             yield (all_text[start:end], p[0])
-        
 
-def create_sections(filename, page_map):
+def detectLang(text, defaultLang='de'):
+    try:
+        ret = detect(text)
+        return ret
+    except Exception as e:
+        print(e)
+        return defaultLang
+        
+def create_sections(filename, page_map, accessKeys):
     # Loop through the text and page numbers created by split_text function
     for i, (section, pagenum) in enumerate(split_text(page_map)):
         try:
@@ -308,9 +316,9 @@ def create_sections(filename, page_map):
             "id": re.sub("[^0-9a-zA-Z_-]", "_", f"{filename}-{i}"),
             "content": section,
             "embedding": emb["data"][0]["embedding"],
-            "doclang": None,
+            "doclang": detectLang(section),
             "category": args.category,
-            "accesskeys": None,
+            "accesskeys": accessKeys,
             "sourcepage": blob_name_from_file_page(filename, pagenum),
             "sourcefile": filename
         }
@@ -331,7 +339,7 @@ def create_search_index():
                             vector_search_dimensions=1536, vector_search_configuration="default"),
                 SimpleField(name="doclang", type="Edm.String", filterable=True, facetable=True),
                 SimpleField(name="category", type="Edm.String", filterable=True, facetable=True),
-                SimpleField(name="accesskeys", type="Collection(Edm.String)", filterable=True, retrievable=False),
+                SimpleField(name="accesskeys", type="Collection(Edm.String)", filterable=True, retrievable=False, Nullable=True ),
                 SimpleField(name="sourcepage", type="Edm.String", filterable=True, facetable=True),
                 SimpleField(name="sourcefile", type="Edm.String", filterable=True, facetable=True)
             ],
@@ -510,7 +518,7 @@ else:
                     upload_blobs(filename)
                     upload_blobs_docs(filename)
                     page_map = get_document_text(filename)
-                    sections = create_sections(os.path.basename(filename), page_map)
+                    sections = create_sections(os.path.basename(filename), page_map, ['All'])
                     index_sections(os.path.basename(filename), sections)
                     overview[0] += 1
                 except Exception as e:
@@ -528,7 +536,7 @@ else:
                 upload_blobs(filename)
                 upload_blobs_docs(filename)
                 page_map = get_document_text(filename)
-                sections = create_sections(os.path.basename(filename), page_map)
+                sections = create_sections(os.path.basename(filename), page_map, ['All'])
                 index_sections(os.path.basename(filename), sections)
                 overview[1] += 1
             except Exception as e:
