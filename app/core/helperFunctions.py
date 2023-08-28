@@ -1,8 +1,17 @@
 import re
 import tiktoken
+from langdetect import detect
 
 available_encodings = ["p50k_base", "cl100k_base", "r50k_base"]
 available_models    = ["gpt-4", "gpt-35-turbo", "text-embedding-ada-002", "davinci"]
+
+def detectLang(text, defaultLang='de'):
+    try:
+        ret = detect(text)
+        return ret
+    except Exception as e:
+        print(e)
+        return defaultLang
 
 def addTokenCount(tokenDict: dict, res: dict):
     """Adds the tokens of a OpenAI Response to a dict"""

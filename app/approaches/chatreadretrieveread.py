@@ -5,7 +5,7 @@ from azure.search.documents import SearchClient
 from azure.search.documents.models import QueryType, Vector
 from approaches.approach import Approach
 from text import nonewlines
-from core.helperFunctions import addTokenCount, getCitationObject, replaceCitations
+from core.helperFunctions import addTokenCount, getCitationObject, detectLang, replaceCitations
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit, num_tokens_from_messages
 #from opencensus.ext.azure.log_exporter import AzureLogHandler
@@ -42,9 +42,22 @@ class ChatReadRetrieveReadApproach(Approach):
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
         top = overrides.get("top") or 3
+        ''' Building the category filter in dependence of the given path >ToDo: must be implemented'''
         exclude_category = overrides.get("exclude_category") or None
-        filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
-
+        category_filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
+        ''' Building the language filter accordig to the language in the user prompt and in dependence of multilingual_search setting (True|False)'''
+        supported_languages = [{'iso': 'en', 'name': 'English'},{'iso': 'de','name': 'German'}]
+        default_lang = {'iso': 'de','name': 'German'}
+        user_prompt_lang = detectLang(history[-1]["user"])
+        lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
+        lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
+        system_message_noidea = 'Entschuldigung, ich weiss darüber nichts' if lang == 'de' else 'Sorry, I dont know'
+        ''' Multilngual search is the default. It is prior because it handles english text and german language in screen shots better '''
+        multilingual_search = overrides.get("multilingual_search") or True
+        lang_filter = "doclang eq '{}'".format(lang) if (multilingual_search is None or multilingual_search is False) else ''
+        
+        filter = lang_filter + (' and ' + category_filter if category_filter else '')
+        print("Using Filter :" + filter)
         user_q = 'Generate search query for: ' + history[-1]["user"]
 
 
@@ -66,7 +79,7 @@ class ChatReadRetrieveReadApproach(Approach):
 
             # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
             messages = self.get_messages_from_history(
-            self.query_prompt_template,
+            self.query_prompt_template.format(language=lang_name),
             self.chatgpt_model,
             history,
             user_q,
@@ -144,7 +157,7 @@ class ChatReadRetrieveReadApproach(Approach):
                         query_text, 
                         filter=filter,
                         query_type=QueryType.SEMANTIC, 
-                        query_language= overrides.get("language") or "en-us", 
+                        query_language= "en-us" if multilingual_search == True or lang == "en" else "de-de", 
                         query_speller="lexicon", 
                         semantic_configuration_name="default", 
                         top=top, 
@@ -187,13 +200,12 @@ class ChatReadRetrieveReadApproach(Approach):
             else:
                 results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) for doc in r]
             content = "\n".join(results)
-
             
             # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
             # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
             prompt_override = overrides.get("prompt_override")
             if prompt_override is None:
-                system_message = self.system_message_chat_conversation.format(injected_prompt="")
+                system_message = self.system_message_chat_conversation.format(noidea=system_message_noidea, injected_prompt="")
             elif prompt_override.startswith(">>>"):
                 system_message = self.system_message_chat_conversation.format(injected_prompt=prompt_override[3:] + "\n")
 
