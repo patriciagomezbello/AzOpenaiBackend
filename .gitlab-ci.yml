@@ -6,7 +6,6 @@ stages: # List of stages for jobs, and their order of execution
   - data
 image: alzdns.azurecr.io/azd-deploy:latest
 
-#test
 include:
   - template: Security/SAST.gitlab-ci.yml
     rules:
@@ -32,6 +31,7 @@ default:
 
 all-job:  
   stage: all
+  script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
     - azd up
