@@ -38,7 +38,8 @@ test-job:
   stage: testpipeline
   script:
     - bash ./deploy/set_env.sh
-  when: manual
+    - echo $ENVIRONMENT
+    - cat $ENVIRONMENT
 
 all-job:  
   tags:

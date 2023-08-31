@@ -6,6 +6,7 @@
 CI_VARIABLE_NAME="ENVIRONMENT"
 
 echo $ENVIRONMENT
+cat $ENVIRONMENT
 
 # # Get current value of the CI/CD variable
 # current_value=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
