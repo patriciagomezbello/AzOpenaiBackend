@@ -26,12 +26,12 @@ echo '{"infra":{"parameters":{"openAiResourceGroupLocation": "'"$OpenAILocation"
 sed -i 's/$OpenAILocation/'"$OpenAILocation"'/g' config.json
 cat config.json
 
-# navigate back
-cd ../../
-
 # Copy .env to environment
 cp $ENVIRONMENT .env
 cat .env
+
+# navigate back
+cd ../../
 
 # Copy context.py to core
 cp $CONTEXT app/backend/core/context.py
