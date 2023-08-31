@@ -2,6 +2,7 @@
 
 # ignore .azure folder
 .azure/
+/.azure
 
 # ignore data folders
 data/
