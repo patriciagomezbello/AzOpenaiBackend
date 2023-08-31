@@ -23,7 +23,7 @@ if [[ "$current_env" != "$current_value" ]]; then
   curl --request PUT --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
     --header "Content-Type: application/json" \
     --data "$JSON_PAYLOAD" \
-    "https://gitlab.example.com/api/v4/projects/$CI_PROJECT_ID/variables/$CI_VARIABLE_NAME"
+    "https://gitlab.devops.telekom.de/api/v4/projects/$CI_PROJECT_ID/variables/$CI_VARIABLE_NAME"
 
   echo "CI/CD variable '$CI_VARIABLE_NAME' has been updated with the new value: $new_value"
 else
