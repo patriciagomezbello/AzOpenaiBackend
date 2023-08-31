@@ -2,10 +2,10 @@
 
 name: azure-search-openai-backend
 metadata:
-  template: azure-search-openai-backend@0.0.1-alpha
+  template: azure-search-openai-demo@0.0.2-beta
 services:
   backend:
-    project: ./app
+    project: ./app/backend
     language: py
     host: appservice
 hooks:

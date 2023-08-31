@@ -9,9 +9,13 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
+param authClient string
+
 param appServicePlanName string = ''
 param backendServiceName string = ''
 param resourceGroupName string = ''
+
+param applicationInsightsName string = ''
 
 param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
@@ -24,10 +28,18 @@ param storageAccountName string = ''
 param storageResourceGroupName string = ''
 param storageResourceGroupLocation string = location
 param storageContainerName string = 'content'
+param storageContainerNameDocs string = 'docs'
 
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
-param openAiResourceGroupLocation string = location
+@description('Location for the OpenAI resource group')
+@allowed(['westeurope', 'francecentral'])
+@metadata({
+  azd: {
+    type: 'location'
+  }
+})
+param openAiResourceGroupLocation string
 
 param openAiSkuName string = 'S0'
 
@@ -37,22 +49,19 @@ param formRecognizerResourceGroupLocation string = location
 
 param formRecognizerSkuName string = 'S0'
 
-param gptDeploymentName string // Set in main.parameters.json
-param gptDeploymentCapacity int = 30
-param gptModelName string = 'text-davinci-003'
 param chatGptDeploymentName string // Set in main.parameters.json
-param chatGptDeploymentCapacity int = 119
+param chatGptDeploymentCapacity int = 60
 param chatGptModelName string = 'gpt-35-turbo'
+param chatGptModelVersion string = '0613'
+param embeddingDeploymentName string = 'text-embedding-ada-002'
+param embeddingDeploymentCapacity int = 120
+param embeddingModelName string = 'text-embedding-ada-002'
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
-@description('Type of security principal running the deployment. Enables using ServicePrincipal for deployment via CI/CD etc.')
-@allowed([
-  'User'
-  'ServicePrincipal'
-])
-param userRolesPrincipalType string
+@description('Use Application Insights for monitoring and performance tracing')
+param useApplicationInsights bool = false
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -81,6 +90,17 @@ resource storageResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' ex
   name: !empty(storageResourceGroupName) ? storageResourceGroupName : resourceGroup.name
 }
 
+// Monitor application with Azure Monitor
+module monitoring './core/monitor/monitoring.bicep' = if (useApplicationInsights) {
+  name: 'monitoring'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
+  }
+}
+
 // Create an App Service Plan to group applications under the same payment plan and SKU
 module appServicePlan 'core/host/appserviceplan.bicep' = {
   name: 'appserviceplan'
@@ -97,7 +117,7 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
   }
 }
 
-// The application frontend
+// The application backend
 module backend 'core/host/appservice.bicep' = {
   name: 'web'
   scope: resourceGroup
@@ -107,17 +127,23 @@ module backend 'core/host/appservice.bicep' = {
     tags: union(tags, { 'azd-service-name': 'backend' })
     appServicePlanId: appServicePlan.outputs.id
     runtimeName: 'python'
-    runtimeVersion: '3.10'
+    runtimeVersion: '3.11'
+    appCommandLine: 'python3 -m gunicorn main:app'
     scmDoBuildDuringDeployment: true
     managedIdentity: true
+    clientId: authClient
+    tenantId: tenant().tenantId
     appSettings: {
       AZURE_STORAGE_ACCOUNT: storage.outputs.name
       AZURE_STORAGE_CONTAINER: storageContainerName
+      AZURE_STORAGE_CONTAINER_DOCS: storageContainerNameDocs
       AZURE_OPENAI_SERVICE: openAi.outputs.name
       AZURE_SEARCH_INDEX: searchIndexName
       AZURE_SEARCH_SERVICE: searchService.outputs.name
-      AZURE_OPENAI_GPT_DEPLOYMENT: gptDeploymentName
       AZURE_OPENAI_CHATGPT_DEPLOYMENT: chatGptDeploymentName
+      AZURE_OPENAI_CHATGPT_MODEL: chatGptModelName
+      AZURE_OPENAI_EMB_DEPLOYMENT: embeddingDeploymentName
+      APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights ? monitoring.outputs.applicationInsightsConnectionString : ''
     }
   }
 }
@@ -134,29 +160,25 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
     }
     deployments: [
       {
-        name: gptDeploymentName
-        model: {
-          format: 'OpenAI'
-          name: gptModelName
-          version: '1'
-        }
-        sku: {
-          name: 'Standard'
-          capacity: gptDeploymentCapacity
-        }
-        
-      }
-      {
         name: chatGptDeploymentName
         model: {
           format: 'OpenAI'
           name: chatGptModelName
-          version: '0301'
+          version: chatGptModelVersion
         }
         sku: {
           name: 'Standard'
           capacity: chatGptDeploymentCapacity
         }
+      }
+      {
+        name: embeddingDeploymentName
+        model: {
+          format: 'OpenAI'
+          name: embeddingModelName
+          version: '2'
+        }
+        capacity: embeddingDeploymentCapacity
       }
     ]
   }
@@ -226,7 +248,7 @@ module openAiRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -236,7 +258,7 @@ module formRecognizerRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -246,7 +268,7 @@ module storageRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -256,7 +278,7 @@ module storageContribRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -266,7 +288,7 @@ module searchRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -276,7 +298,7 @@ module searchContribRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -286,7 +308,7 @@ module searchSvcContribRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
-    principalType: userRolesPrincipalType
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -327,8 +349,9 @@ output AZURE_RESOURCE_GROUP string = resourceGroup.name
 
 output AZURE_OPENAI_SERVICE string = openAi.outputs.name
 output AZURE_OPENAI_RESOURCE_GROUP string = openAiResourceGroup.name
-output AZURE_OPENAI_GPT_DEPLOYMENT string = gptDeploymentName
 output AZURE_OPENAI_CHATGPT_DEPLOYMENT string = chatGptDeploymentName
+output AZURE_OPENAI_CHATGPT_MODEL string = chatGptModelName
+output AZURE_OPENAI_EMB_DEPLOYMENT string = embeddingDeploymentName
 
 output AZURE_FORMRECOGNIZER_SERVICE string = formRecognizer.outputs.name
 output AZURE_FORMRECOGNIZER_RESOURCE_GROUP string = formRecognizerResourceGroup.name

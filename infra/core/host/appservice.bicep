@@ -20,7 +20,7 @@ param runtimeVersion string
 param kind string = 'app,linux'
 
 // Microsoft.Web/sites/config
-param allowedOrigins array = []
+param allowedOrigins array = ['http://localhost:5173', 'https://green-coast-0e6ebe703.3.azurestaticapps.net']
 param alwaysOn bool = true
 param appCommandLine string = ''
 param appSettings object = {}
@@ -34,6 +34,8 @@ param scmDoBuildDuringDeployment bool = false
 param use32BitWorkerProcess bool = false
 param ftpsState string = 'FtpsOnly'
 param healthCheckPath string = ''
+param clientId string = ''
+param tenantId string = ''
 
 resource appService 'Microsoft.Web/sites@2022-03-01' = {
   name: name
@@ -49,11 +51,12 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       appCommandLine: appCommandLine
       numberOfWorkers: numberOfWorkers != -1 ? numberOfWorkers : null
       minimumElasticInstanceCount: minimumElasticInstanceCount != -1 ? minimumElasticInstanceCount : null
+      minTlsVersion: '1.2'
       use32BitWorkerProcess: use32BitWorkerProcess
       functionAppScaleLimit: functionAppScaleLimit != -1 ? functionAppScaleLimit : null
       healthCheckPath: healthCheckPath
       cors: {
-        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com', 'http://localhost:5173', 'https://green-coast-0e6ebe703.3.azurestaticapps.net' ], allowedOrigins)
+        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com'], allowedOrigins)
       }
     }
     clientAffinityEnabled: clientAffinityEnabled
@@ -62,6 +65,34 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
 
   identity: { type: managedIdentity ? 'SystemAssigned' : 'None' }
 
+  // auth config
+  resource authSettings 'config' = {
+    name: 'authsettingsV2'
+    properties: {
+      globalValidation:{
+        requireAuthentication: true
+        unauthenticatedClientAction: 'Return401'
+      }
+      identityProviders:{
+        azureActiveDirectory:{
+          enabled: true
+          registration:{
+            clientId: clientId
+            openIdIssuer: 'https://sts.windows.net/${tenantId}/v2.0'
+          }
+        }
+      }
+      login:{
+        tokenStore: {
+          enabled: true
+        }
+      }
+      platform:{
+        enabled: true
+      }
+    }
+  }
+
   resource configAppSettings 'config' = {
     name: 'appsettings'
     properties: union(appSettings,
@@ -69,6 +100,7 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
         SCM_DO_BUILD_DURING_DEPLOYMENT: string(scmDoBuildDuringDeployment)
         ENABLE_ORYX_BUILD: string(enableOryxBuild)
       },
+      runtimeName == 'python' ? { PYTHON_ENABLE_GUNICORN_MULTIWORKERS: 'true'} : {},
       !empty(applicationInsightsName) ? { APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString } : {},
       !empty(keyVaultName) ? { AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri } : {})
   }
@@ -85,6 +117,8 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       configAppSettings
     ]
   }
+
+  
 }
 
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = if (!(empty(keyVaultName))) {

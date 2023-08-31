@@ -1,4 +1,13 @@
-# Azure az webapp deployment details
+# Azure azd ignore
+
+# ignore .azure folder
+.azure/
+
+# ignore data folders
+data/
+data2convert/
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -8,7 +17,8 @@ __pycache__/
 # C extensions
 *.so
 
-app/backend_env/
+app/backend/backend_env/
+app/backend/core/context.py
 
 # Distribution / packaging
 .Python
