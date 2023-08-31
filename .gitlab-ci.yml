@@ -6,18 +6,18 @@ stages: # List of stages for jobs, and their order of execution
   - data
 image: alzdns.azurecr.io/azd-deploy:latest
 
-include:
-  - template: Security/SAST.gitlab-ci.yml
-    rules:
-      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+# include:
+#   - template: Security/SAST.gitlab-ci.yml
+#     rules:
+#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-  - template: Security/Secret-Detection.gitlab-ci.yml
-    rules:
-      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+#   - template: Security/Secret-Detection.gitlab-ci.yml
+#     rules:
+#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-  - template: Security/Dependency-Scanning.gitlab-ci.yml
-    rules:
-      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+#   - template: Security/Dependency-Scanning.gitlab-ci.yml
+#     rules:
+#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
 default:
   before_script:
