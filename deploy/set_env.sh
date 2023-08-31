@@ -20,7 +20,7 @@ if [[ "$current_env" != "$current_value" ]]; then
   JSON_PAYLOAD="{\"value\": \"$current_env\"}"
 
   # Make a POST request to update the variable
-  curl --request PUT --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+  curl --request PUT --header "PRIVATE-TOKEN: $ACCESS_TOKEN" \
     --header "Content-Type: application/json" \
     --data "$JSON_PAYLOAD" \
     "https://gitlab.devops.telekom.de/api/v4/projects/$CI_PROJECT_ID/variables/$CI_VARIABLE_NAME"
