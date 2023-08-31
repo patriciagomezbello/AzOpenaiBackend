@@ -34,7 +34,7 @@ all-job:
   script:
     - bash ./deploy/setup_env.sh
     - azd up
-    - bash ./deploy/set-env.sh
+    - bash ./deploy/set_env.sh
   when: manual
 
 code-job:  
