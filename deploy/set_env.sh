@@ -17,7 +17,7 @@ echo $current_env
 # Check if new value is different from current value
 if [[ "$current_env" != "$current_value" ]]; then
   # Create a JSON payload with the variable value
-  JSON_PAYLOAD="{\"value\": \"$new_value\"}"
+  JSON_PAYLOAD="{\"value\": \"$current_env\"}"
 
   # Make a POST request to update the variable
   curl --request PUT --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
