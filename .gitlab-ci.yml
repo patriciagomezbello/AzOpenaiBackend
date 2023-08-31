@@ -33,7 +33,6 @@ all-job:
   stage: all
   script:
     - bash ./deploy/setup_env.sh
-    - bash ./deploy/setup_data.sh
     - azd up
     - bash ./deploy/set-env.sh
   when: manual
