@@ -38,8 +38,6 @@ test-job:
   stage: testpipeline
   script:
     - bash ./deploy/set_env.sh
-    - echo $ENVIRONMENT
-    - cat $ENVIRONMENT
 
 all-job:  
   tags:
