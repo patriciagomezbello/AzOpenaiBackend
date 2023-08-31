@@ -1,5 +1,5 @@
 stages: # List of stages for jobs, and their order of execution
-  - testpipeline
+  - test
   - all
   - code
   - infrastructure
@@ -7,61 +7,46 @@ stages: # List of stages for jobs, and their order of execution
 
 image: alzdns.azurecr.io/azd-deploy:latest
 
-# for this include to work, either an existing test stage must be in the pipeline (is default, when no -> stages: <- is definded)
-# or the stage simply needs to be added to the stages
-# include:
-#   - template: Security/SAST.gitlab-ci.yml
-#     rules:
-#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+for this include to work, either an existing test stage must be in the pipeline (is default, when no -> stages: <- is definded)
+or the stage simply needs to be added to the stages
+include:
+  - template: Security/SAST.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-#   - template: Security/Secret-Detection.gitlab-ci.yml
-#     rules:
-#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+  - template: Security/Secret-Detection.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-#   - template: Security/Dependency-Scanning.gitlab-ci.yml
-#     rules:
-#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-# default:
-#   before_script:
-#     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-#     - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
-#   after_script:
-#     - az logout
-#     - azd auth logout
+default:
+  before_script:
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+  after_script:
+    - az logout
+    - azd auth logout
 
-
-test-job:  
-  tags:
-    - azure-dev01-docker
-     # This job runs in the build stage, which runs first.
-  stage: testpipeline
-  script:
-    - bash ./deploy/set_env.sh
 
 all-job:  
   tags:
     - azure-dev01-docker
-     # This job runs in the build stage, which runs first.
   stage: all
-  script:
-    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
     - azd up
+    - bash ./deploy/set-env.sh
   when: manual
 
 code-job:  
   tags:
     - azure-dev01-docker
-     # This job runs in the build stage, which runs first.
   stage: code
   script:
-    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - bash ./deploy/setup_env.sh
-    - bash ./deploy/setup_data.sh
     - azd deploy
   when: manual
 
@@ -70,10 +55,9 @@ infrastructure-job:
     - azure-dev01-docker  
   stage: infrastructure   
   script:
-    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - bash ./deploy/setup_env.sh
     - azd provision
+    - bash ./deploy/set_env.sh
   when: manual
 
 data-job:
@@ -81,8 +65,6 @@ data-job:
    - azure-dev01-docker      
   stage: data  
   script:
-    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-    - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
     - ./scripts/prepdocs.sh
