@@ -7,12 +7,12 @@
 
 ## Current Structure
 
-- */app* contains the python backend app
-	-  */approaches* contains the approaches (currently only one)
+- */app/backend* contains the python backend app
+	-  */approaches* contains the approaches (currently only one, but is extendable)
 		* chatreadretrieveread.py contains the backend process for the /chat api
-		* helperfunctions.py contains functions that are used in the approaches (for logging, handling sources in responses etc.)
-	- app.py contains the flask code that exposes the /chat and /content/{path} api for potential frontends
-	- context.py contains the context of the backend, that is given to chatgpt, how to act etc.)
+		* core/*.py contains functions that are used in the approaches (for logging, handling sources in responses etc.)
+	- app.py contains the flask (async version = quart) code that exposes the /chat and /content/{path} api for potential frontends
+	- context.py (is cicd variable) contains the context of the backend, that is given to chatgpt, how to act etc.)
 	- requirements.txt contains the python packages for the backend
 
 
@@ -52,13 +52,8 @@ start python server locally (for development)
 
 ``` bash
 # navigate to the repository folder
-appscripts/start.sh
-```
-with pwsh
-
-``` powershell
-# navigate to the repository folder
-./appscripts/start.ps1
+cd app
+./start.sh
 ```
 
 update data locally (will update real search service)
@@ -69,12 +64,6 @@ update data locally (will update real search service)
 ``` bash
 # navigate to the repository folder
 scripts/prepdocs.sh
-```
-with pwsh
-
-``` powershell
-# navigate to the repository folder
-./scripts/prepdocs.ps1
 ```
 
 ##### testing the api without UI (localhost:5000/chat or 127.0.0.1:5000/chat)
@@ -111,9 +100,10 @@ with pwsh
 
 ``` bash
 # put these 3 lines in .env or ask someone from the team to send you one
-VITE_MODEL_CONFIG={"local": {"enc":"gpt-3.5-turbo-0301","ctoken": 4097,"url": "http://127.0.0.1:5000", "type":"custom", "apiId": "placeholder"}}
+VITE_MODEL_CONFIG={"local": {"enc":"gpt-3.5-turbo-0301","ctoken": 4097,"url": "http://127.0.0.1:5000", "type":"custom", "apiId": "<placeholder>"}}
 VITE_MSAL_CLIENT_ID=client_id for local login and auth against (TODO: allow auth disabling for local usage)
 VITE_MSAL_TENANT_ID=https://login.microsoftonline.com/TENANT_ID
+VITE_APPNAME=T-CHAT
 ```
 
 ``` bash

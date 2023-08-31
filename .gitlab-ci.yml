@@ -22,6 +22,23 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
+# default:
+#   before_script:
+#     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+#     - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+#   after_script:
+#     - az logout
+#     - azd auth logout
+
+
+test-job:  
+  tags:
+    - azure-dev01-docker
+     # This job runs in the build stage, which runs first.
+  stage: testpipeline
+  script:
+    - bash ./deploy/set_env.sh
+  when: manual
 
 all-job:  
   tags:
