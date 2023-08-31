@@ -4,11 +4,9 @@ stages: # List of stages for jobs, and their order of execution
   - code
   - infrastructure
   - data
-
 image: alzdns.azurecr.io/azd-deploy:latest
 
-for this include to work, either an existing test stage must be in the pipeline (is default, when no -> stages: <- is definded)
-or the stage simply needs to be added to the stages
+#test
 include:
   - template: Security/SAST.gitlab-ci.yml
     rules:
@@ -29,11 +27,10 @@ default:
   after_script:
     - az logout
     - azd auth logout
-
-
-all-job:  
   tags:
     - azure-dev01-docker
+
+all-job:  
   stage: all
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
@@ -42,8 +39,6 @@ all-job:
   when: manual
 
 code-job:  
-  tags:
-    - azure-dev01-docker
   stage: code
   script:
     - bash ./deploy/setup_env.sh
@@ -51,8 +46,6 @@ code-job:
   when: manual
 
 infrastructure-job:
-  tags:
-    - azure-dev01-docker  
   stage: infrastructure   
   script:
     - bash ./deploy/setup_env.sh
@@ -61,8 +54,6 @@ infrastructure-job:
   when: manual
 
 data-job:
-  tags:
-   - azure-dev01-docker      
   stage: data  
   script:
     - bash ./deploy/setup_env.sh
