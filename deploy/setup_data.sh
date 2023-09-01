@@ -20,6 +20,9 @@ cd ..
 
 ls
 
+./scripts/prepdocs.sh
+
+echo "deleting data ..."
 # Remove the cloned repository
 rm -rf data_repo
 

@@ -69,5 +69,4 @@ data-job:
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
-  # - ./scripts/prepdocs.sh
   when: manual
