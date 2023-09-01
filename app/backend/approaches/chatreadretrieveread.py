@@ -1,5 +1,7 @@
 from typing import Any
 import time
+import json 
+import os
 
 import openai
 from azure.search.documents.aio import SearchClient
@@ -7,7 +9,7 @@ from azure.search.documents.models import QueryType
 
 from approaches.approach import ChatApproach
 from core.messagebuilder import MessageBuilder
-from core.modelhelper import get_token_limit, num_tokens_from_messages,addTokenCount, getCitationObject, detectLang
+from core.modelhelper import get_token_limit, num_tokens_from_messages,addTokenCount, getCitationObject, detectLang, getLang, translateText
 from text import nonewlines
 
 from core.context import system_message_chat_conversation, query_prompt_template

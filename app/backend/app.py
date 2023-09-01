@@ -102,7 +102,6 @@ async def setup_clients():
     AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT")
     AZURE_OPENAI_CHATGPT_MODEL = os.getenv("AZURE_OPENAI_CHATGPT_MODEL")
     AZURE_OPENAI_EMB_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMB_DEPLOYMENT")
-    AZURE_SEARCH_API_KEY = os.getenv("AZURE_SEARCH_API_KEY")
 
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
@@ -114,9 +113,6 @@ async def setup_clients():
     # If you encounter a blocking error during a DefaultAzureCredential resolution, you can exclude the problematic credential by using a parameter (ex. exclude_shared_token_cache_credential=True)
     azure_credential = DefaultAzureCredential(exclude_shared_token_cache_credential = True)
     
-    # Find out which document languages are present and which is the most common to set it later as a defult language in the environment
-    facets_results = cgsIndexColumnFacetDist(AZURE_SEARCH_SERVICE, AZURE_SEARCH_API_KEY, AZURE_SEARCH_INDEX, 'doclang' , azure_search_api='2020-06-30')
-    os.environ['FACETS_RESULTS'] = str(facets_results)
 
     # Set up clients for Cognitive Search and Storage
     search_client = SearchClient(
@@ -127,6 +123,11 @@ async def setup_clients():
         account_url=f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net",
         credential=azure_credential)
     blob_container_client = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
+
+    # Find out which document languages are present and which is the most common to set it later as a defult language in the environment
+    facets_results = await cgsIndexColumnFacetDist(search_client,'doclang')
+    os.environ['FACETS_RESULTS'] = str(facets_results)
+    print(facets_results)
 
     # Used by the OpenAI SDK
     openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"

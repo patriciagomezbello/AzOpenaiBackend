@@ -124,44 +124,29 @@ def detectLang(text, defaultLang='de'):
         print(e)
         return defaultLang
 
-def cgsIndexColumnFacetDist(azure_search_service, azure_searchapi_key, azure_search_index,  facets_column , azure_search_api='2020-06-30'):
+async def cgsIndexColumnFacetDist(client, facet):
     
-    endpoint = "https://{AZURE_SEARCH_SERVICE}.search.windows.net".format(AZURE_SEARCH_SERVICE=azure_search_service)
-
-    url = endpoint + '/indexes/{azure_search_index}/docs/search?api-version={api_version}'.format(azure_search_index=azure_search_index, api_version=azure_search_api)
-
-    # Request headers
-    headers = {
-        "Content-Type": "application/json",
-        "api-key": azure_searchapi_key
-    }
-
-    # Request body
-    payload = {
-    "search": "*",
-        "top": 0,
-        "skip": 0,
-        "queryType": "simple",
-        "select": "",
-        "searchFields": "",
-        "filter": "",
-        "facets": [facets_column],
-        "orderby": "",
-        "count": True
-    }
-
-    # Make the POST request
     try:
-        response = requests.post(url, headers=headers, json=payload)
-        results = response.json()['@search.facets'][facets_column]
-        # Print the response
-        print('Facet result: '+ str(results))
-        return results
+        facets_search = await client.search(
+                    top=0,
+                    skip=0,
+                    query_type="simple",
+                    select="",
+                    search_text="*", 
+                    search_fields=[], 
+                    filter="", 
+                    facets=[facet], 
+                    order_by="",
+                    include_total_count=True
+                )
+        res = await facets_search.get_facets()
+        return res[facet]
+        #return res
     except Exception as e:
-        print(response)
         print(e)
         print("setting default to 'de' due to error in facets search query")
         return [{'count': 1, 'value': 'de'}]
+    
 
 
 def getLang(iso_country_code):
@@ -180,6 +165,7 @@ def getLang(iso_country_code):
 
 def translateText(src_txt, src_iso_lang, target_iso_lang):
     try:
+        #TODO: replace with gpt to have one service only
         translated = GoogleTranslator(source=src_iso_lang, target=target_iso_lang).translate(src_txt)
         return(translated)
     except Exception as e:
