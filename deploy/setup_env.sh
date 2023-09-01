@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# extract ENV_NAME from Environment (.env)
+line=$(grep "AZURE_ENV_NAME=" "$ENVIRONMENT")
+
+# Extract the value using cut
+envName=$(echo "$line" | cut -d "=" -f 2)
+envName="${envName%\"}"
+envName="${envName#\"}"
+
 # Create a folder named .azure
 mkdir .azure
 
@@ -28,7 +36,6 @@ cat config.json
 
 # Copy .env to environment
 cp $ENVIRONMENT .env
-cat .env
 
 # navigate back
 cd ../../
@@ -36,6 +43,3 @@ cd ../../
 # Copy context.py to core
 cp $CONTEXT app/backend/core/context.py
 cat app/backend/core/context.py
-
-ls -a
-
