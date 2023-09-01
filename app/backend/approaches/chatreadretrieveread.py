@@ -55,10 +55,11 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             supported_languages.append(getLang(rec['value']))
         print('Supported Languages : ' + str(supported_languages))
         user_prompt_lang = detectLang(history[-1]["user"])
+        user_prompt_lang_name = getLang(user_prompt_lang)
         lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
         lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
         noidea_de_text = 'Tut mir leid, ich weiss das nicht'
-        system_message_noidea = noidea_de_text if lang == 'de' else translateText(noidea_de_text, 'de', user_prompt_lang) if lang != 'de' else "Sorry, I don't know"
+        system_message_noidea = noidea_de_text if lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name['name'],self.chatgpt_deployment) if lang != 'de' else "Sorry, I don't know"
         ''' Multilngual search is the default. It is prior because it handles english text and german language in screen shots better '''
         multilingual_search = overrides.get("multilingual_search") or True
         lang_filter = "doclang eq '{}'".format(lang) if (multilingual_search is None or multilingual_search is False) else ''

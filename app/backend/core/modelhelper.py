@@ -4,7 +4,7 @@ import tiktoken
 import re
 from langdetect import detect
 import requests, pycountry     
-from deep_translator import GoogleTranslator
+import openai
 
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
@@ -163,17 +163,21 @@ def getLang(iso_country_code):
         print('Returning default due to wrong alpha 2 iso code provided')
         return default_lang
 
-def translateText(src_txt, src_iso_lang, target_iso_lang):
-    try:
-        #TODO: replace with gpt to have one service only
-        translated = GoogleTranslator(source=src_iso_lang, target=target_iso_lang).translate(src_txt)
-        return(translated)
-    except Exception as e:
-        print('Error translating text')
-        print(e)
-        return "I'm sorry, I don't know"
 
-
+def translateText(text, target_language, chatgpt_deployment):
+    prompt = f"Translate the following text to {target_language}:\n\n{text}\n\n"
+    messages = [{"role":"system","content":"You are an AI assistant to translate text"},{"role":"user","content":prompt}]
+    response = openai.ChatCompletion.create(
+        engine=chatgpt_deployment,
+        messages = messages,
+        temperature=0.0,
+        max_tokens=800,
+        top_p=0.95,
+        frequency_penalty=0,
+        presence_penalty=0,
+        stop=None)
+    query_text = response.choices[0].message.content
+    return query_text
 
 
 

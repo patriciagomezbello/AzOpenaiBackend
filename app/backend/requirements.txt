@@ -15,4 +15,3 @@ opentelemetry-instrumentation-requests==0.40b0
 opentelemetry-instrumentation-aiohttp-client==0.40b0
 requests==2.31.0
 pycountry==22.3.5
-deep-translator==1.11.4
