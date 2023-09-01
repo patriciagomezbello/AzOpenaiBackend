@@ -24,12 +24,12 @@
 
 ### File Variables 
 
-**Name: ENVIRONMENT**
+- Name: **ENVIRONMENT**
 Environment for deployment, deployment variables
-- AUTH_CLIENT 		-> backend service principal client id
-- ENV_NAME 			-> name of the environment (can be named invidually, needs to be consistent after)
-- SUBSCRIPTION-ID 	-> id of subscription
-- LOCATION 			-> please choose westeurope, everything else will be denied by policy
+AUTH_CLIENT 		-> backend service principal client id
+ENV_NAME 			-> name of the environment (can be named invidually, needs to be consistent after)
+SUBSCRIPTION-ID 	-> id of subscription
+LOCATION 			-> please choose westeurope, everything else will be denied by policy
 ```
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_ENV_NAME="azure-search-openai-dev-env-name"
@@ -38,10 +38,11 @@ AZURE_LOCATION="westeurope"
 ```
 **Important**: This is a minimal setup, more variables can be put into this file to use more existing services
 
-**Name: CONTEXT**
+- Name: **CONTEXT**
 Context for the model to have an adjusted frame for the questions and answers. Python File
-- system_message_chat_conversation -> system message for the model
-- query_prompt_template -> query prompt for using question to retrieve information
+
+system_message_chat_conversation -> system message for the model
+query_prompt_template -> query prompt for using question to retrieve information
 
 ``` python
 
@@ -66,18 +67,18 @@ query_prompt_template = """Below is a history of the conversation so far, and a 
 
 ### Environment Variables (not stored as file, but as variable)
 
-- OpenAILocation 		-> *francecentral* or *westeurope* are supported
-- REPO_URL 				-> gitlab repository url for the data (https://gitlab.devops.telekom.de/red-october/ccoe-data)
-- AZURE_CLIENT_ID 		-> service principal id (sp for deployment)
-- AZURE_CLIENT_SECRET 	-> secret for the service principal
-- AZURE_TENANT_ID		-> tenant id (628242bd-7e70-4aa9-8ee1-72586b4540fe for our use cases)
-- ACCESS_TOKEN			-> for api access, can be created under settings/accesstoken -> api, maintainer and up to 3 months validity
+- **OpenAILocation** 		-> *francecentral* or *westeurope* are supported
+- **REPO_URL** 				-> gitlab repository url for the data (https://gitlab.devops.telekom.de/red-october/ccoe-data)
+- **AZURE_CLIENT_ID** 		-> service principal id (sp for deployment)
+- **AZURE_CLIENT_SECRET** 	-> secret for the service principal
+- **AZURE_TENANT_ID**		-> tenant id (628242bd-7e70-4aa9-8ee1-72586b4540fe for our use cases)
+- **ACCESS_TOKEN**			-> for api access, can be created under settings/accesstoken -> api, maintainer and up to 3 months validity
 
 
 
 ## How to run and use locally?
 
-this works in bash shell, required are Python 3.10 or higher, azd and az cli
+- this works in bash shell, required are Python 3.10 or higher, azd and az cli
 
 ### login 
 
