@@ -39,10 +39,9 @@ AZURE_LOCATION="westeurope"
 **Important**: This is a minimal setup, more variables can be put into this file to use more existing services
 
 - Name: **CONTEXT**
-- - Context for the model to have an adjusted frame for the questions and answers. Python File
-
-- - system_message_chat_conversation -> system message for the model
-- - query_prompt_template -> query prompt for using question to retrieve information
+	- Context for the model to have an adjusted frame for the questions and answers. Python File
+	- system_message_chat_conversation -> system message for the model
+	- query_prompt_template -> query prompt for using question to retrieve information
 
 ``` python
 
