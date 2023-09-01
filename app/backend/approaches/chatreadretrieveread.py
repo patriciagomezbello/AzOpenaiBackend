@@ -44,15 +44,23 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         exclude_category = overrides.get("exclude_category") or None
         category_filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
         ''' Building the language filter accordig to the language in the user prompt and in dependence of multilingual_search setting (True|False)'''
-        supported_languages = [{'iso': 'en', 'name': 'English'},{'iso': 'de','name': 'German'}]
-        default_lang = {'iso': 'de','name': 'German'}
+        lang_facets = json.loads(os.getenv('FACETS_RESULTS').replace("'", '"'))
+        print(lang_facets)
+        default_lang = getLang(lang_facets[0]['value']) if lang_facets else {'iso': 'de','name': 'German'}
+        print('The default lang is: ' + str(default_lang)) 
+        supported_languages = []
+        for rec in lang_facets:
+            supported_languages.append(getLang(rec['value']))
+        print('Supported Languages : ' + str(supported_languages))
         user_prompt_lang = detectLang(history[-1]["user"])
         lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
         lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
-        system_message_noidea = 'Entschuldigung, ich weiss darüber nichts' if lang == 'de' else 'Sorry, I dont know'
+        noidea_de_text = 'Tut mir leid, ich weiss das nicht'
+        system_message_noidea = noidea_de_text if lang == 'de' else translateText(noidea_de_text, 'de', user_prompt_lang) if lang != 'de' else "Sorry, I don't know"
         ''' Multilngual search is the default. It is prior because it handles english text and german language in screen shots better '''
         multilingual_search = overrides.get("multilingual_search") or True
         lang_filter = "doclang eq '{}'".format(lang) if (multilingual_search is None or multilingual_search is False) else ''
+
         
         filter = lang_filter + (' and ' + category_filter if category_filter else '')
         print("Using Filter :" + filter)
@@ -149,7 +157,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             # Only keep the text query if the retrieval mode uses text, otherwise drop it
             if not has_text:
                 query_text = None
-
+            
+            # cog search lexicon speller query language dict of supported languages
+            cgs_query_languages = {'en': 'en-us', 'de': 'de-de', 'es': 'es-es', 'fr': 'fr-fr','nl': 'nl-nl'}
+            
             start_cog_search = time.perf_counter()
 
             if overrides.get("semantic_ranker") and has_text:
@@ -158,7 +169,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                         query_text, 
                         filter=filter,
                         query_type=QueryType.SEMANTIC, 
-                        query_language= "en-us" if multilingual_search == True or lang == "en" else "de-de", 
+                        query_language= cgs_query_languages.get(lang,'en-us'), 
                         query_speller="lexicon", 
                         semantic_configuration_name="default", 
                         top=top, 
@@ -180,7 +191,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     r = await self.search_client.search(
                         query_text, 
                         filter=filter, 
-                        query_language= "en-us" if multilingual_search == True or lang == "en" else "de-de", 
+                        query_language= cgs_query_languages.get(lang,'en-us'), 
                         top=top, 
                         vector=query_vector,
                         top_k=50 if query_vector else None, 

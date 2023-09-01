@@ -3,6 +3,8 @@ from __future__ import annotations
 import tiktoken
 import re
 from langdetect import detect
+import requests, pycountry     
+from deep_translator import GoogleTranslator
 
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
@@ -121,6 +123,69 @@ def detectLang(text, defaultLang='de'):
     except Exception as e:
         print(e)
         return defaultLang
+
+def cgsIndexColumnFacetDist(azure_search_service, azure_searchapi_key, azure_search_index,  facets_column , azure_search_api='2020-06-30'):
+    
+    endpoint = "https://{AZURE_SEARCH_SERVICE}.search.windows.net".format(AZURE_SEARCH_SERVICE=azure_search_service)
+
+    url = endpoint + '/indexes/{azure_search_index}/docs/search?api-version={api_version}'.format(azure_search_index=azure_search_index, api_version=azure_search_api)
+
+    # Request headers
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": azure_searchapi_key
+    }
+
+    # Request body
+    payload = {
+    "search": "*",
+        "top": 0,
+        "skip": 0,
+        "queryType": "simple",
+        "select": "",
+        "searchFields": "",
+        "filter": "",
+        "facets": [facets_column],
+        "orderby": "",
+        "count": True
+    }
+
+    # Make the POST request
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        results = response.json()['@search.facets'][facets_column]
+        # Print the response
+        print('Facet result: '+ str(results))
+        return results
+    except Exception as e:
+        print(response)
+        print(e)
+        print("setting default to 'de' due to error in facets search query")
+        return [{'count': 1, 'value': 'de'}]
+
+
+def getLang(iso_country_code):
+    default_lang = {'iso': 'de','name': 'German'}
+    if iso_country_code and len(iso_country_code) == 2:
+        try:
+            language = pycountry.languages.get(alpha_2=iso_country_code)
+            return {'iso': iso_country_code, 'name': language.name}
+        except Exception as e:
+            print('Error evaluating language from alpha 2 iso code - returning default')
+            print(e)
+            return default_lang
+    else:
+        print('Returning default due to wrong alpha 2 iso code provided')
+        return default_lang
+
+def translateText(src_txt, src_iso_lang, target_iso_lang):
+    try:
+        translated = GoogleTranslator(source=src_iso_lang, target=target_iso_lang).translate(src_txt)
+        return(translated)
+    except Exception as e:
+        print('Error translating text')
+        print(e)
+        return "I'm sorry, I don't know"
 
 
 

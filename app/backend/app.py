@@ -26,6 +26,7 @@ from quart import (
 from quart_cors import cors
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
+from core.modelhelper import cgsIndexColumnFacetDist
 
 CONFIG_OPENAI_TOKEN = "openai_token"
 CONFIG_CREDENTIAL = "azure_credential"
@@ -101,6 +102,8 @@ async def setup_clients():
     AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT")
     AZURE_OPENAI_CHATGPT_MODEL = os.getenv("AZURE_OPENAI_CHATGPT_MODEL")
     AZURE_OPENAI_EMB_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMB_DEPLOYMENT")
+    AZURE_SEARCH_API_KEY = os.getenv("AZURE_SEARCH_API_KEY")
+
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")
@@ -110,6 +113,10 @@ async def setup_clients():
     # keys for each service
     # If you encounter a blocking error during a DefaultAzureCredential resolution, you can exclude the problematic credential by using a parameter (ex. exclude_shared_token_cache_credential=True)
     azure_credential = DefaultAzureCredential(exclude_shared_token_cache_credential = True)
+    
+    # Find out which document languages are present and which is the most common to set it later as a defult language in the environment
+    facets_results = cgsIndexColumnFacetDist(AZURE_SEARCH_SERVICE, AZURE_SEARCH_API_KEY, AZURE_SEARCH_INDEX, 'doclang' , azure_search_api='2020-06-30')
+    os.environ['FACETS_RESULTS'] = str(facets_results)
 
     # Set up clients for Cognitive Search and Storage
     search_client = SearchClient(
