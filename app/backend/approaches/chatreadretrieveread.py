@@ -59,7 +59,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
         lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
         noidea_de_text = 'Tut mir leid, ich weiss das nicht'
-        system_message_noidea = noidea_de_text if lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name['name'],self.chatgpt_deployment) if lang != 'de' else "Sorry, I don't know"
+        system_message_noidea = noidea_de_text if user_prompt_lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name['name'],self.chatgpt_deployment) if user_prompt_lang != 'de' else "Sorry, I don't know"
         ''' Multilngual search is the default. It is prior because it handles english text and german language in screen shots better '''
         multilingual_search = overrides.get("multilingual_search") or True
         lang_filter = "doclang eq '{}'".format(lang) if (multilingual_search is None or multilingual_search is False) else ''
@@ -220,7 +220,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
             prompt_override = overrides.get("prompt_override")
             if prompt_override is None:
-                system_message = self.system_message_chat_conversation.format(noidea=system_message_noidea, injected_prompt="")
+                system_message = self.system_message_chat_conversation.format(noidea=system_message_noidea, promptlang=user_prompt_lang_name, injected_prompt="")
             elif prompt_override.startswith(">>>"):
                 system_message = self.system_message_chat_conversation.format(injected_prompt=prompt_override[3:] + "\n")
 
