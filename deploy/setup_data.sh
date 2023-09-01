@@ -6,8 +6,8 @@ transformed_url=$(echo "$REPO_URL" | sed "s/https:\/\/gitlab.devops.telekom.de/h
 
 echo $transformed_url
 git clone $transformed_url data_repo
-# Move into the cloned repository
 
+# Move into the cloned repository
 cd data_repo 
 
 # Copy the 'data' and 'data2convert' folders to the parent directory
@@ -31,5 +31,3 @@ rm -rf data_repo
 
 rm -rf data
 rm -rf data2convert
-
-# ls
