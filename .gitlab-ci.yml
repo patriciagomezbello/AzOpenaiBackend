@@ -8,55 +8,64 @@ image: alzdns.azurecr.io/azd-deploy:latest
 
 include:
   - template: Security/SAST.gitlab-ci.yml
-    before_script: []
     rules:
       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
   - template: Security/Secret-Detection.gitlab-ci.yml
-    before_script: []
     rules:
       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
   - template: Security/Dependency-Scanning.gitlab-ci.yml
-    before_script: []
     rules:
       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-default:
+.before_script_template: &auth
   before_script:
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
     - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
   after_script:
     - az logout
     - azd auth logout
+
+default:
   tags:
     - azure-dev01-docker
 
 all-job:  
   stage: all
+  <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - azd up
     - bash ./deploy/set_env.sh
+  artifacts:
+    paths:
+      - .ENVIRONMENT
   when: manual
 
 code-job:  
   stage: code
+  <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - azd deploy
   when: manual
 
 infrastructure-job:
-  stage: infrastructure   
+  stage: infrastructure  
+  <<: *auth 
   script:
     - bash ./deploy/setup_env.sh
     - azd provision
     - bash ./deploy/set_env.sh
+  artifacts:
+    paths:
+      - .ENVIRONMENT
   when: manual
 
 data-job:
   stage: data  
+  <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh

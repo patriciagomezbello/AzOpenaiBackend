@@ -23,3 +23,6 @@ if [[ "$value" != "$env" ]]; then
 else
   echo "CI/CD variable '$CI_VARIABLE_NAME' is already up to date"
 fi
+
+# write out artifact
+echo "$value" > .ENVIRONMENT
