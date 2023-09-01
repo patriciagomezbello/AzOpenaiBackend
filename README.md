@@ -138,6 +138,7 @@ azd deploy
 ```
 
 start python server locally (for development)
+**Important**: Only works on macos out of the box, in app.py the cors needs to be active, you have to adjust the platform for your environment
 
 ``` bash
 # navigate to the repository folder
@@ -161,29 +162,5 @@ scripts/prepdocs.sh
 ##### using with localhost based UI
 
 - [Clone or Download UI Repository](https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend)
-- Prerequisites: 
-    - nodejs must be installed
-    - SERVER_ENVIRONMENT in .env in .azure needs to be "local" to disable cors issues
-
-- configure .env for local usage
-
-``` bash
-# put these 3 lines in .env or ask someone from the team to send you one
-VITE_MODEL_CONFIG={"local": {"enc":"gpt-3.5-turbo-0301","ctoken": 4097,"url": "http://127.0.0.1:5000", "type":"custom", "apiId": "<placeholder>"}}
-VITE_MSAL_CLIENT_ID=client_id for local login and auth against (TODO: allow auth disabling for local usage)
-VITE_MSAL_TENANT_ID=https://login.microsoftonline.com/TENANT_ID
-VITE_APPNAME=T-CHAT
-```
-
-``` bash
-# navigate into UI repository
-# install all dependencies
-npm i 
-
-# start development server on localhost:5173
-npm run dev
-```
-
-
 
 
