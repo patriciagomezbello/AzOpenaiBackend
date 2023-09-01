@@ -476,94 +476,94 @@ for filename in glob.glob(args.files2convert):
         thecanvas.save()
 
 
-# here the code execution starts
-if args.removeall:
-    remove_blobs(None)
-    remove_from_index(None)
-else:
-    # create index (or not if it already exists)
-    create_search_index()
+# # here the code execution starts
+# if args.removeall:
+#     remove_blobs(None)
+#     remove_from_index(None)
+# else:
+#     # create index (or not if it already exists)
+#     create_search_index()
 
-    # init blob in main script for docs comparison
-    docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
-    docs_container = docs_service.get_container_client(args.containerdocs)
-    if not docs_container.exists():
-        docs_container.create_container()
+#     # init blob in main script for docs comparison
+#     docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
+#     docs_container = docs_service.get_container_client(args.containerdocs)
+#     if not docs_container.exists():
+#         docs_container.create_container()
 
-    local_hashmap = {}
-    blob_hashmap = {}
-    blob_list = docs_container.list_blobs()
+#     local_hashmap = {}
+#     blob_hashmap = {}
+#     blob_list = docs_container.list_blobs()
 
-    overview = [0,0,0]
+#     overview = [0,0,0]
 
-    # create md5 byte hashes and add them to hashmaps for comparison
-    for filename in glob.glob(args.files):
-        local_hashmap[filename] = get_md5_hash(filename)
-        if (invalidFileName(filename)):
-            raise Exception(f'The filename {filename} is invalid, as it is not allowed to end with -012.pdf etc.')
-    for blob in blob_list:
-        blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+#     # create md5 byte hashes and add them to hashmaps for comparison
+#     for filename in glob.glob(args.files):
+#         local_hashmap[filename] = get_md5_hash(filename)
+#         if (invalidFileName(filename)):
+#             raise Exception(f'The filename {filename} is invalid, as it is not allowed to end with -012.pdf etc.')
+#     for blob in blob_list:
+#         blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
 
-    # loop through local files
-    for filename, local_hash in local_hashmap.items():
+#     # loop through local files
+#     for filename, local_hash in local_hashmap.items():
 
-        # check if the file is in the blob
-        if os.path.basename(filename) in blob_hashmap:
-            # if true, get the hash and then compare
-            remote_hash = blob_hashmap[os.path.basename(filename)]
-            if local_hash != remote_hash:
-                # different hashes, upload file again
-                try:
-                    print (f'{filename} changed, will be processed again')
-                    upload_blobs(filename)
-                    upload_blobs_docs(filename)
-                    page_map = get_document_text(filename)
-                    sections = create_sections(os.path.basename(filename), page_map, ['All'])
-                    index_sections(os.path.basename(filename), sections)
-                    overview[0] += 1
-                except Exception as e:
-                    print("something went wrong, clearing up state now")
-                    print("Error:", e)
-                    remove_blobs(filename)
-                    remove_blobs_docs(filename)
-                    remove_from_index(filename)
-                    break
+#         # check if the file is in the blob
+#         if os.path.basename(filename) in blob_hashmap:
+#             # if true, get the hash and then compare
+#             remote_hash = blob_hashmap[os.path.basename(filename)]
+#             if local_hash != remote_hash:
+#                 # different hashes, upload file again
+#                 try:
+#                     print (f'{filename} changed, will be processed again')
+#                     upload_blobs(filename)
+#                     upload_blobs_docs(filename)
+#                     page_map = get_document_text(filename)
+#                     sections = create_sections(os.path.basename(filename), page_map, ['All'])
+#                     index_sections(os.path.basename(filename), sections)
+#                     overview[0] += 1
+#                 except Exception as e:
+#                     print("something went wrong, clearing up state now")
+#                     print("Error:", e)
+#                     remove_blobs(filename)
+#                     remove_blobs_docs(filename)
+#                     remove_from_index(filename)
+#                     break
 
-        else:
-            try:
-                # only in local, upload file
-                print (f'{filename} only local, will be processed')
-                upload_blobs(filename)
-                upload_blobs_docs(filename)
-                page_map = get_document_text(filename)
-                sections = create_sections(os.path.basename(filename), page_map, ['All'])
-                index_sections(os.path.basename(filename), sections)
-                overview[1] += 1
-            except Exception as e:
-                print("something went wrong, clearing up state now")
-                print("Error:", e)
-                remove_blobs(filename)
-                remove_blobs_docs(filename)
-                remove_from_index(filename)
-                break
+#         else:
+#             try:
+#                 # only in local, upload file
+#                 print (f'{filename} only local, will be processed')
+#                 upload_blobs(filename)
+#                 upload_blobs_docs(filename)
+#                 page_map = get_document_text(filename)
+#                 sections = create_sections(os.path.basename(filename), page_map, ['All'])
+#                 index_sections(os.path.basename(filename), sections)
+#                 overview[1] += 1
+#             except Exception as e:
+#                 print("something went wrong, clearing up state now")
+#                 print("Error:", e)
+#                 remove_blobs(filename)
+#                 remove_blobs_docs(filename)
+#                 remove_from_index(filename)
+#                 break
 
-    # loop through blob files
-    for filename in blob_hashmap:
-        if platform.system() == 'Windows':
-            filename_check = f'./data\\{filename}'
-        else:
-            filename_check = f'./data/{filename}'
+#     # loop through blob files
+#     for filename in blob_hashmap:
+#         if platform.system() == 'Windows':
+#             filename_check = f'./data\\{filename}'
+#         else:
+#             filename_check = f'./data/{filename}'
             
-        if filename_check not in local_hashmap:
-            # only in remote, remove file
-            try:
-                print (f'{filename} only remote, will be removed from blob and index')
-                remove_blobs(filename)
-                remove_blobs_docs(filename)
-                remove_from_index(filename)
-                overview[2] += 1
-            except Exception as e:
-                print("something went wrong with the deletion of files, please contact the Azure Team")
-                print("Error:", e)
-                break
-    print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
+#         if filename_check not in local_hashmap:
+#             # only in remote, remove file
+#             try:
+#                 print (f'{filename} only remote, will be removed from blob and index')
+#                 remove_blobs(filename)
+#                 remove_blobs_docs(filename)
+#                 remove_from_index(filename)
+#                 overview[2] += 1
+#             except Exception as e:
+#                 print("something went wrong with the deletion of files, please contact the Azure Team")
+#                 print("Error:", e)
+#                 break
+#     print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')

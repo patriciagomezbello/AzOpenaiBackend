@@ -1,10 +1,17 @@
 #!/bin/bash
 
 # Clone the git repository
-git clone $REPO_URL data_repo
 
+
+transformed_url=$(echo "$REPO_URL" | sed "s/https:\/\/gitlab.devops.telekom.de/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.devops.telekom.de/")
+
+git clone $transformed_url data_repo
 # Move into the cloned repository
+ls
+
 cd data_repo 
+
+ls
 
 # Copy the 'data' and 'data2convert' folders to the parent directory
 cp -R data ..
@@ -12,5 +19,9 @@ cp -R data2convert ..
 
 cd ..
 
+ls
+
 # Remove the cloned repository
 rm -rf data_repo
+
+ls
