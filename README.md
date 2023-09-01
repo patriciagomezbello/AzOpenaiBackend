@@ -25,11 +25,11 @@
 ### File Variables 
 
 - Name: **ENVIRONMENT**
-Environment for deployment, deployment variables
-AUTH_CLIENT 		-> backend service principal client id
-ENV_NAME 			-> name of the environment (can be named invidually, needs to be consistent after)
-SUBSCRIPTION-ID 	-> id of subscription
-LOCATION 			-> please choose westeurope, everything else will be denied by policy
+	- Environment for deployment, deployment variables
+	- AUTH_CLIENT 		-> backend service principal client id
+	- ENV_NAME 			-> name of the environment (can be named invidually, needs to be consistent after)
+	- SUBSCRIPTION-ID 	-> id of subscription
+	- LOCATION 			-> please choose westeurope, everything else will be denied by policy
 ```
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_ENV_NAME="azure-search-openai-dev-env-name"
