@@ -2,11 +2,9 @@
 
 # Clone the git repository
 
-CI_JOB_TOKEN=123123
-REPO_URL=https://gitlab.devops.telekom.de/test/test1
-
 transformed_url=$(echo "$REPO_URL" | sed "s/https:\/\/gitlab.devops.telekom.de/https:\/\/gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.devops.telekom.de/")
 
+echo $transformed_url
 git clone $transformed_url data_repo
 # Move into the cloned repository
 ls
@@ -25,5 +23,8 @@ ls
 
 # # Remove the cloned repository
 # rm -rf data_repo
+
+# rm -rf data
+# rm -rf data2convert
 
 # ls
