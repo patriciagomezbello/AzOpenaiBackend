@@ -10,15 +10,11 @@ git clone $transformed_url data_repo
 
 cd data_repo 
 
-ls
-
 # Copy the 'data' and 'data2convert' folders to the parent directory
 cp -R data ..
 cp -R data2convert ..
 
 cd ..
-
-ls
 
 ./scripts/prepdocs.sh
 
