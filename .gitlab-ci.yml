@@ -70,7 +70,6 @@ data-job:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
   rules:
-    - exists:
-        - $CI_PIPELINE_TRIGGERED
+    - if: '$CI_PIPELINE_SOURCE == "trigger"'
     - if: '$CI_PIPELINE_SOURCE != "trigger"'
       when: manual
