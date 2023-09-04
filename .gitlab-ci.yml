@@ -69,4 +69,8 @@ data-job:
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
-  when: manual
+  rules:
+    - exists:
+        - $CI_PIPELINE_TRIGGERED
+    - if: '$CI_PIPELINE_SOURCE != "trigger"'
+      when: manual
