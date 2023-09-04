@@ -9,6 +9,7 @@ import time
 import hashlib
 import openai
 import pdfkit
+import json
 from langdetect import detect
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -427,7 +428,30 @@ def delete_non_pdf_files(files):
             except Exception as e:
                 print(f"Error deleting {file}: {e}")
                 sys.exit(99)
-                
+
+
+def convert_website_to_pdf(site_url, output ):
+    """
+    Konvertiert eine gesamte Website in eine PDF-Datei.
+    :param site_url: Die URL der zu konvertierenden Website.
+    :param output_directory: Der Pfad des Ausgabe-PDF-Verzeichnisses.
+    """
+    # Konvertieren der Startseite in das erste PDF-Dokument
+    try:
+        pdfkit.from_url(site_url,output)
+        print('PDF wurde erfolgreich erzeugt.')
+    except IOError:
+        print('Error: PDF konnte nicht erzeugt werden.')
+
+    # # Durchlaufen aller Unterseiten und Verzeichnisse
+    # for root, dirs, files in os.walk(output_directory):
+    #     for file in files:
+    #         if file.endswith('.html'):
+    #             # Konvertieren der HTML-Seite in eine PDF-Datei
+    #             html_path = os.path.join(root, file)
+    #             pdf_path = os.path.join(root, file[:-5] + '.pdf')
+    #             print(f'Konvertiere {html_path} zu {pdf_path}')
+    #             convert_html_to_pdf('file://' + html_path, pdf_path)               
 
 # delete on pdf files from the data directory first
 
@@ -435,135 +459,157 @@ delete_non_pdf_files(os.listdir(os.path.dirname(args.files)))
 
 # handle data2convert folder to get a unique approach only using pdf files
 
-for filename in glob.glob(args.files2convert):
-    file = os.path.splitext(filename)
-    target = f"./data/{(file[0].split('/')[2])}.pdf"
+
     
-    # handle markdown
-    if file[1] == ".md":
-        md2pdf(target,
-        md_content=None,
-        md_file_path=filename,
-        css_file_path=None,
-        base_url=None)
+for root, dirs, files in os.walk('data2convert'):
+    for file in files:
+        # Do something with the file
+        file_path = os.path.join(root, file)
 
-    # handle html
-    elif file[1] == ".html":
-        print(file)
-        print(filename)
-        print(target)
-        pdfkit.from_file(filename, target)
+        file_data = file.split(".")
+        target = file_path.replace('data2convert/','data/')
+        print(file_path)
+        print(file_data)
 
-    # handle pictures
-    elif file[1] in [".jpg", ".jpeg", ".png"]:
-        thecanvas = canvas.Canvas(target, pagesize=A4)
-        img = Image.open(filename)
-        img_width, img_height = img.size
-        aspect_ratio = img_width / img_height
-        canvas_width, canvas_height = A4
-        if aspect_ratio > 1:
-            # Bild ist breiter als hoch, Skalierung an der Breite orientieren
-            img_width = canvas_width
-            img_height = int(img_width / aspect_ratio)
-        else:
-            # Bild ist höher als breit, Skalierung an der Höhe orientieren
-            img_height = canvas_height
-            img_width = int(img_height * aspect_ratio)
-        x = (canvas_width - img_width) / 2
-        y = (canvas_height - img_height) / 2
-        thecanvas.drawImage(filename, x, y, width=img_width, height=img_height)
-        # PDF-Dokument speichern
-        thecanvas.save()
+        if file_data[1] == "md":
+            md2pdf(target,
+            md_content=None,
+            md_file_path=file_path,
+            css_file_path=None,
+            base_url=None)
 
+        elif file_data[1] == "html":
+            pdfkit.from_file(file_path, target)
 
-# here the code execution starts
-if args.removeall:
-    remove_blobs(None)
-    remove_from_index(None)
-else:
-    # create index (or not if it already exists)
-    create_search_index()
+        # handle pictures
+        elif file_data[1] in ["jpg", "jpeg", "png"]:
+            thecanvas = canvas.Canvas(target, pagesize=A4)
+            img = Image.open(file_path)
+            img_width, img_height = img.size
+            aspect_ratio = img_width / img_height
+            canvas_width, canvas_height = A4
+            if aspect_ratio > 1:
+                # Bild ist breiter als hoch, Skalierung an der Breite orientieren
+                img_width = canvas_width
+                img_height = int(img_width / aspect_ratio)
+            else:
+                # Bild ist höher als breit, Skalierung an der Höhe orientieren
+                img_height = canvas_height
+                img_width = int(img_height * aspect_ratio)
+            x = (canvas_width - img_width) / 2
+            y = (canvas_height - img_height) / 2
+            thecanvas.drawImage(file_path, x, y, width=img_width, height=img_height)
+            # PDF-Dokument speichern
+            thecanvas.save()
 
-    # init blob in main script for docs comparison
-    docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
-    docs_container = docs_service.get_container_client(args.containerdocs)
-    if not docs_container.exists():
-        docs_container.create_container()
+        elif file == "pages.json":
 
-    local_hashmap = {}
-    blob_hashmap = {}
-    blob_list = docs_container.list_blobs()
+            with open(file_path) as json_file:
+                # Load the JSON data
+                data = json.load(json_file)
 
-    overview = [0,0,0]
-
-    # create md5 byte hashes and add them to hashmaps for comparison
-    for filename in glob.glob(args.files):
-        local_hashmap[filename] = get_md5_hash(filename)
-        if (invalidFileName(filename)):
-            raise Exception(f'The filename {filename} is invalid, as it is not allowed to end with -012.pdf etc.')
-    for blob in blob_list:
-        blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
-
-    # loop through local files
-    for filename, local_hash in local_hashmap.items():
-
-        # check if the file is in the blob
-        if os.path.basename(filename) in blob_hashmap:
-            # if true, get the hash and then compare
-            remote_hash = blob_hashmap[os.path.basename(filename)]
-            if local_hash != remote_hash:
-                # different hashes, upload file again
+            # Loop through each key-value pair and print them separately
+            for key, value in data.items():
+                print (f'{key}.pdf will be created from {value}')
                 try:
-                    print (f'{filename} changed, will be processed again')
-                    upload_blobs(filename)
-                    upload_blobs_docs(filename)
-                    page_map = get_document_text(filename)
-                    sections = create_sections(os.path.basename(filename), page_map, ['All'])
-                    index_sections(os.path.basename(filename), sections)
-                    overview[0] += 1
+                    url_target = target.replace("pages.json", f"{key}.pdf")
+                    convert_website_to_pdf(value, url_target)
                 except Exception as e:
-                    print("something went wrong, clearing up state now")
-                    print("Error:", e)
-                    remove_blobs(filename)
-                    remove_blobs_docs(filename)
-                    remove_from_index(filename)
-                    break
+                    print(f'Error creating PDF {key} from URL: {value}, Error: {str(e)}')
+        
+        elif file_data[1] == "json":
+            print("please rename json files with URLs to -> pages.json")
 
-        else:
-            try:
-                # only in local, upload file
-                print (f'{filename} only local, will be processed')
-                upload_blobs(filename)
-                upload_blobs_docs(filename)
-                page_map = get_document_text(filename)
-                sections = create_sections(os.path.basename(filename), page_map, ['All'])
-                index_sections(os.path.basename(filename), sections)
-                overview[1] += 1
-            except Exception as e:
-                print("something went wrong, clearing up state now")
-                print("Error:", e)
-                remove_blobs(filename)
-                remove_blobs_docs(filename)
-                remove_from_index(filename)
-                break
 
-    # loop through blob files
-    for filename in blob_hashmap:
-        if platform.system() == 'Windows':
-            filename_check = f'./data\\{filename}'
-        else:
-            filename_check = f'./data/{filename}'
+
+# # here the code execution starts
+# if args.removeall:
+#     remove_blobs(None)
+#     remove_from_index(None)
+# else:
+#     # create index (or not if it already exists)
+#     create_search_index()
+
+#     # init blob in main script for docs comparison
+#     docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
+#     docs_container = docs_service.get_container_client(args.containerdocs)
+#     if not docs_container.exists():
+#         docs_container.create_container()
+
+#     local_hashmap = {}
+#     blob_hashmap = {}
+#     blob_list = docs_container.list_blobs()
+
+#     overview = [0,0,0]
+
+#     # create md5 byte hashes and add them to hashmaps for comparison
+#     for filename in glob.glob(args.files):
+#         local_hashmap[filename] = get_md5_hash(filename)
+#         if (invalidFileName(filename)):
+#             raise Exception(f'The filename {filename} is invalid, as it is not allowed to end with -012.pdf etc.')
+#     for blob in blob_list:
+#         blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+
+#     # loop through local files
+#     for filename, local_hash in local_hashmap.items():
+
+#         # check if the file is in the blob
+#         if os.path.basename(filename) in blob_hashmap:
+#             # if true, get the hash and then compare
+#             remote_hash = blob_hashmap[os.path.basename(filename)]
+#             if local_hash != remote_hash:
+#                 # different hashes, upload file again
+#                 try:
+#                     print (f'{filename} changed, will be processed again')
+#                     upload_blobs(filename)
+#                     upload_blobs_docs(filename)
+#                     page_map = get_document_text(filename)
+#                     sections = create_sections(os.path.basename(filename), page_map, ['All'])
+#                     index_sections(os.path.basename(filename), sections)
+#                     overview[0] += 1
+#                 except Exception as e:
+#                     print("something went wrong, clearing up state now")
+#                     print("Error:", e)
+#                     remove_blobs(filename)
+#                     remove_blobs_docs(filename)
+#                     remove_from_index(filename)
+#                     break
+
+#         else:
+#             try:
+#                 # only in local, upload file
+#                 print (f'{filename} only local, will be processed')
+#                 upload_blobs(filename)
+#                 upload_blobs_docs(filename)
+#                 page_map = get_document_text(filename)
+#                 sections = create_sections(os.path.basename(filename), page_map, ['All'])
+#                 index_sections(os.path.basename(filename), sections)
+#                 overview[1] += 1
+#             except Exception as e:
+#                 print("something went wrong, clearing up state now")
+#                 print("Error:", e)
+#                 remove_blobs(filename)
+#                 remove_blobs_docs(filename)
+#                 remove_from_index(filename)
+#                 break
+
+#     # loop through blob files
+#     for filename in blob_hashmap:
+#         if platform.system() == 'Windows':
+#             filename_check = f'./data\\{filename}'
+#         else:
+#             filename_check = f'./data/{filename}'
             
-        if filename_check not in local_hashmap:
-            # only in remote, remove file
-            try:
-                print (f'{filename} only remote, will be removed from blob and index')
-                remove_blobs(filename)
-                remove_blobs_docs(filename)
-                remove_from_index(filename)
-                overview[2] += 1
-            except Exception as e:
-                print("something went wrong with the deletion of files, please contact the Azure Team")
-                print("Error:", e)
-                break
-    print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
+#         if filename_check not in local_hashmap:
+#             # only in remote, remove file
+#             try:
+#                 print (f'{filename} only remote, will be removed from blob and index')
+#                 remove_blobs(filename)
+#                 remove_blobs_docs(filename)
+#                 remove_from_index(filename)
+#                 overview[2] += 1
+#             except Exception as e:
+#                 print("something went wrong with the deletion of files, please contact the Azure Team")
+#                 print("Error:", e)
+#                 break
+#     print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
