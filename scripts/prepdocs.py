@@ -1,7 +1,6 @@
+import base64
 import os, sys
-import platform
 import argparse
-import glob
 import html
 import io
 import re
@@ -9,6 +8,7 @@ import time
 import hashlib
 import openai
 import pdfkit
+import json
 from langdetect import detect
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -36,8 +36,6 @@ from azure.search.documents import SearchClient
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from md2pdf.core import md2pdf
 
-#TODO: check new ms version and adjust
-
 
 MAX_SECTION_LENGTH = 1100
 SENTENCE_SEARCH_LIMIT = 100
@@ -45,80 +43,43 @@ SECTION_OVERLAP = 100
 
 embTokenLimitPerMinute = 80000
 
-parser = argparse.ArgumentParser(
-    description="Prepare documents by extracting content from PDFs, splitting content into sections, uploading to blob storage, and indexing in a search index.",
-    epilog="Example: prepdocs.py '..\data\*' --storageaccount myaccount --container mycontainer --searchservice mysearch --index myindex -v"
-    )
-parser.add_argument("files", help="Files to be processed")
-parser.add_argument("--files2convert", help="Files to be processed (in .md format)")
-parser.add_argument("--category", help="Value for the category field in the search index for all sections indexed in this run")
-parser.add_argument("--skipblobs", action="store_true", help="Skip uploading individual pages to Azure Blob Storage")
-parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
-parser.add_argument("--container", help="Azure Blob Storage container name")
-parser.add_argument("--containerdocs", help="Azure Blob Storage container name for full docs")
-parser.add_argument("--storagekey", required=False, help="Optional. Use this Azure Blob Storage account key instead of the current user identity to login (use az login to set current user for Azure)")
-parser.add_argument("--tenantid", required=False, help="Optional. Use this to define the Azure directory where to authenticate)")
-parser.add_argument("--searchservice", help="Name of the Azure Cognitive Search service where content should be indexed (must exist already)")
-parser.add_argument("--openaiservice", help="Name of the Azure OpenAI service used to compute embeddings")
-parser.add_argument("--openaideployment", help="Name of the Azure OpenAI model deployment for an embedding model ('text-embedding-ada-002' recommended)")
-parser.add_argument("--openaikey", required=False, help="Optional. Use this Azure OpenAI account key instead of the current user identity to login (use az login to set current user for Azure)")
-parser.add_argument("--index", help="Name of the Azure Cognitive Search index where content should be indexed (will be created if it doesn't exist)")
-parser.add_argument("--searchkey", required=False, help="Optional. Use this Azure Cognitive Search account key instead of the current user identity to login (use az login to set current user for Azure)")
-parser.add_argument("--remove", action="store_true", help="Remove references to this document from blob storage and the search index")
-parser.add_argument("--removeall", action="store_true", help="Remove all blobs from blob storage and documents from the search index")
-parser.add_argument("--localpdfparser", action="store_true", help="Use PyPdf local PDF parser (supports only digital PDFs) instead of Azure Form Recognizer service to extract text, tables and layout from the documents")
-parser.add_argument("--formrecognizerservice", required=False, help="Optional. Name of the Azure Form Recognizer service which will be used to extract text, tables and layout from the documents (must exist already)")
-parser.add_argument("--formrecognizerkey", required=False, help="Optional. Use this Azure Form Recognizer account key instead of the current user identity to login (use az login to set current user for Azure)")
-parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
-args = parser.parse_args()
+def name_from_path(file_path):
+    path_parts = file_path.split("/")
+    file_name = "_".join(path_parts[path_parts.index(args.files) + 1:]).replace("/", "_")
+    return file_name
 
-# Use the current user identity to connect to Azure services unless a key is explicitly set for any of them
-azd_credential = AzureDeveloperCliCredential() if args.tenantid == None else AzureDeveloperCliCredential(tenant_id=args.tenantid, process_timeout=60)
-default_creds = azd_credential if args.searchkey == None or args.storagekey == None else None
-search_creds = default_creds if args.searchkey == None else AzureKeyCredential(args.searchkey)
-if not args.skipblobs:
-    storage_creds = default_creds if args.storagekey == None else args.storagekey
-if not args.localpdfparser:
-    # check if Azure Form Recognizer credentials are provided
-    if args.formrecognizerservice == None:
-        print("Error: Azure Form Recognizer service is not provided. Please provide formrecognizerservice or use --localpdfparser for local pypdf parser.")
-        exit(1)
-    formrecognizer_creds = default_creds if args.formrecognizerkey == None else AzureKeyCredential(args.formrecognizerkey)
+def blob_name_from_file_page(file_path, page = 0):
 
-if args.openaikey == None:
-    openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
-    openai.api_type = "azure_ad"
-else:
-    openai.api_type = "azure"
-    openai.api_key = args.openaikey
-openai.api_base = f"https://{args.openaiservice}.openai.azure.com"
-openai.api_version = "2022-12-01"
+    file_name = name_from_path(file_path)
 
-def blob_name_from_file_page(filename, page = 0):
-    if os.path.splitext(filename)[1].lower() == ".pdf":
-        return os.path.splitext(os.path.basename(filename))[0] + f"-{page}" + ".pdf"
+    if file_name.split(".")[1]== "pdf":
+        return file_name.split(".")[0] + f"-{page}" + ".pdf"
     else:
-        return os.path.basename(filename)
-    
-def upload_blobs_docs(filename):
+        return os.path.basename(file_name)
+
+def upload_blobs_docs(file_path):
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.containerdocs)
     if not blob_container.exists():
         blob_container.create_container()
-    with open(filename,"rb") as data:
-            blob_container.upload_blob(os.path.basename(filename), data, overwrite=True)
 
-def upload_blobs(filename):
+    file_name = name_from_path(file_path)
+    print(f"filename: {file_name}")
+
+    with open(file_path,"rb") as data:
+            blob_container.upload_blob(file_name, data, overwrite=True)
+
+def upload_blobs(file_path):
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.container)
     if not blob_container.exists():
         blob_container.create_container()
     # if file is PDF split into pages and upload each page as a separate blob
-    if os.path.splitext(filename)[1].lower() == ".pdf":
-        reader = PdfReader(filename)
+    if os.path.splitext(file_path)[1].lower() == ".pdf":
+        reader = PdfReader(file_path)
         pages = reader.pages
         for i in range(len(pages)):
-            blob_name = blob_name_from_file_page(filename, i)
+            blob_name = blob_name_from_file_page(file_path, i)
             if args.verbose: print(f"\tUploading blob for page {i} -> {blob_name}")
             f = io.BytesIO()
             writer = PdfWriter()
@@ -127,19 +88,19 @@ def upload_blobs(filename):
             f.seek(0)
             blob_container.upload_blob(blob_name, f, overwrite=True)
     else:
-        blob_name = blob_name_from_file_page(filename)
-        with open(filename,"rb") as data:
+        blob_name = blob_name_from_file_page(file_path)
+        with open(file_path,"rb") as data:
             blob_container.upload_blob(blob_name, data, overwrite=True)
 
-def remove_blobs(filename):
-    if args.verbose: print(f"Removing blobs (from contianer {args.container}) for '{filename or '<all>'}'")
+def remove_blobs(file_path):
+    if args.verbose: print(f"Removing blobs (from contianer {args.container}) for '{file_path or '<all>'}'")
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.container)
     if blob_container.exists():
-        if filename == None:
+        if file_path == None:
             blobs = blob_container.list_blob_names()
         else:
-            prefix = os.path.splitext(os.path.basename(filename))[0]
+            prefix = name_from_path(file_path).split(".")[0]
             blobs = filter(lambda b: re.match(f"{prefix}-\d+\.pdf", b), blob_container.list_blob_names(name_starts_with=os.path.splitext(os.path.basename(prefix))[0]))
         for b in blobs:
             try:
@@ -148,13 +109,13 @@ def remove_blobs(filename):
             except: 
                 print (f'not found in {args.container}')
 
-def remove_blobs_docs(filename):
-    if args.verbose: print(f"Removing blobs (from contianer {args.containerdocs}) for '{filename}'")
+def remove_blobs_docs(file_path):
+    if args.verbose: print(f"Removing blobs (from container {args.containerdocs}) for '{file_path}'")
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.containerdocs)
     if blob_container.exists():
         try:
-            blob_container.delete_blob(filename)
+            blob_container.delete_blob(name_from_path(file_path))
         except: 
             print (f'not found in {args.containerdocs}')
 
@@ -173,20 +134,20 @@ def table_to_html(table):
     table_html += "</table>"
     return table_html
 
-def get_document_text(filename):
+def get_document_text(file_path):
     offset = 0
     page_map = []
     if args.localpdfparser:
-        reader = PdfReader(filename)
+        reader = PdfReader(file_path)
         pages = reader.pages
         for page_num, p in enumerate(pages):
             page_text = p.extract_text()
             page_map.append((page_num, offset, page_text))
             offset += len(page_text)
     else:
-        if args.verbose: print(f"Extracting text from '{filename}' using Azure Form Recognizer")
+        if args.verbose: print(f"Extracting text from '{file_path}' using Azure Form Recognizer")
         form_recognizer_client = DocumentAnalysisClient(endpoint=f"https://{args.formrecognizerservice}.cognitiveservices.azure.com/", credential=formrecognizer_creds, headers={"x-ms-useragent": "azure-search-chat-demo/1.0.0"})
-        with open(filename, "rb") as f:
+        with open(file_path, "rb") as f:
             poller = form_recognizer_client.begin_analyze_document("prebuilt-layout", document = f)
         form_recognizer_results = poller.result()
 
@@ -220,10 +181,10 @@ def get_document_text(filename):
             offset += len(page_text)
     return page_map
 
-def split_text(page_map):
+def split_text(page_map, file_path):
     SENTENCE_ENDINGS = [".", "!", "?"]
     WORDS_BREAKS = [",", ";", ":", " ", "(", ")", "[", "]", "{", "}", "\t", "\n"]
-    if args.verbose: print(f"Splitting '{filename}' into sections")
+    if args.verbose: print(f"Splitting '{file_path}' into sections")
 
     def find_page(offset):
         l = len(page_map)
@@ -290,37 +251,51 @@ def detectLang(text, defaultLang='de'):
     except Exception as e:
         print(e)
         return defaultLang
+    
+def create_embedding(engine,input):
+    try:
+        emb = openai.Embedding.create(engine=engine, input=input)
+    except openai.error.RateLimitError as e:
+        print(e)
+        # Extract any number from the error message
+        number = re.search(r'\d+', str(e))
+        # Convert the number to integer, if not found, default to 10 seconds
+        secondsToWait = int(number.group()) if number else 10
+        # Print the wait time
+        print(f"Waiting now for {secondsToWait} seconds")
+        # Wait for the specified time before trying again
+        time.sleep(secondsToWait)
+        # Retry creating the OpenAI Embedding for the input section
+        emb = create_embedding(engine=engine, input=input)
+    
+    return emb
+
+def file_path_to_id(file_path):
+    filename_ascii = re.sub("[^0-9a-zA-Z_-]", "_", file_path)
+    filename_hash = base64.b16encode(file_path.encode('utf-8')).decode('ascii')
+    return f"file-{filename_ascii}-{filename_hash}"
         
-def create_sections(filename, page_map, accessKeys):
+def create_sections(file_path, page_map, accessKeys, category=None):
+
+    file_id = file_path_to_id(file_path)
     # Loop through the text and page numbers created by split_text function
-    for i, (section, pagenum) in enumerate(split_text(page_map)):
-        try:
-            # Attempt to create an OpenAI Embedding for the input text section
-            emb = openai.Embedding.create(engine=args.openaideployment, input=section)
-        except Exception as e:
-            # If an exception occurs, print the error message
-            print(e)
-            # Extract any number from the error message
-            number = re.search(r'\d+', str(e))
-            # Convert the number to integer, if not found, default to 10 seconds
-            secondsToWait = int(number.group()) if number else 10
-            # Print the wait time
-            print(f"Waiting now for {secondsToWait} seconds")
-            # Wait for the specified time before trying again
-            time.sleep(secondsToWait)
-            # Retry creating the OpenAI Embedding for the input section
-            emb = openai.Embedding.create(engine=args.openaideployment, input=section)
+
+    file = name_from_path(file_path)
+
+    for i, (section, pagenum) in enumerate(split_text(page_map, file_path)):
+        # Attempt to create an OpenAI Embedding for the input text section
+        emb = create_embedding(engine=args.openaideployment, input=section)
 
         # Return a dictionary with the processed section details, like id, content, embedding, etc.
         yield {
-            "id": re.sub("[^0-9a-zA-Z_-]", "_", f"{filename}-{i}"),
+            "id": f"{file_id}-page-{i}",
             "content": section,
             "embedding": emb["data"][0]["embedding"],
             "doclang": detectLang(section),
-            "category": args.category,
+            "category": category,
             "accesskeys": accessKeys,
-            "sourcepage": blob_name_from_file_page(filename, pagenum),
-            "sourcefile": filename
+            "sourcepage": blob_name_from_file_page(file_path, pagenum),
+            "sourcefile": file
         }
         
 
@@ -364,8 +339,8 @@ def create_search_index():
         if args.verbose: print(f"Search index {args.index} already exists")
 
 
-def index_sections(filename, sections):
-    if args.verbose: print(f"Indexing sections from '{filename}' into search index '{args.index}'")
+def index_sections(file, sections):
+    if args.verbose: print(f"Indexing sections from '{file}' into search index '{args.index}'")
     search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
                                     index_name=args.index,
                                     credential=search_creds)
@@ -385,13 +360,13 @@ def index_sections(filename, sections):
         succeeded = sum([1 for r in results if r.succeeded])
         if args.verbose: print(f"\tIndexed {len(results)} sections, {succeeded} succeeded")
 
-def remove_from_index(filename):
-    if args.verbose: print(f"Removing sections from '{filename or '<all>'}' from search index '{args.index}'")
+def remove_from_index(file_path):
+    if args.verbose: print(f"Removing sections from '{file_path or '<all>'}' from search index '{args.index}'")
     search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
                                     index_name=args.index,
                                     credential=search_creds)
     while True:
-        filter = None if filename == None else f"sourcefile eq '{os.path.basename(filename)}'"
+        filter = None if file_path == None else f"sourcefile eq '{name_from_path(file_path)}'"
         r = search_client.search("", filter=filter, top=1000, include_total_count=True)
         if r.get_count() == 0:
             break
@@ -400,6 +375,30 @@ def remove_from_index(filename):
         # It can take a few seconds for search results to reflect changes, so wait a bit
         time.sleep(2)
 
+# gets the search category of a file (name of category returned)
+def get_search_value(file, key):
+    search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
+                                    index_name=args.index,
+                                    credential=search_creds)
+    res = search_client.search(search_text="*",filter=f"sourcefile eq '{file}'", top=1)
+
+    return next(res)[key]
+
+# updates only the category of a file (returns nothing)
+def update_search_value(file,key,value):
+    search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
+                                    index_name=args.index,
+                                    credential=search_creds)
+    results = search_client.search(search_text="*",filter=f"sourcefile eq '{file}'")
+    updated_docs = []
+    for res in results:
+
+        res[key] = value
+        updated_docs.append(res)
+
+    search_client.upload_documents(documents=updated_docs)
+
+    
 # Define function to get MD5 hash of a file
 def get_md5_hash(file_path):
     with open(file_path, "rb") as f:
@@ -415,155 +414,268 @@ def invalidFileName(string):
     return False
 
 
-def delete_non_pdf_files(files):
-    for filename in files:
-        if not filename.endswith(".pdf"):
-            try:
-                file = os.path.dirname(args.files) + '/' + filename 
-                os.remove(file)
-                print(f"Deleted: {file}")
-            except FileNotFoundError:
-                print(f"File not found: {file}")
-            except Exception as e:
-                print(f"Error deleting {file}: {e}")
-                sys.exit(99)
-                
-
-# delete on pdf files from the data directory first
-
-delete_non_pdf_files(os.listdir(os.path.dirname(args.files)))
-
-# handle data2convert folder to get a unique approach only using pdf files
-
-for filename in glob.glob(args.files2convert):
-    file = os.path.splitext(filename)
-    target = f"./data/{(file[0].split('/')[2])}.pdf"
-    
-    # handle markdown
-    if file[1] == ".md":
-        md2pdf(target,
-        md_content=None,
-        md_file_path=filename,
-        css_file_path=None,
-        base_url=None)
-
-    # handle html
-    elif file[1] == ".html":
-        print(file)
-        print(filename)
-        print(target)
-        pdfkit.from_file(filename, target)
-
-    # handle pictures
-    elif file[1] in [".jpg", ".jpeg", ".png"]:
-        thecanvas = canvas.Canvas(target, pagesize=A4)
-        img = Image.open(filename)
-        img_width, img_height = img.size
-        aspect_ratio = img_width / img_height
-        canvas_width, canvas_height = A4
-        if aspect_ratio > 1:
-            # Bild ist breiter als hoch, Skalierung an der Breite orientieren
-            img_width = canvas_width
-            img_height = int(img_width / aspect_ratio)
-        else:
-            # Bild ist höher als breit, Skalierung an der Höhe orientieren
-            img_height = canvas_height
-            img_width = int(img_height * aspect_ratio)
-        x = (canvas_width - img_width) / 2
-        y = (canvas_height - img_height) / 2
-        thecanvas.drawImage(filename, x, y, width=img_width, height=img_height)
-        # PDF-Dokument speichern
-        thecanvas.save()
-
-
-# here the code execution starts
-if args.removeall:
-    remove_blobs(None)
-    remove_from_index(None)
-else:
-    # create index (or not if it already exists)
-    create_search_index()
-
-    # init blob in main script for docs comparison
-    docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
-    docs_container = docs_service.get_container_client(args.containerdocs)
-    if not docs_container.exists():
-        docs_container.create_container()
-
-    local_hashmap = {}
-    blob_hashmap = {}
-    blob_list = docs_container.list_blobs()
-
-    overview = [0,0,0]
-
-    # create md5 byte hashes and add them to hashmaps for comparison
-    for filename in glob.glob(args.files):
-        local_hashmap[filename] = get_md5_hash(filename)
-        if (invalidFileName(filename)):
-            raise Exception(f'The filename {filename} is invalid, as it is not allowed to end with -012.pdf etc.')
-    for blob in blob_list:
-        blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
-
-    # loop through local files
-    for filename, local_hash in local_hashmap.items():
-
-        # check if the file is in the blob
-        if os.path.basename(filename) in blob_hashmap:
-            # if true, get the hash and then compare
-            remote_hash = blob_hashmap[os.path.basename(filename)]
-            if local_hash != remote_hash:
-                # different hashes, upload file again
+def delete_non_pdf_files(directory):
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if not file.endswith(".pdf"):
                 try:
-                    print (f'{filename} changed, will be processed again')
-                    upload_blobs(filename)
-                    upload_blobs_docs(filename)
-                    page_map = get_document_text(filename)
-                    sections = create_sections(os.path.basename(filename), page_map, ['All'])
-                    index_sections(os.path.basename(filename), sections)
-                    overview[0] += 1
+                    file_path = os.path.join(root, file)
+                    os.remove(file_path)
+                    print(f"Deleted: {file_path}")
+                except FileNotFoundError:
+                    print(f"File not found: {file_path}")
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {e}")
+                    sys.exit(99)
+
+
+def convert_website_to_pdf(site_url, output ):
+    """
+    Konvertiert eine gesamte Website in eine PDF-Datei.
+    :param site_url: Die URL der zu konvertierenden Website.
+    :param output_directory: Der Pfad des Ausgabe-PDF-Verzeichnisses.
+    """
+    # Konvertieren der Startseite in das erste PDF-Dokument
+    try:
+        pdfkit.from_url(site_url,output)
+        print('PDF was created successfully')
+    except IOError:
+        print('Error, PDF was not created')
+
+
+############################## SCRIPT EXECUTION BEGINS ############################## 
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        description="Prepare documents by extracting content from PDFs, splitting content into sections, uploading to blob storage, and indexing in a search index.",
+        epilog="Example: prepdocs.py 'data' --storageaccount myaccount --container mycontainer --searchservice mysearch --index myindex -v"
+        )
+    parser.add_argument("files", help="Files to be processed")
+    parser.add_argument("--files2convert", help="Files to be processed (in .md format)")
+    parser.add_argument("--skipblobs", action="store_true", help="Skip uploading individual pages to Azure Blob Storage")
+    parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
+    parser.add_argument("--container", help="Azure Blob Storage container name")
+    parser.add_argument("--containerdocs", help="Azure Blob Storage container name for full docs")
+    parser.add_argument("--storagekey", required=False, help="Optional. Use this Azure Blob Storage account key instead of the current user identity to login (use az login to set current user for Azure)")
+    parser.add_argument("--tenantid", required=False, help="Optional. Use this to define the Azure directory where to authenticate)")
+    parser.add_argument("--searchservice", help="Name of the Azure Cognitive Search service where content should be indexed (must exist already)")
+    parser.add_argument("--openaiservice", help="Name of the Azure OpenAI service used to compute embeddings")
+    parser.add_argument("--openaideployment", help="Name of the Azure OpenAI model deployment for an embedding model ('text-embedding-ada-002' recommended)")
+    parser.add_argument("--openaikey", required=False, help="Optional. Use this Azure OpenAI account key instead of the current user identity to login (use az login to set current user for Azure)")
+    parser.add_argument("--index", help="Name of the Azure Cognitive Search index where content should be indexed (will be created if it doesn't exist)")
+    parser.add_argument("--searchkey", required=False, help="Optional. Use this Azure Cognitive Search account key instead of the current user identity to login (use az login to set current user for Azure)")
+    parser.add_argument("--remove", action="store_true", help="Remove references to this document from blob storage and the search index")
+    parser.add_argument("--removeall", action="store_true", help="Remove all blobs from blob storage and documents from the search index")
+    parser.add_argument("--localpdfparser", action="store_true", help="Use PyPdf local PDF parser (supports only digital PDFs) instead of Azure Form Recognizer service to extract text, tables and layout from the documents")
+    parser.add_argument("--formrecognizerservice", required=False, help="Optional. Name of the Azure Form Recognizer service which will be used to extract text, tables and layout from the documents (must exist already)")
+    parser.add_argument("--formrecognizerkey", required=False, help="Optional. Use this Azure Form Recognizer account key instead of the current user identity to login (use az login to set current user for Azure)")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    args = parser.parse_args()
+
+    # Use the current user identity to connect to Azure services unless a key is explicitly set for any of them
+    azd_credential = AzureDeveloperCliCredential() if args.tenantid == None else AzureDeveloperCliCredential(tenant_id=args.tenantid, process_timeout=60)
+    default_creds = azd_credential if args.searchkey == None or args.storagekey == None else None
+    search_creds = default_creds if args.searchkey == None else AzureKeyCredential(args.searchkey)
+    if not args.skipblobs:
+        storage_creds = default_creds if args.storagekey == None else args.storagekey
+    if not args.localpdfparser:
+        # check if Azure Form Recognizer credentials are provided
+        if args.formrecognizerservice == None:
+            print("Error: Azure Form Recognizer service is not provided. Please provide formrecognizerservice or use --localpdfparser for local pypdf parser.")
+            exit(1)
+        formrecognizer_creds = default_creds if args.formrecognizerkey == None else AzureKeyCredential(args.formrecognizerkey)
+
+    if args.openaikey == None:
+        openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
+        openai.api_type = "azure_ad"
+    else:
+        openai.api_type = "azure"
+        openai.api_key = args.openaikey
+    openai.api_base = f"https://{args.openaiservice}.openai.azure.com"
+    openai.api_version = "2022-12-01"
+
+    # delete non pdf files from data
+    delete_non_pdf_files(args.files)
+
+
+############################# FILE CONVERTION BEGINS ############################## 
+    DATA_CONVERT = False
+    if DATA_CONVERT: 
+        # handle data2convert folder to get a unique approach only using pdf files
+        for root, dirs, files in os.walk(args.files2convert):
+            for file in files:
+                # create filepath and targetpath and ensure the directories will be created
+                file_path = os.path.join(root, file)
+                target = file_path.replace("data2convert/", "data/").rsplit(".", 1)[0] + ".pdf"
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+
+                if file.endswith(".md"):
+                    md2pdf(target,
+                    md_content=None,
+                    md_file_path=file_path,
+                    css_file_path=None,
+                    base_url=None)
+
+                elif file.endswith(".html"):
+                    pdfkit.from_file(file_path, target)
+
+                # handle pictures
+                elif file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".png"):
+                    thecanvas = canvas.Canvas(target, pagesize=A4)
+                    img = Image.open(file_path)
+                    img_width, img_height = img.size 
+                    aspect_ratio = img_width / img_height
+                    canvas_width, canvas_height = A4
+                    if aspect_ratio > 1:
+                        # Bild ist breiter als hoch, Skalierung an der Breite orientieren
+                        img_width = canvas_width
+                        img_height = int(img_width / aspect_ratio)
+                    else:
+                        # Bild ist höher als breit, Skalierung an der Höhe orientieren
+                        img_height = canvas_height
+                        img_width = int(img_height * aspect_ratio)
+                    x = (canvas_width - img_width) / 2
+                    y = (canvas_height - img_height) / 2
+                    thecanvas.drawImage(file_path, x, y, width=img_width, height=img_height)
+                    # PDF-Dokument speichern
+                    thecanvas.save()
+
+                elif file == "pages.json":
+
+                    with open(file_path) as json_file:
+                        # Load the JSON data
+                        data = json.load(json_file)
+
+                    # Loop through each key-value pair and print them separately
+                    for key, value in data.items():
+                        print (f'{key}.pdf will be created from {value}')
+                        try:
+                            url_target = target.replace("pages", key)
+                            convert_website_to_pdf(value, url_target)
+                        except Exception as e:
+                            print(f'Error creating PDF {key} from URL: {value}, Error: {str(e)}')
+                
+                elif file.endswith(".json"):
+                    print("please rename json files with URLs to -> pages.json")
+
+
+############################## INDEX HANDLING BEGINS ############################## 
+    if args.removeall:
+        remove_blobs(None)
+        remove_from_index(None)
+    else:
+        # create index (or not if it already exists)
+        create_search_index()
+
+        # init blob in main script for docs comparison
+        docs_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
+        docs_container = docs_service.get_container_client(args.containerdocs)
+        if not docs_container.exists():
+            docs_container.create_container()
+
+        local_hashmap = {}
+        blob_hashmap = {}
+        blob_list = docs_container.list_blobs()
+
+        overview = [0,0,0]
+
+        # loop through all files in args.files (should be 'data')
+        # creates a local hashmap that has an array with the file_path 'data/example.pdf', 
+        # md5hash and category that is the first folder after the args.files
+
+        for root, dirs, files in os.walk(args.files):
+            for file in files:
+
+                file_path = os.path.join(root, file)
+                sp_path = file_path.split("/")
+                category = sp_path[1] if (sp_path[1] != file) else None
+
+                local_hashmap[name_from_path(file_path)] = [file_path, get_md5_hash(file_path), category]
+                if (invalidFileName(file)):
+                    raise Exception(f'The filename {file} is invalid, as it is not allowed to end with -012.pdf etc.')
+        
+        # creation of the blob hashmap with the blob.name (file_name) and the md5hash as value
+        for blob in blob_list:
+            blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+
+        # loop through local files
+        print("go through files locally")
+
+        # every local file of the hashmap will be processed, local_data is the array of values of the hashmap
+        for file, local_data in local_hashmap.items():
+            
+            # get category and file_path
+            local_category = local_data[2]
+            file_path_local = local_data[0]
+
+            # check if the file is in the blob
+            if file in blob_hashmap:
+                # if true, get the hash and category for comparison
+                remote_hash = blob_hashmap[file]
+                remote_category = get_search_value(file=file,key="category")
+
+                # check if the hashes are the same, if not, file will be upserted, no else case, only elif for category   
+                if local_data[1] != remote_hash:
+                    try:
+                        print (f'{file} changed, will be processed again')
+                        upload_blobs(file_path_local)
+                        upload_blobs_docs(file_path_local)
+
+                        page_map = get_document_text(file_path_local)
+
+                        sections = create_sections(file_path_local, page_map, ['All'], local_category)
+
+                        index_sections(file, sections)
+
+                        overview[0] += 1
+                    except Exception as e:
+                        print("something went wrong, clearing up state now")
+                        print("Error:", e)
+                        remove_blobs(file_path_local)
+                        remove_blobs_docs(file_path_local)
+                        remove_from_index(file_path_local)
+                        break
+                # if the categories are not similar, exchange the category value in index
+                elif local_category != remote_category:
+                    update_search_value(file=file, key="category",value=local_category)
+
+            # this happens when file is not in blob
+            else:
+                try:
+                    # only in local, upload file
+                    print (f'{file} only local, will be processed')
+                    upload_blobs(file_path_local)
+                    upload_blobs_docs(file_path_local)
+
+                    page_map = get_document_text(file_path_local)
+
+                    sections = create_sections(file_path_local, page_map, ['All'], local_category)
+
+                    index_sections(file, sections)
+
+                    overview[1] += 1
                 except Exception as e:
                     print("something went wrong, clearing up state now")
                     print("Error:", e)
-                    remove_blobs(filename)
-                    remove_blobs_docs(filename)
-                    remove_from_index(filename)
+                    remove_blobs(file_path_local)
+                    remove_blobs_docs(file_path_local)
+                    remove_from_index(file_path_local)
                     break
 
-        else:
-            try:
-                # only in local, upload file
-                print (f'{filename} only local, will be processed')
-                upload_blobs(filename)
-                upload_blobs_docs(filename)
-                page_map = get_document_text(filename)
-                sections = create_sections(os.path.basename(filename), page_map, ['All'])
-                index_sections(os.path.basename(filename), sections)
-                overview[1] += 1
-            except Exception as e:
-                print("something went wrong, clearing up state now")
-                print("Error:", e)
-                remove_blobs(filename)
-                remove_blobs_docs(filename)
-                remove_from_index(filename)
-                break
-
-    # loop through blob files
-    for filename in blob_hashmap:
-        if platform.system() == 'Windows':
-            filename_check = f'./data\\{filename}'
-        else:
-            filename_check = f'./data/{filename}'
-            
-        if filename_check not in local_hashmap:
-            # only in remote, remove file
-            try:
-                print (f'{filename} only remote, will be removed from blob and index')
-                remove_blobs(filename)
-                remove_blobs_docs(filename)
-                remove_from_index(filename)
-                overview[2] += 1
-            except Exception as e:
-                print("something went wrong with the deletion of files, please contact the Azure Team")
-                print("Error:", e)
-                break
-    print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
+        # loop through blob files
+        print("go through files in blob")
+        for file in blob_hashmap:
+            if file not in local_hashmap:
+                # only in remote, remove file
+                try:
+                    print (f'{file} only remote, will be removed from blob and index')
+                    remove_blobs(local_hashmap)
+                    remove_blobs_docs(file)
+                    remove_from_index(file)
+                    overview[2] += 1
+                except Exception as e:
+                    print("something went wrong with the deletion of files, please contact the Azure Team")
+                    print("Error:", e)
+                    break
+        print (f'{str(overview[0])} files were changed, {str(overview[1])} files were added, {str(overview[2])} files were deleted')
