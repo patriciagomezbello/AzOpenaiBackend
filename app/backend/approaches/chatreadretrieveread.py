@@ -78,10 +78,8 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     except:
                         ques = history[-1]["user"]
                     
-        
         user_q = 'Generate search query for: ' + ques
         
-
         # start logging full request time
         start_chat = time.perf_counter()
         

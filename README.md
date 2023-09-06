@@ -13,6 +13,7 @@
 		* core/*.py contains functions that are used in the approaches (for logging, handling sources in responses etc.)
 	- app.py contains the flask (async version = quart) code that exposes the /chat and /content/{path} api for potential frontends
 	- context.py (is cicd variable) contains the context of the backend, that is given to chatgpt, how to act etc.
+	- abbrev.py (is cicd variable) contains generated abbreviations that LLMs cannot know
 	- requirements.txt contains the python packages for the backend
 
 - data2convert/ for data in different formats -> urls, png,jpeg,jpg, md
@@ -35,7 +36,7 @@
 
 ### File Variables 
 
-- Name: **ENVIRONMENT**
+- **ENVIRONMENT**
 	- Environment for deployment, deployment variables
 	- AUTH_CLIENT 		-> backend service principal client id
 	- ENV_NAME 			-> name of the environment (can be named invidually, needs to be consistent after)
@@ -49,7 +50,9 @@ AZURE_LOCATION="westeurope"
 ```
 **Important**: This is a minimal setup, more variables can be put into this file to use more existing services
 
-- Name: **CONTEXT**
+
+
+- **CONTEXT**
 	- Context for the model to have an adjusted frame for the questions and answers. Python File
 	- system_message_chat_conversation -> system message for the model
 	- query_prompt_template -> query prompt for using question to retrieve information
@@ -73,6 +76,15 @@ query_prompt_template = """Below is a history of the conversation so far, and a 
     If the question is not in {language}, translate the question to {language} before generating the search query.
 """
 
+```
+
+- **ABBREV**
+	- Abbreviations in csv format, will be transformed for better performance during each deployment
+	- can be used to overwrite publicly known Abbreviations
+
+``` csv
+CMS, Content Management System
+LLM, Large Learning Model
 ```
 
 ### Environment Variables (not stored as file, but as variable)

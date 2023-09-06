@@ -40,3 +40,35 @@ cd ../../
 
 # Copy context.py to core
 cp $CONTEXT app/backend/core/context.py
+
+# Copy Abbrevations
+cp $ABBREV app/backend/core/abbrev.csv
+
+#navigate there
+cd app/backend/core
+
+touch abbrev.py
+
+csv_file="abbrev.csv"
+python_file="abbrev.py"
+
+echo "abbrev = {" > $python_file
+
+while IFS=, read -r abbreviation full_form
+do
+    abbreviation=$(echo $abbreviation 
+| sed 's/^[[:space:]]*//;s/[[:space:]]*$//')  # Trim whitespace
+    full_form=$(echo $full_form | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')  # Trim whitespace
+    echo "    '$abbreviation': '$full_form'," >> $python_file
+done < $csv_file
+
+echo "}" >> $python_file
+echo "Abbreviations dictionary exported to $python_file"
+
+rm abbrev.csv
+
+cd ../../../
+
+
+
+

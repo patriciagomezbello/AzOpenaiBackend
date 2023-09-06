@@ -23,6 +23,8 @@ __pycache__/
 
 app/backend/backend_env/
 app/backend/core/context.py
+app/backend/core/abbrev.py
+app/backend/core/abbrev.csv
 
 # Distribution / packaging
 .Python
