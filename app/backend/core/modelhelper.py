@@ -3,7 +3,7 @@ from __future__ import annotations
 import tiktoken
 import re
 from langdetect import detect
-import requests, pycountry     
+import pycountry     
 import openai
 
 MODELS_2_TOKEN_LIMITS = {
@@ -147,6 +147,29 @@ async def cgsIndexColumnFacetDist(client, facet):
         print("setting default to 'de' due to error in facets search query")
         return [{'count': 1, 'value': 'de'}]
     
+async def getCategory(client):
+    
+    try:
+        facets_search = await client.search(
+                    top=0,
+                    skip=0,
+                    query_type="simple",
+                    select="",
+                    search_text="*", 
+                    search_fields=[], 
+                    filter="", 
+                    facets=[facet], 
+                    order_by="",
+                    include_total_count=True
+                )
+        res = await facets_search.get_facets()
+        return res[facet]
+        #return res
+    except Exception as e:
+        print(e)
+        print("setting default to 'de' due to error in facets search query")
+        return [{'count': 1, 'value': 'de'}]
+    
 
 
 def getLang(iso_country_code):
@@ -178,6 +201,47 @@ def translateText(text, target_language, chatgpt_deployment):
         stop=None)
     query_text = response.choices[0].message.content
     return query_text
+
+
+def replace_abbreviations(string, abbreviations):
+    # Create a lower case dictionary for matching 
+    lower_abbreviations = {abbrev.lower(): replacement for abbrev, replacement in abbreviations.items()}
+
+    words = string.split()
+
+    for i in range(len(words)):
+        word = words[i]
+        lower_word = word.lower()
+
+        # Replace words found in the dictionary, ignoring case.
+        if lower_word in lower_abbreviations:
+            words[i] = lower_abbreviations[lower_word]
+
+        # Handle abbreviations separated by a hyphen
+        elif "-" in word and len(word.split("-")) == 2:
+            parts = word.split("-")
+            lower_parts = lower_word.split("-")
+            if lower_parts[0] in lower_abbreviations and lower_parts[1] in lower_abbreviations:
+                words[i] = f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
+        
+        # Handle special characters at the end of a word.
+        elif re.search(r"\w[.,!?;]", word): 
+            parts = re.split(r"([\.,!?;])", word) 
+            replaced_parts = []
+
+            for part in parts[:-1]: # exclude the last element (it's an empty string from splitting at the end character)
+                lower_part = part.lower() # use lower case for matching
+                if lower_part in lower_abbreviations:
+                    replaced_parts.append(lower_abbreviations[lower_part]) # use original dictionary for substitution
+                else:
+                    replaced_parts.append(part)
+            replaced_parts.append(parts[-1]) # add the special char back 
+                
+            words[i] = "".join(replaced_parts)
+
+    return " ".join(words)
+
+
 
 
 

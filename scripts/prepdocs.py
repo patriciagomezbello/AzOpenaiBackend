@@ -92,7 +92,7 @@ def upload_blobs(file_path):
         with open(file_path,"rb") as data:
             blob_container.upload_blob(blob_name, data, overwrite=True)
 
-def remove_blobs(file_path):
+def remove_blobs(file_path, isPath=True):
     if args.verbose: print(f"Removing blobs (from contianer {args.container}) for '{file_path or '<all>'}'")
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.container)
@@ -100,7 +100,10 @@ def remove_blobs(file_path):
         if file_path == None:
             blobs = blob_container.list_blob_names()
         else:
-            prefix = name_from_path(file_path).split(".")[0]
+            if (isPath):
+                prefix = name_from_path(file_path).split(".")[0]
+            else: 
+                prefix = file_path.split(".")[0]
             blobs = filter(lambda b: re.match(f"{prefix}-\d+\.pdf", b), blob_container.list_blob_names(name_starts_with=os.path.splitext(os.path.basename(prefix))[0]))
         for b in blobs:
             try:
@@ -109,13 +112,16 @@ def remove_blobs(file_path):
             except: 
                 print (f'not found in {args.container}')
 
-def remove_blobs_docs(file_path):
+def remove_blobs_docs(file_path, isPath=True):
     if args.verbose: print(f"Removing blobs (from container {args.containerdocs}) for '{file_path}'")
     blob_service = BlobServiceClient(account_url=f"https://{args.storageaccount}.blob.core.windows.net", credential=storage_creds)
     blob_container = blob_service.get_container_client(args.containerdocs)
     if blob_container.exists():
         try:
-            blob_container.delete_blob(name_from_path(file_path))
+            if (isPath):
+                blob_container.delete_blob(name_from_path(file_path))
+            else: 
+                blob_container.delete_blob(file_path)
         except: 
             print (f'not found in {args.containerdocs}')
 
@@ -360,13 +366,14 @@ def index_sections(file, sections):
         succeeded = sum([1 for r in results if r.succeeded])
         if args.verbose: print(f"\tIndexed {len(results)} sections, {succeeded} succeeded")
 
-def remove_from_index(file_path):
+def remove_from_index(file_path, isPath=True):
     if args.verbose: print(f"Removing sections from '{file_path or '<all>'}' from search index '{args.index}'")
     search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
                                     index_name=args.index,
                                     credential=search_creds)
+    file = name_from_path(file_path) if isPath else file_path
     while True:
-        filter = None if file_path == None else f"sourcefile eq '{name_from_path(file_path)}'"
+        filter = None if file_path == None else f"sourcefile eq '{file}'"
         r = search_client.search("", filter=filter, top=1000, include_total_count=True)
         if r.get_count() == 0:
             break
@@ -670,9 +677,9 @@ if __name__ == "__main__":
                 # only in remote, remove file
                 try:
                     print (f'{file} only remote, will be removed from blob and index')
-                    remove_blobs(local_hashmap)
-                    remove_blobs_docs(file)
-                    remove_from_index(file)
+                    remove_blobs(file, isPath=False)
+                    remove_blobs_docs(file, isPath=False)
+                    remove_from_index(file, isPath=False)
                     overview[2] += 1
                 except Exception as e:
                     print("something went wrong with the deletion of files, please contact the Azure Team")
