@@ -7,7 +7,7 @@
 # ignore data folders
 data/
 data2convert/
-
+backup/
 deploy/local.sh
 
 .DS_Store

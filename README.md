@@ -15,6 +15,17 @@
 	- context.py (is cicd variable) contains the context of the backend, that is given to chatgpt, how to act etc.
 	- requirements.txt contains the python packages for the backend
 
+- data2convert/ for data in different formats -> urls, png,jpeg,jpg, md
+
+**pages.json** in every directory will create name1.pdf, name2.pdf in directory
+
+``` json
+{
+	"name1": "https://example.com",
+	"name2": "https://example.de",	
+}
+```
+
 ## How to deploy: **Fork repository and adjust CI/CD Settings**
 
 ### General Information
