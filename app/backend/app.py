@@ -24,6 +24,7 @@ from quart import (
 )
 
 from quart_cors import cors
+from quart_schema import QuartSchema, hide, Info
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from core.modelhelper import cgsIndexColumnFacetDist
@@ -41,7 +42,8 @@ if platform.system() == 'Darwin':
     print('cors disabled')
     bp = cors(bp, allow_origin="*")
 
-@bp.route("/")
+@bp.route("/",  methods=["GET"])
+@hide
 async def index():
     return await bp.send_static_file("index.html")
 
@@ -49,7 +51,7 @@ async def index():
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
 # can access all the files. This is also slow and memory hungry.
-@bp.route("/content/<path>")
+@bp.route("/content/<path>", methods=["GET"])
 async def content_file(path):
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     blob = await blob_container_client.get_blob_client(path).download_blob()
@@ -63,7 +65,7 @@ async def content_file(path):
     blob_file.seek(0)
     return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
 
-@bp.route("/category")
+@bp.route("/category", methods=["GET"])
 async def get_category():
     search_client = current_app.config[CONFIG_SEARCH_CLIENT]
     res = await cgsIndexColumnFacetDist(search_client, "category")
@@ -189,5 +191,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="0.7"))
 
     return app
