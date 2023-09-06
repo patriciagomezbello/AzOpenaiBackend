@@ -9,10 +9,11 @@ from azure.search.documents.models import QueryType
 
 from approaches.approach import ChatApproach
 from core.messagebuilder import MessageBuilder
-from core.modelhelper import get_token_limit, num_tokens_from_messages,addTokenCount, getCitationObject, detectLang, getLang, translateText
+from core.modelhelper import get_token_limit, num_tokens_from_messages,addTokenCount, getCitationObject, detectLang, getLang, translateText, replace_abbreviations
 from text import nonewlines
 
 from core.context import system_message_chat_conversation, query_prompt_template
+from core.abbrev import abbreviations
 
 
 class ChatReadRetrieveReadApproach(ChatApproach):
@@ -67,10 +68,19 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         
         filter = lang_filter + (' and ' + category_filter if category_filter else '')
         print("Using Filter :" + filter)
-        user_q = 'Generate search query for: ' + history[-1]["user"]
+        ques = history[-1]["user"]
 
 
-
+        if(len(abbreviations) > 0):
+                    try: 
+                        temp = replace_abbreviations(ques, abbreviations)
+                        ques = temp
+                    except:
+                        ques = history[-1]["user"]
+                    
+        
+        user_q = 'Generate search query for: ' + ques
+        
 
         # start logging full request time
         start_chat = time.perf_counter()
@@ -118,6 +128,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
                 addTokenCount(usedTokens, chat_completion)
 
+                # debug
+                print(f"\nUmwandlung der Frage in Keywords: {query_text}\n")
+
             except Exception as e:
                 raise Exception({
                     'exception': e.args[0], 
@@ -128,7 +141,6 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
             # save time for completion request for keyword optimization and add token count to request token object
             keyword_request_time = round(time.perf_counter() - start_keyword, r_dec)
-
 
             # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
 
@@ -216,7 +228,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) async for doc in r]
             content = "\n".join(results)
 
-            
+            # debug
+            print(f"\nContent aus der Suche: \n-----\n{content}\n-----\n")
+
+
             # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
             prompt_override = overrides.get("prompt_override")
             if prompt_override is None:
@@ -241,10 +256,11 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     model=self.chatgpt_model,
                     messages=messages, 
                     temperature=overrides.get("temperature") or 0.7, 
-                    max_tokens=1024, 
+                    max_tokens=2048, 
                     n=1)
                 
                 addTokenCount(usedTokens, chat_completion)
+
 
             except Exception as e: 
                     raise Exception({
@@ -300,6 +316,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         # Extract sources with specific information to be used by potential frontend for single pages and full document usage
 
         chat_content = chat_completion.choices[0].message.content
+
+        # debug
+        print(f"\nAntwort von ChatGPT: \n-----\n{chat_content}\n-----\n")
 
         msg_to_display = '\n\n'.join([str(message) for message in messages])
 
