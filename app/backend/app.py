@@ -33,6 +33,7 @@ CONFIG_CREDENTIAL = "azure_credential"
 CONFIG_ASK_APPROACHES = "ask_approaches"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
+CONFIG_SEARCH_CLIENT = "search_client"
 
 bp = Blueprint("routes", __name__, static_folder='static')
 
@@ -43,7 +44,6 @@ if platform.system() == 'Darwin':
 @bp.route("/")
 async def index():
     return await bp.send_static_file("index.html")
-
 
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
@@ -62,6 +62,13 @@ async def content_file(path):
     await blob.readinto(blob_file)
     blob_file.seek(0)
     return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
+
+@bp.route("/category")
+async def get_category():
+    search_client = current_app.config[CONFIG_SEARCH_CLIENT]
+    res = await cgsIndexColumnFacetDist(search_client, "category")
+    values = [item['value'] for item in res]
+    return jsonify(values)
 
 @bp.route("/chat", methods=["POST"])
 async def chat():
@@ -129,6 +136,7 @@ async def setup_clients():
     os.environ['FACETS_RESULTS'] = str(facets_results)
     print(facets_results)
 
+
     # Used by the OpenAI SDK
     openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"
     openai.api_version = "2023-05-15"
@@ -142,6 +150,7 @@ async def setup_clients():
     current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
     current_app.config[CONFIG_CREDENTIAL] = azure_credential
     current_app.config[CONFIG_BLOB_CONTAINER_CLIENT] = blob_container_client
+    current_app.config[CONFIG_SEARCH_CLIENT] = search_client
 
     # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
     # or some derivative, here we include several for exploration purposes

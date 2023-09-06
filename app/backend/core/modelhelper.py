@@ -147,6 +147,29 @@ async def cgsIndexColumnFacetDist(client, facet):
         print("setting default to 'de' due to error in facets search query")
         return [{'count': 1, 'value': 'de'}]
     
+async def getCategory(client):
+    
+    try:
+        facets_search = await client.search(
+                    top=0,
+                    skip=0,
+                    query_type="simple",
+                    select="",
+                    search_text="*", 
+                    search_fields=[], 
+                    filter="", 
+                    facets=[facet], 
+                    order_by="",
+                    include_total_count=True
+                )
+        res = await facets_search.get_facets()
+        return res[facet]
+        #return res
+    except Exception as e:
+        print(e)
+        print("setting default to 'de' due to error in facets search query")
+        return [{'count': 1, 'value': 'de'}]
+    
 
 
 def getLang(iso_country_code):
