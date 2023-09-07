@@ -4,6 +4,8 @@ import mimetypes
 import os
 import time
 import platform
+from dataclasses import dataclass
+from typing import List, Optional
 
 import aiohttp
 import openai
@@ -24,6 +26,7 @@ from quart import (
 )
 
 from quart_cors import cors
+from quart_schema import QuartSchema, Info, validate_request, validate_response, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from core.modelhelper import cgsIndexColumnFacetDist
@@ -33,6 +36,7 @@ CONFIG_CREDENTIAL = "azure_credential"
 CONFIG_ASK_APPROACHES = "ask_approaches"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
+CONFIG_SEARCH_CLIENT = "search_client"
 
 bp = Blueprint("routes", __name__, static_folder='static')
 
@@ -40,17 +44,47 @@ if platform.system() == 'Darwin':
     print('cors disabled')
     bp = cors(bp, allow_origin="*")
 
-@bp.route("/")
-async def index():
-    return await bp.send_static_file("index.html")
 
+@dataclass
+class History:
+    user: str
+    bot: Optional[str]
+
+@dataclass
+class Overrides:
+    retrieval_mode: str
+    semantic_ranker: bool
+    semantic_captions: bool
+    top: int
+    temperature: float
+
+@dataclass
+class RequestData:
+    history: List[History]
+    approach: str = "rrr"
+    overrides: Optional[Overrides] = None
+
+@dataclass
+class DataPoint:
+    docName: str
+    page: int
+
+@dataclass
+class ResponseData:
+    answer: str
+    thoughts: str
+    data_points: List[DataPoint]
+
+@dataclass
+class CatResponse:
+    categories: List[str]
 
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
 # can access all the files. This is also slow and memory hungry.
-@bp.route("/content/<path>")
-async def content_file(path):
+@bp.route("/content/<path>", methods=["GET"])
+async def content(path):
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     blob = await blob_container_client.get_blob_client(path).download_blob()
     if not blob.properties or not blob.properties.has_key("content_settings"):
@@ -63,7 +97,19 @@ async def content_file(path):
     blob_file.seek(0)
     return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
 
+
+@bp.route("/category", methods=["GET"])
+@validate_response(CatResponse)
+async def category():
+    search_client = current_app.config[CONFIG_SEARCH_CLIENT]
+    search_res = await cgsIndexColumnFacetDist(search_client, "category")
+    values = [item['value'] for item in search_res]
+    res = {"categories": values}
+    return jsonify(res)
+
 @bp.route("/chat", methods=["POST"])
+@validate_request(RequestData)
+@validate_response(ResponseData)
 async def chat():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
@@ -102,6 +148,8 @@ async def setup_clients():
     AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT")
     AZURE_OPENAI_CHATGPT_MODEL = os.getenv("AZURE_OPENAI_CHATGPT_MODEL")
     AZURE_OPENAI_EMB_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMB_DEPLOYMENT")
+    MAX_TOKENS_QUERY = os.getenv("MAX_TOKENS_QUERY") or 32
+    MAX_TOKENS_ANSWER = os.getenv("MAX_TOKENS_ANSWER") or 1024
 
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
@@ -129,6 +177,7 @@ async def setup_clients():
     os.environ['FACETS_RESULTS'] = str(facets_results)
     print(facets_results)
 
+
     # Used by the OpenAI SDK
     openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"
     openai.api_version = "2023-05-15"
@@ -142,6 +191,7 @@ async def setup_clients():
     current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
     current_app.config[CONFIG_CREDENTIAL] = azure_credential
     current_app.config[CONFIG_BLOB_CONTAINER_CLIENT] = blob_container_client
+    current_app.config[CONFIG_SEARCH_CLIENT] = search_client
 
     # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
     # or some derivative, here we include several for exploration purposes
@@ -153,6 +203,8 @@ async def setup_clients():
             AZURE_OPENAI_EMB_DEPLOYMENT,
             KB_FIELDS_SOURCEPAGE,
             KB_FIELDS_CONTENT,
+            MAX_TOKENS_QUERY,
+            MAX_TOKENS_ANSWER,
         )
     }
     current_app.config[CONFIG_CHAT_APPROACHES] = {
@@ -163,6 +215,8 @@ async def setup_clients():
             AZURE_OPENAI_EMB_DEPLOYMENT,
             KB_FIELDS_SOURCEPAGE,
             KB_FIELDS_CONTENT,
+            MAX_TOKENS_QUERY,
+            MAX_TOKENS_ANSWER,
         )
     }
 
@@ -174,5 +228,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="0.7"))
 
     return app
