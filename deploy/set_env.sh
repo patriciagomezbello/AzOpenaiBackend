@@ -8,10 +8,19 @@ value=$(azd env get-values)
 # Get new 
 env=$(<"$ENVIRONMENT")
 
+escape_quotes() {
+    local input="$1"
+    local result="${input//\"/\\\"}"     # Replace " with \"
+    result="${result//$'\n'/\\\n}"       # Replace line breaks with \n
+    echo "$result"
+}
+
 # Check if new value is different from current value
 if [[ "$value" != "$env" ]]; then
+
+  escaped=$(escape_quotes "$value")
   # Create a JSON payload with the variable value
-  JSON_PAYLOAD="{\"value\": \"$value\"}"
+  JSON_PAYLOAD="{\"value\": \"$escaped\"}"
 
   # Make a POST request to update the variable
   curl --request PUT --header "PRIVATE-TOKEN: $ACCESS_TOKEN" \
