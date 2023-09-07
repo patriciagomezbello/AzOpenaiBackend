@@ -109,6 +109,8 @@ async def setup_clients():
     AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT")
     AZURE_OPENAI_CHATGPT_MODEL = os.getenv("AZURE_OPENAI_CHATGPT_MODEL")
     AZURE_OPENAI_EMB_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMB_DEPLOYMENT")
+    MAX_TOKENS_QUERY = os.getenv("MAX_TOKENS_QUERY") or 32
+    MAX_TOKENS_ANSWER = os.getenv("MAX_TOKENS_ANSWER") or 1024
 
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
@@ -162,6 +164,8 @@ async def setup_clients():
             AZURE_OPENAI_EMB_DEPLOYMENT,
             KB_FIELDS_SOURCEPAGE,
             KB_FIELDS_CONTENT,
+            MAX_TOKENS_QUERY,
+            MAX_TOKENS_ANSWER,
         )
     }
     current_app.config[CONFIG_CHAT_APPROACHES] = {
@@ -172,6 +176,8 @@ async def setup_clients():
             AZURE_OPENAI_EMB_DEPLOYMENT,
             KB_FIELDS_SOURCEPAGE,
             KB_FIELDS_CONTENT,
+            MAX_TOKENS_QUERY,
+            MAX_TOKENS_ANSWER,
         )
     }
 

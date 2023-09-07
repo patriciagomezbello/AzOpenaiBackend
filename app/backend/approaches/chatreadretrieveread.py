@@ -26,7 +26,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
     query_prompt_template = query_prompt_template
 
     # init function for the extended approach class for crrr
-    def __init__(self, search_client: SearchClient, chatgpt_deployment: str, chatgpt_model: str, embedding_deployment: str, sourcepage_field: str, content_field: str):
+    def __init__(self, search_client: SearchClient, chatgpt_deployment: str, chatgpt_model: str, embedding_deployment: str, sourcepage_field: str, content_field: str, max_tokens_query: int, max_tokens_answer: int):
         self.search_client = search_client
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
@@ -34,6 +34,8 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         self.sourcepage_field = sourcepage_field
         self.content_field = content_field
         self.chatgpt_token_limit = get_token_limit(chatgpt_model)
+        self.max_tokens_query = max_tokens_query
+        self.max_tokens_answer = max_tokens_answer
 
     # executable function that is connected to the chat api -> receives and responds like chatgpt but with enterprise data‚
     async def run(self, history: list[dict[str, str]], overrides: dict[str, Any]) -> Any:
@@ -116,7 +118,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     model=self.chatgpt_model,
                     messages=messages, 
                     temperature=0.0, 
-                    max_tokens=32, 
+                    max_tokens=self.max_tokens_query, 
                     n=1)
                 
                 query_text = chat_completion.choices[0].message.content
@@ -254,7 +256,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     model=self.chatgpt_model,
                     messages=messages, 
                     temperature=overrides.get("temperature") or 0.7, 
-                    max_tokens=2048, 
+                    max_tokens=self.max_tokens_answer, 
                     n=1)
                 
                 addTokenCount(usedTokens, chat_completion)
