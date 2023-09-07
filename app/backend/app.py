@@ -4,6 +4,8 @@ import mimetypes
 import os
 import time
 import platform
+from dataclasses import dataclass
+from typing import List, Optional
 
 import aiohttp
 import openai
@@ -24,7 +26,7 @@ from quart import (
 )
 
 from quart_cors import cors
-from quart_schema import QuartSchema, hide, Info
+from quart_schema import QuartSchema, Info, validate_request, validate_response, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from core.modelhelper import cgsIndexColumnFacetDist
@@ -42,17 +44,47 @@ if platform.system() == 'Darwin':
     print('cors disabled')
     bp = cors(bp, allow_origin="*")
 
-@bp.route("/",  methods=["GET"])
-@hide
-async def index():
-    return await bp.send_static_file("index.html")
+
+@dataclass
+class History:
+    user: str
+    bot: Optional[str]
+
+@dataclass
+class Overrides:
+    retrieval_mode: str
+    semantic_ranker: bool
+    semantic_captions: bool
+    top: int
+    temperature: float
+
+@dataclass
+class RequestData:
+    history: List[History]
+    approach: str = "rrr"
+    overrides: Optional[Overrides] = None
+
+@dataclass
+class DataPoint:
+    docName: str
+    page: int
+
+@dataclass
+class ResponseData:
+    answer: str
+    thoughts: str
+    data_points: List[DataPoint]
+
+@dataclass
+class CatResponse:
+    categories: List[str]
 
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
 # can access all the files. This is also slow and memory hungry.
 @bp.route("/content/<path>", methods=["GET"])
-async def content_file(path):
+async def content(path):
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     blob = await blob_container_client.get_blob_client(path).download_blob()
     if not blob.properties or not blob.properties.has_key("content_settings"):
@@ -65,14 +97,19 @@ async def content_file(path):
     blob_file.seek(0)
     return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
 
+
 @bp.route("/category", methods=["GET"])
-async def get_category():
+@validate_response(CatResponse)
+async def category():
     search_client = current_app.config[CONFIG_SEARCH_CLIENT]
-    res = await cgsIndexColumnFacetDist(search_client, "category")
-    values = [item['value'] for item in res]
-    return jsonify(values)
+    search_res = await cgsIndexColumnFacetDist(search_client, "category")
+    values = [item['value'] for item in search_res]
+    res = {"categories": values}
+    return jsonify(res)
 
 @bp.route("/chat", methods=["POST"])
+@validate_request(RequestData)
+@validate_response(ResponseData)
 async def chat():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415

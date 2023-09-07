@@ -72,6 +72,7 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       globalValidation:{
         requireAuthentication: true
         unauthenticatedClientAction: 'Return401'
+        excludedPaths: ['/docs','/redocs','/openapi.json']
       }
       identityProviders:{
         azureActiveDirectory:{
