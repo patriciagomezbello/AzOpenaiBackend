@@ -47,23 +47,42 @@ cp $ABBREV app/backend/core/abbrev.csv
 #navigate there
 cd app/backend/core
 
-touch abbrev.py
-
 csv_file="abbrev.csv"
 python_file="abbrev.py"
 
-echo "abbrev = {" > $python_file
+# Check if the python file exists, if it does, remove it
+if [ -f $python_file ]; then
+    rm $python_file
+fi
 
-while IFS=, read -r abbreviation full_form
-do
-    abbreviation=$(echo $abbreviation 
-| sed 's/^[[:space:]]*//;s/[[:space:]]*$//')  # Trim whitespace
-    full_form=$(echo $full_form | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')  # Trim whitespace
-    echo "    '$abbreviation': '$full_form'," >> $python_file
-done < $csv_file
+# Check if the csv file exists
+if [ ! -f $csv_file ]; then
+    echo "CSV file does not exist."
+    echo "abbreviations = {}" >> $python_file
+else
+    # Begin writing to Python file
+    echo "abbreviations = {" >> $python_file
 
-echo "}" >> $python_file
+    # Iterate through the CSV, skipping empty lines
+    while IFS=, read -r abbreviation meaning || [ -n "$abbreviation" ]; do
+        # Skip lines where the abbreviation or meaning are empty
+        if [ -z "$abbreviation" ] || [ -z "$meaning" ]; then
+            continue
+        fi
+
+        # Write to the Python file
+        echo "    \"$abbreviation\": \"$meaning\"," >> $python_file
+    done < $csv_file
+
+    # Finish writing to Python file
+    echo "}" >> $python_file
+fi
+
 echo "Abbreviations dictionary exported to $python_file"
+
+cat $python_file
+
+ls
 
 rm abbrev.csv
 
