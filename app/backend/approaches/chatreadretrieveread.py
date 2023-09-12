@@ -263,7 +263,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             logging.error(log_values)
             return error_res
 
-        logging.info(log_values)
+        logging.warning(log_values)
 
         chat_content = chat_completion.choices[0].message.content
 

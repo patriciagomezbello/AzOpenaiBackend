@@ -32,21 +32,6 @@ from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from core.modelhelper import cgsIndexColumnFacetDist
 
 import logging
-# Define the EVAL level
-EVAL = 35
-logging.addLevelName(EVAL, "EVAL")
-
-def eval(self, message, *args, **kws):
-    if self.isEnabledFor(EVAL):
-        # Yes, logger takes its '*args' as 'args'.
-        self._log(EVAL, message, args, **kws)
-
-# Add the method to logging.Logger
-logging.Logger.eval = eval
-
-# Now you can use EVAL as an argument to logging functions:
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)  # Set threshold
 
 
 CONFIG_OPENAI_TOKEN = "openai_token"
@@ -108,7 +93,7 @@ class ErrorResponse:
 @dataclass
 class FeedbackRequestData:
     history: List[History]
-    opinion: bool
+    opinion: int
 
 @dataclass
 class FeedbackResponseData:
@@ -156,7 +141,7 @@ async def chat():
             return (jsonify(r)), 429
         return jsonify(r)
     except Exception as e:
-        logger.exception("Exception in /chat")
+        logging.exception("Exception in /chat")
         return jsonify({"error": str(e)}), 500
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
@@ -184,7 +169,8 @@ async def feedback():
     try: 
         request_json = await request.get_json()
         his = request_json
-        logger.eval(str(his))
+        # TODO: validate format to only create logs on valid 
+        logging.warning(his)
         return jsonify({"response": "feedback has been forwarded"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -288,7 +274,6 @@ def create_app():
         configure_azure_monitor()
         AioHttpClientInstrumentor().instrument()
         LoggingInstrumentor().instrument()
-    
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
