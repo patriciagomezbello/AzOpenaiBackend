@@ -1,5 +1,6 @@
 This software is licensed under the MIT License with a dual-license approach. There are further rules for inner sourcing this software and modifying it at the beginning of this license file!
 
+
 ## <span style="color: #e20074">Rules you have to accept by inner sourcing this software: </span>
 
 - Project can be forked from our original project into customers own project in his gitlab group in Magenta CICD
