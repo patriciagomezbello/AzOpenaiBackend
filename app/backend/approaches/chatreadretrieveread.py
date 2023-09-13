@@ -2,15 +2,13 @@ from typing import Any
 import time
 import json 
 import os
-import logging
-
 import openai
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
 
 from approaches.approach import ChatApproach
 from core.messagebuilder import MessageBuilder
-from core.modelhelper import get_token_limit, num_tokens_from_messages,addTokenCount, getCitationObject, detectLang, getLang, translateText, replace_abbreviations
+from core.modelhelper import get_token_limit,addTokenCount, getCitationObject, detectLang, getLang, translateText, replace_abbreviations, applicationLog
 from text import nonewlines
 
 from core.context import system_message_chat_conversation, query_prompt_template
@@ -260,10 +258,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         if exc:
             log_values["status"] = "error"
             log_values["errorMessage"] = errorMessage
-            logging.error(log_values)
+            applicationLog(json.dumps(log_values), "error")
             return error_res
 
-        logging.warning(log_values)
+        applicationLog(json.dumps(log_values), "warning")
 
         chat_content = chat_completion.choices[0].message.content
 

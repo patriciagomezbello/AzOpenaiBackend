@@ -1,6 +1,7 @@
 import io
 import mimetypes
 import os
+import json
 import time
 import platform
 from dataclasses import dataclass
@@ -29,9 +30,7 @@ from quart_cors import cors
 from quart_schema import QuartSchema, Info, document_request, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
-from core.modelhelper import cgsIndexColumnFacetDist
-
-import logging
+from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
 
 
 CONFIG_OPENAI_TOKEN = "openai_token"
@@ -141,7 +140,7 @@ async def chat():
             return (jsonify(r)), 429
         return jsonify(r)
     except Exception as e:
-        logging.exception("Exception in /chat")
+        applicationLog("Exception in /chat", "exc")
         return jsonify({"error": str(e)}), 500
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
@@ -168,9 +167,8 @@ async def content(path):
 async def feedback():
     try: 
         request_json = await request.get_json()
-        his = request_json
-        # TODO: validate format to only create logs on valid 
-        logging.warning(his)
+        if (len(request_json["history"]) > 0):
+            applicationLog(json.dumps(request_json))
         return jsonify({"response": "feedback has been forwarded"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
