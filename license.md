@@ -2,7 +2,7 @@ This software is licensed under the MIT License with a dual-license approach. Th
 
 ## <span style="color: #e20074">Rules you have to accept by inner sourcing this software: </span>
 
-- Project can be forked from our original one into their own gitlab group in Magenta CICD
+- Project can be forked from our original project into customers own project in his gitlab group in Magenta CICD
 - Update can be done via “update fork” in your own project
 - Bugs can be reported via Jira Ticket
 - This Project is PSA compliant – in case of changes by “local” developers they have to do their own PSA and we will not support any more bug fixing 
