@@ -5,6 +5,7 @@ import re
 from langdetect import detect
 import pycountry     
 import openai
+import logging
 
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
@@ -19,6 +20,21 @@ AOAI_2_OAI = {
     "gpt-35-turbo": "gpt-3.5-turbo",
     "gpt-35-turbo-16k": "gpt-3.5-turbo-16k"
 }
+
+# Define the EVAL level
+EVAL = 35
+logging.addLevelName(EVAL, "EVAL")
+
+def eval(self, message, *args, **kws):
+    if self.isEnabledFor(EVAL):
+        # Yes, logger takes its '*args' as 'args'.
+        self._log(EVAL, message, args, **kws)
+
+# Add the method to logging.Logger
+logging.Logger.eval = eval
+
+# Now you can use EVAL as an argument to logging functions:
+logger = logging.getLogger(__name__)
 
 
 def get_token_limit(model_id: str) -> int:
@@ -146,31 +162,6 @@ async def cgsIndexColumnFacetDist(client, facet):
         print(e)
         print("setting default to 'de' due to error in facets search query")
         return [{'count': 1, 'value': 'de'}]
-    
-async def getCategory(client):
-    
-    try:
-        facets_search = await client.search(
-                    top=0,
-                    skip=0,
-                    query_type="simple",
-                    select="",
-                    search_text="*", 
-                    search_fields=[], 
-                    filter="", 
-                    facets=[facet], 
-                    order_by="",
-                    include_total_count=True
-                )
-        res = await facets_search.get_facets()
-        return res[facet]
-        #return res
-    except Exception as e:
-        print(e)
-        print("setting default to 'de' due to error in facets search query")
-        return [{'count': 1, 'value': 'de'}]
-    
-
 
 def getLang(iso_country_code):
     default_lang = {'iso': 'de','name': 'German'}
@@ -241,6 +232,17 @@ def replace_abbreviations(string, abbreviations):
 
     return " ".join(words)
 
+
+def applicationLog(message, level="eval"):
+
+    if level == "eval":
+        logger.eval(message)
+    elif level == "error":
+        logger.error(message)
+    elif level == "exc":
+        logger.exception(message)
+    else:
+        logger.warning(message)
 
 
 

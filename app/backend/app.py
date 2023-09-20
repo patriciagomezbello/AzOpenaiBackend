@@ -1,7 +1,7 @@
 import io
-import logging
 import mimetypes
 import os
+import json
 import time
 import platform
 from dataclasses import dataclass
@@ -14,6 +14,7 @@ from azure.monitor.opentelemetry import configure_azure_monitor
 from azure.search.documents.aio import SearchClient
 from azure.storage.blob.aio import BlobServiceClient
 from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 from quart import (
     Blueprint,
@@ -26,10 +27,11 @@ from quart import (
 )
 
 from quart_cors import cors
-from quart_schema import QuartSchema, Info, validate_request, validate_response, document_response
+from quart_schema import QuartSchema, Info, document_request, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
-from core.modelhelper import cgsIndexColumnFacetDist
+from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
+
 
 CONFIG_OPENAI_TOKEN = "openai_token"
 CONFIG_CREDENTIAL = "azure_credential"
@@ -43,7 +45,6 @@ bp = Blueprint("routes", __name__, static_folder='static')
 if platform.system() == 'Darwin':
     print('cors disabled')
     bp = cors(bp, allow_origin="*")
-
 
 @dataclass
 class History:
@@ -59,7 +60,7 @@ class Overrides:
     temperature: float
 
 @dataclass
-class RequestData:
+class ChatRequestData:
     history: List[History]
     approach: str = "rrr"
     overrides: Optional[Overrides] = None
@@ -70,15 +71,77 @@ class DataPoint:
     page: int
 
 @dataclass
-class ResponseData:
+class ChatResponseData:
     answer: str
     thoughts: str
-    data_points: List[DataPoint]
+    data_points: List[DataPoint] = None
+
+@dataclass
+class ErrorChatResponseData:
+    answer: str
+    thoughts: str
 
 @dataclass
 class CatResponse:
     categories: List[str]
 
+@dataclass
+class ErrorResponse:
+    error: str
+
+@dataclass
+class FeedbackRequestData:
+    history: List[History]
+    opinion: int
+
+@dataclass
+class FeedbackResponseData:
+    response: str
+
+
+@bp.route("/category", methods=["GET"])
+@document_response(CatResponse, 200)
+@document_response(ErrorResponse, 400)
+async def category():
+    try:
+        search_client = current_app.config[CONFIG_SEARCH_CLIENT]
+        search_res = await cgsIndexColumnFacetDist(search_client, "category")
+        values = [item['value'] for item in search_res]
+        res = {"categories": values}
+        return jsonify(res)
+    except Exception as e:
+        res = {"error": e.args[0]}
+        return jsonify({"error": str(e)}), 500
+    
+
+
+@bp.route("/chat", methods=["POST"])
+@document_request(ChatRequestData)
+@document_response(ChatResponseData, 200)
+@document_response(ErrorChatResponseData, 400)
+@document_response(ErrorChatResponseData, 429)
+@document_response(ErrorChatResponseData, 500)
+async def chat():
+    if not request.is_json:
+        return jsonify({"error": "request must be json"}), 415
+    request_json = await request.get_json()
+    approach = request_json["approach"]
+    try:
+        impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
+        if not impl:
+            return jsonify({"error": "unknown approach"}), 400
+        # Workaround for: https://github.com/openai/openai-python/issues/371
+        async with aiohttp.ClientSession() as s:
+            openai.aiosession.set(s)
+            r = await impl.run(request_json["history"], request_json.get("overrides") or {})
+        if (r["thoughts"] == "error"):
+            return (jsonify(r)), 500
+        elif (r["thoughts"] == "ratelimit"):
+            return (jsonify(r)), 429
+        return jsonify(r)
+    except Exception as e:
+        applicationLog("Exception in /chat", "exc")
+        return jsonify({"error": str(e)}), 500
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
@@ -97,36 +160,19 @@ async def content(path):
     blob_file.seek(0)
     return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
 
-
-@bp.route("/category", methods=["GET"])
-@validate_response(CatResponse)
-async def category():
-    search_client = current_app.config[CONFIG_SEARCH_CLIENT]
-    search_res = await cgsIndexColumnFacetDist(search_client, "category")
-    values = [item['value'] for item in search_res]
-    res = {"categories": values}
-    return jsonify(res)
-
-@bp.route("/chat", methods=["POST"])
-@validate_request(RequestData)
-@validate_response(ResponseData)
-async def chat():
-    if not request.is_json:
-        return jsonify({"error": "request must be json"}), 415
-    request_json = await request.get_json()
-    approach = request_json["approach"]
-    try:
-        impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
-        if not impl:
-            return jsonify({"error": "unknown approach"}), 400
-        # Workaround for: https://github.com/openai/openai-python/issues/371
-        async with aiohttp.ClientSession() as s:
-            openai.aiosession.set(s)
-            r = await impl.run(request_json["history"], request_json.get("overrides") or {})
-        return jsonify(r)
+@bp.route("/feedback", methods=["POST"])
+@document_request(FeedbackRequestData)
+@document_response(FeedbackResponseData)
+@document_response(ErrorChatResponseData, 400)
+async def feedback():
+    try: 
+        request_json = await request.get_json()
+        if (len(request_json["history"]) > 0):
+            applicationLog(json.dumps(request_json))
+        return jsonify({"response": "feedback has been forwarded"})
     except Exception as e:
-        logging.exception("Exception in /chat")
         return jsonify({"error": str(e)}), 500
+
 
 @bp.before_request
 async def ensure_openai_token():
@@ -225,9 +271,10 @@ def create_app():
     if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         configure_azure_monitor()
         AioHttpClientInstrumentor().instrument()
+        LoggingInstrumentor().instrument()
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="0.7"))
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API",version="1.0"))
 
     return app

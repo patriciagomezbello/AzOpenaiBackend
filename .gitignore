@@ -18,6 +18,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+locustfile.py
+
 # C extensions
 *.so
 
