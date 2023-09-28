@@ -387,6 +387,7 @@ def get_search_value(file, key):
     search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
                                     index_name=args.index,
                                     credential=search_creds)
+    print(file)
     res = search_client.search(search_text="*",filter=f"sourcefile eq '{file}'", top=1)
 
     return next(res)[key]
