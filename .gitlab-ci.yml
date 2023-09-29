@@ -29,7 +29,7 @@ image: alzdns.azurecr.io/azd-deploy:latest
 
 default:
   tags:
-    - azure-prod04-docker
+    - azure-prod02-docker
 
 all-job:  
   stage: all
