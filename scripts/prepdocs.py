@@ -273,7 +273,18 @@ def create_embedding(engine,input):
         time.sleep(secondsToWait)
         # Retry creating the OpenAI Embedding for the input section
         emb = create_embedding(engine=engine, input=input)
-    
+    except openai.error.APIConnectionError as e:
+        print(e)
+        print(f"Waiting now for 5 seconds")
+        time.sleep(5)
+        # Retry creating the OpenAI Embedding for the input section
+        emb = create_embedding(engine=engine, input=input)
+    except openai.error.ServiceUnavailableError as e:
+        print(e)
+        print(f"Waiting now for 60 seconds")
+        time.sleep(60)
+        # Retry creating the OpenAI Embedding for the input section
+        emb = create_embedding(engine=engine, input=input)
     return emb
 
 def file_path_to_id(file_path):
@@ -382,16 +393,6 @@ def remove_from_index(file_path, isPath=True):
         # It can take a few seconds for search results to reflect changes, so wait a bit
         time.sleep(2)
 
-# gets the search category of a file (name of category returned)
-def get_search_value(file, key):
-    search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
-                                    index_name=args.index,
-                                    credential=search_creds)
-    print(file)
-    res = search_client.search(search_text="*",filter=f"sourcefile eq '{file}'", top=1)
-
-    return next(res)[key]
-
 # updates only the category of a file (returns nothing)
 def update_search_value(file,key,value):
     search_client = SearchClient(endpoint=f"https://{args.searchservice}.search.windows.net/",
@@ -481,28 +482,43 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
-    # Use the current user identity to connect to Azure services unless a key is explicitly set for any of them
-    azd_credential = AzureDeveloperCliCredential() if args.tenantid == None else AzureDeveloperCliCredential(tenant_id=args.tenantid, process_timeout=60)
-    default_creds = azd_credential if args.searchkey == None or args.storagekey == None else None
-    search_creds = default_creds if args.searchkey == None else AzureKeyCredential(args.searchkey)
-    if not args.skipblobs:
-        storage_creds = default_creds if args.storagekey == None else args.storagekey
-    if not args.localpdfparser:
-        # check if Azure Form Recognizer credentials are provided
-        if args.formrecognizerservice == None:
-            print("Error: Azure Form Recognizer service is not provided. Please provide formrecognizerservice or use --localpdfparser for local pypdf parser.")
-            exit(1)
-        formrecognizer_creds = default_creds if args.formrecognizerkey == None else AzureKeyCredential(args.formrecognizerkey)
+    def get_credentials(searchkey = args.searchkey, storagekey = args.storagekey, tenantid = args.tenantid, skipblobs = args.skipblobs, 
+                        localpdfparser = args.localpdfparser, formrecognizerservice =  args.formrecognizerservice,
+                        formrecognizerkey = args.formrecognizerkey, openaiservice = args.openaiservice,openaikey = args.openaikey):
+        # Use the current user identity to connect to Azure services unless a key is explicitly set for any of them
+        azd_credential = AzureDeveloperCliCredential() if tenantid == None else AzureDeveloperCliCredential(tenant_id=tenantid, process_timeout=60)
+        default_creds = azd_credential if searchkey == None or storagekey == None else None
+        search_creds = default_creds if searchkey == None else AzureKeyCredential(searchkey)
+        if not skipblobs:
+            storage_creds = default_creds if storagekey == None else storagekey
+        if not localpdfparser:
+            # check if Azure Form Recognizer credentials are provided
+            if formrecognizerservice == None:
+                print("Error: Azure Form Recognizer service is not provided. Please provide formrecognizerservice or use --localpdfparser for local pypdf parser.")
+                exit(1)
+            formrecognizer_creds = default_creds if formrecognizerkey == None else AzureKeyCredential(formrecognizerkey)
 
-    if args.openaikey == None:
-        openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
-        openai.api_type = "azure_ad"
-    else:
-        openai.api_type = "azure"
-        openai.api_key = args.openaikey
-    openai.api_base = f"https://{args.openaiservice}.openai.azure.com"
-    openai.api_version = "2022-12-01"
-
+        if openaikey == None:
+            openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
+            openai.api_type = "azure_ad"
+        else:
+            openai.api_type = "azure"
+            openai.api_key = openaikey
+        openai.api_base = f"https://{openaiservice}.openai.azure.com"
+        openai.api_version = "2022-12-01"
+        return search_creds, storage_creds, default_creds, azd_credential,formrecognizer_creds,openai.api_type ,openai.api_key,openai.api_base, openai.api_version
+    
+    def check_time(start_time, seconds = 600):
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        if elapsed_time >= seconds:
+            return True
+        
+    # Take the start time
+    start_time = time.time()
+    # get credentials
+    search_creds,storage_creds,  default_creds, azd_credential,formrecognizer_creds,openai.api_type ,openai.api_key,openai.api_base, openai.api_version = get_credentials()
+    
     # delete non pdf files from data
     delete_non_pdf_files(args.files)
 
@@ -612,7 +628,10 @@ if __name__ == "__main__":
 
         # every local file of the hashmap will be processed, local_data is the array of values of the hashmap
         for file, local_data in local_hashmap.items():
-            
+            if check_time(start_time):
+                print('Refreshing credentials')
+                search_creds,storage_creds,  default_creds, azd_credential,formrecognizer_creds,openai.api_type ,openai.api_key,openai.api_base, openai.api_version = get_credentials()
+                start_time = time.time()
             # get category and file_path
             local_category = local_data[2]
             file_path_local = local_data[0]
@@ -621,7 +640,7 @@ if __name__ == "__main__":
             if file in blob_hashmap:
                 # if true, get the hash and category for comparison
                 remote_hash = blob_hashmap[file]
-                remote_category = get_search_value(file=file,key="category")
+                #remote_category = get_search_value(file=file,key="category")
 
                 # check if the hashes are the same, if not, file will be upserted, no else case, only elif for category   
                 if local_data[1] != remote_hash:
@@ -645,8 +664,8 @@ if __name__ == "__main__":
                         remove_from_index(file_path_local)
                         break
                 # if the categories are not similar, exchange the category value in index
-                elif local_category != remote_category:
-                    update_search_value(file=file, key="category",value=local_category)
+                #elif local_category != remote_category:
+                #    update_search_value(file=file, key="category",value=local_category)
 
             # this happens when file is not in blob
             else:
