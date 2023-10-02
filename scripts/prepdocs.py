@@ -499,7 +499,7 @@ if __name__ == "__main__":
             formrecognizer_creds = default_creds if formrecognizerkey == None else AzureKeyCredential(formrecognizerkey)
 
         if openaikey == None:
-            openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token
+            openai.api_key = azd_credential.get_token("https://cognitiveservices.azure.com/.default").token 
             openai.api_type = "azure_ad"
         else:
             openai.api_type = "azure"
@@ -508,7 +508,7 @@ if __name__ == "__main__":
         openai.api_version = "2022-12-01"
         return search_creds, storage_creds, default_creds, azd_credential,formrecognizer_creds,openai.api_type ,openai.api_key,openai.api_base, openai.api_version
     
-    def check_time(start_time, seconds = 600):
+    def check_time(start_time, seconds = 300):
         current_time = time.time()
         elapsed_time = current_time - start_time
         if elapsed_time >= seconds:
