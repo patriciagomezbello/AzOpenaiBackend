@@ -49,34 +49,49 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         exclude_category = overrides.get("exclude_category") or None
         category_filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
-        ''' Building the language filter accordig to the language in the user prompt and in dependence of multilingual_search setting (True|False)'''
-
+        
         lang_facets = json.loads(os.getenv('FACETS_RESULTS').replace("'", '"'))
 
         print(lang_facets)
-
+        # Define the most common language stored in the search index as default.
         default_lang = getLang(lang_facets[0]['value']) if lang_facets else {'iso': 'de','name': 'German'}
 
-        print('The default lang is: ' + str(default_lang)) 
+        #print('The default lang is: ' + str(default_lang)) 
 
         supported_languages = []
         for rec in lang_facets:
             supported_languages.append(getLang(rec['value']))
 
-        print('Supported Languages : ' + str(supported_languages))
+        #print('Supported Languages : ' + str(supported_languages))
+        
+        # Multilngual search is the default. It is prior because it handles english text and german language in screen shots better - or vice versa ;-)
+        multilingual_search = overrides.get("multilingual_search") or True
 
-        user_prompt_lang = detectLang(history[-1]["user"])
-        user_prompt_lang_name = getLang(user_prompt_lang)
+        # Do not allow to short questions without notice...
+        if len(history[-1]["user"]) > 9:
+            user_prompt_lang = detectLang(history[-1]["user"])
+            user_prompt_lang_name = getLang(user_prompt_lang)['name']
+        else:
+            user_prompt_lang = default_lang['iso']
+            user_prompt_lang_name = default_lang['name']
+        
+        noidea_de_text = 'Tut mir leid, ich kann Ihnen nicht weiterhelfen. Bitte geben Sie eine ausführlichere Frage ein'
         lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
         lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
-        noidea_de_text = 'Tut mir leid, ich weiss das nicht'
-
-        system_message_noidea = noidea_de_text if user_prompt_lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name['name'],self.chatgpt_deployment) if user_prompt_lang != 'de' else "Sorry, I don't know"
-        ''' Multilngual search is the default. It is prior because it handles english text and german language in screen shots better '''
-        multilingual_search = overrides.get("multilingual_search") or True
-        lang_filter = "doclang eq '{}'".format(lang) if (multilingual_search is None or multilingual_search is False) else ''
-
         
+        # Search without filters
+        if multilingual_search == True:
+            lang = default_lang['iso']
+            lang_name = default_lang['name']
+            lang_filter = ''
+        # Search with language filters
+        else:
+            lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
+            lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
+            lang_filter = "doclang eq '{}'".format(lang)
+
+        system_message_noidea = noidea_de_text if user_prompt_lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name,self.chatgpt_deployment) if user_prompt_lang != 'de' else "Sorry, I don't know"
+
         filter = lang_filter + (' and ' + category_filter if category_filter else '')
         print("Using Filter :" + filter)
         ques = history[-1]["user"]
@@ -106,7 +121,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         # initialize usedTokens for logging
         usedTokens: dict = {}
         try:
-
+            #print(self.query_prompt_template.format(language=lang_name))
             # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
             messages = self.get_messages_from_history(
                 self.query_prompt_template.format(language=lang_name),
@@ -115,7 +130,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 user_q,
                 self.chatgpt_token_limit - len(user_q)
             )
-            
+            #print(messages)
             # start timing request
             start_keyword = time.perf_counter()
 
@@ -203,6 +218,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             prompt_override = overrides.get("prompt_override")
             if prompt_override is None:
                 system_message = self.system_message_chat_conversation.format(noidea=system_message_noidea, promptlang=user_prompt_lang_name, injected_prompt="")
+                #print(system_message)
             elif prompt_override.startswith(">>>"):
                 system_message = self.system_message_chat_conversation.format(injected_prompt=prompt_override[3:] + "\n")
 
