@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tiktoken
 import re
-from langdetect import detect
+from ftlangdetect import detect
 import pycountry     
 import openai
 import logging
@@ -134,7 +134,7 @@ def getCitationObject(text):
 
 def detectLang(text, defaultLang='de'):
     try:
-        ret = detect(text)
+        ret = detect(text)['lang']
         return ret
     except Exception as e:
         print(e)

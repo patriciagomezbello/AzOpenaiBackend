@@ -9,7 +9,7 @@ import hashlib
 import openai
 import pdfkit
 import json
-from langdetect import detect
+from ftlangdetect import detect
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from PIL import Image
@@ -252,7 +252,7 @@ def split_text(page_map, file_path):
 
 def detectLang(text, defaultLang='de'):
     try:
-        ret = detect(text)
+        ret = detect(text)['lang']
         return ret
     except Exception as e:
         print(e)
