@@ -7,5 +7,5 @@ openai[datalib]==0.27.8
 md2pdf==1.0.1
 pdfkit==1.0.0
 reportlab==4.0.4
-langdetect==1.0.9
+fasttext-langdetect==1.0.5 
 pycryptodome==3.18.0

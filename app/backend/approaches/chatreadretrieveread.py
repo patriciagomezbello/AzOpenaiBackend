@@ -74,10 +74,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         else:
             user_prompt_lang = default_lang['iso']
             user_prompt_lang_name = default_lang['name']
-        
+        #print(user_prompt_lang +' ' + user_prompt_lang_name )
         noidea_de_text = 'Tut mir leid, ich kann Ihnen nicht weiterhelfen. Bitte geben Sie eine ausführlichere Frage ein'
-        lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
-        lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
+
         
         # Search without filters
         if multilingual_search == True:
@@ -89,7 +88,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
             lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
             lang_filter = "doclang eq '{}'".format(lang)
-
+        #print(lang + ' ' + lang_name)
         system_message_noidea = noidea_de_text if user_prompt_lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name,self.chatgpt_deployment) if user_prompt_lang != 'de' else "Sorry, I don't know"
 
         filter = lang_filter + (' and ' + category_filter if category_filter else '')
@@ -130,7 +129,6 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 user_q,
                 self.chatgpt_token_limit - len(user_q)
             )
-            #print(messages)
             # start timing request
             start_keyword = time.perf_counter()
 
@@ -145,6 +143,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 n=1)
             
             query_text = chat_completion.choices[0].message.content
+            #print(query_text)
 
             if query_text.strip() == "0":
                 query_text = history[-1]["user"] # Use the last user input if we failed to generate a better query
