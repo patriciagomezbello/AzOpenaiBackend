@@ -1,3 +1,4 @@
+wheel==0.41.2 
 azure-identity==1.13.0
 quart==0.19.2
 quart-cors==0.7.0 
@@ -15,4 +16,4 @@ opentelemetry-instrumentation-aiohttp-client==0.40b0
 opentelemetry-instrumentation-logging==0.40b0
 pycountry==22.3.5
 werkzeug==3.0.0
-fasttext-langdetect==1.0.5 
+fasttext-langdetect==1.0.5
