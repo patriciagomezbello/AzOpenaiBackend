@@ -38,7 +38,7 @@ from azure.ai.formrecognizer import DocumentAnalysisClient
 from md2pdf.core import md2pdf
 
 
-MAX_SECTION_LENGTH = int(os.getenv("MAX_SECTION_LENGTH")) or 1100
+MAX_SECTION_LENGTH = int(os.getenv("MAX_SECTION_LENGTH", 1100))
 SENTENCE_SEARCH_LIMIT = 100
 SECTION_OVERLAP = 100
 
