@@ -266,7 +266,6 @@ async def setup_clients():
         )
     }
 
-
 def create_app():
     if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         configure_azure_monitor()

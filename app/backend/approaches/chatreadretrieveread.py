@@ -5,7 +5,6 @@ import os
 import openai
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
-
 from approaches.approach import ChatApproach
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit,addTokenCount, getCitationObject, detectLang, getLang, translateText, replace_abbreviations, applicationLog
@@ -47,8 +46,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         top = overrides.get("top") or 3
         ''' Building the category filter in dependence of the given path >ToDo: must be implemented'''
 
-        exclude_category = overrides.get("exclude_category") or None
-        category_filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
+        filter_category = overrides.get("filter_category") or None
+        category_filter = "category eq '{}'".format(filter_category.replace("'", "''")) if filter_category else None
+
         
         lang_facets = json.loads(os.getenv('FACETS_RESULTS').replace("'", '"'))
 
