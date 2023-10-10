@@ -9,7 +9,8 @@ import hashlib
 import openai
 import pdfkit
 import json
-from ftlangdetect import detect
+import pycountry
+from lingua import  Language, LanguageDetectorBuilder
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from PIL import Image
@@ -249,11 +250,18 @@ def split_text(page_map, file_path):
             
         if start + SECTION_OVERLAP < end:
             yield (all_text[start:end], p[0])
-
-def detectLang(text, defaultLang='de'):
+detector = LanguageDetectorBuilder.from_languages(Language.ENGLISH, Language.GERMAN, Language.HUNGARIAN, Language.CROATIAN, Language.SLOVAK, 
+                                                      Language.RUSSIAN, Language.CZECH, Language.GREEK,Language.PUNJABI, Language.PORTUGUESE, 
+                                                      Language.POLISH,Language.CZECH, Language.SPANISH, Language.SERBIAN,
+                                                      Language.AFRIKAANS, Language.ALBANIAN, Language.BULGARIAN, Language.FRENCH, Language.PORTUGUESE,
+                                                      Language.ROMANIAN, Language.MACEDONIAN, Language.HINDI, Language.DUTCH, Language.DANISH, 
+                                                      Language.ITALIAN, Language.CHINESE, Language.MALAY, Language.BOSNIAN).build()
+def detectLang(text, defaultLang='de', detector = detector):
     try:
-        ret = detect(text)['lang']
-        return ret
+        lang = str(detector.detect_language_of(text))
+        language = lang.split('.')[1].capitalize()
+        iso_lang = pycountry.languages.get(name=language).alpha_2
+        return iso_lang
     except Exception as e:
         print(e)
         return defaultLang
