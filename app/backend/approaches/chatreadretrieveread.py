@@ -15,6 +15,7 @@ from core.abbrev import abbreviations
 
 
 class ChatReadRetrieveReadApproach(ChatApproach):
+
     # Chat roles
     SYSTEM = "system"
     USER = "user"
@@ -38,43 +39,39 @@ class ChatReadRetrieveReadApproach(ChatApproach):
     # executable function that is connected to the chat api -> receives and responds like chatgpt but with enterprise data‚
     async def run(self, history: list[dict[str, str]], overrides: dict[str, Any]) -> Any:
         
-        #initialize overrides
+        # initialize overrides
         has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
+
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
 
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
+
         top = overrides.get("top") or 3
-        ''' Building the category filter in dependence of the given path >ToDo: must be implemented'''
 
         filter_category = overrides.get("filter_category") or None
+
         category_filter = "category eq '{}'".format(filter_category.replace("'", "''")) if filter_category else None
-
         
-        lang_facets = json.loads(os.getenv('FACETS_RESULTS').replace("'", '"'))
 
-        print(lang_facets)
         # Define the most common language stored in the search index as default.
+        lang_facets = json.loads(os.getenv('FACETS_RESULTS').replace("'", '"'))
         default_lang = getLang(lang_facets[0]['value']) if lang_facets else {'iso': 'de','name': 'German'}
-
-        #print('The default lang is: ' + str(default_lang)) 
 
         supported_languages = []
         for rec in lang_facets:
             supported_languages.append(getLang(rec['value']))
-
-        #print('Supported Languages : ' + str(supported_languages))
         
         # Multilngual search is the default. It is prior because it handles english text and german language in screen shots better - or vice versa ;-)
         multilingual_search = overrides.get("multilingual_search") or True
 
-        # Do not allow to short questions without notice...
+        # Do not allow too short questions without notice
         if len(history[-1]["user"]) > 9:
             user_prompt_lang = detectLang(history[-1]["user"])
             user_prompt_lang_name = getLang(user_prompt_lang)['name']
         else:
             user_prompt_lang = default_lang['iso']
             user_prompt_lang_name = default_lang['name']
-        #print(user_prompt_lang +' ' + user_prompt_lang_name )
+
         noidea_de_text = 'Tut mir leid, ich kann Ihnen nicht weiterhelfen. Bitte geben Sie eine ausführlichere Frage ein'
 
         
@@ -88,14 +85,20 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             lang_name = next((rec.get('name') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['name'])
             lang = next((rec.get('iso') for rec in supported_languages if user_prompt_lang in rec['iso']), default_lang['iso'])
             lang_filter = "doclang eq '{}'".format(lang)
-        #print(lang + ' ' + lang_name)
+
+
         system_message_noidea = noidea_de_text if user_prompt_lang == 'de' else translateText(noidea_de_text, user_prompt_lang_name,self.chatgpt_deployment) if user_prompt_lang != 'de' else "Sorry, I don't know"
 
+        # build final filter
         filter = lang_filter + (' and ' + category_filter if category_filter else '')
-        print("Using Filter :" + filter)
+
         ques = history[-1]["user"]
 
+        ### debug
+        print(f"Current Filter: {filter}")
+        ###
 
+        # handle abbreviations
         if(len(abbreviations) > 0):
                     try: 
                         temp = replace_abbreviations(ques, abbreviations)
@@ -119,8 +122,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         # initialize usedTokens for logging
         usedTokens: dict = {}
+
+
         try:
-            #print(self.query_prompt_template.format(language=lang_name))
+
             # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
             messages = self.get_messages_from_history(
                 self.query_prompt_template.format(language=lang_name),
@@ -129,11 +134,11 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 user_q,
                 self.chatgpt_token_limit - len(user_q)
             )
+
             # start timing request
             start_keyword = time.perf_counter()
 
-                # completion request to openAI
-
+            # completion request to openAI to receive the keyword search query
             chat_completion = await openai.ChatCompletion.acreate(
                 deployment_id=self.chatgpt_deployment,
                 model=self.chatgpt_model,
@@ -143,7 +148,6 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 n=1)
             
             query_text = chat_completion.choices[0].message.content
-            #print(query_text)
 
             if query_text.strip() == "0":
                 query_text = history[-1]["user"] # Use the last user input if we failed to generate a better query
@@ -154,11 +158,13 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             keyword_request_time = round(time.perf_counter() - start_keyword, r_dec)
 
             # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
+
             # If retrieval mode includes vectors, compute an embedding for the query
             if has_vector:
                 
                 start_embedding = time.perf_counter()
 
+                # create embedding with text-ada002 model
                 query_vector_embedding = await openai.Embedding.acreate(
                     engine=self.embedding_deployment, 
                     input=query_text)
@@ -180,7 +186,11 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             
             start_cog_search = time.perf_counter()
 
+            # Perform cognitive search
+
             if overrides.get("semantic_ranker") and has_text:
+
+                # semantic ranker -> turned on (default)
                 r = await self.search_client.search(
                     query_text, 
                     filter=filter,
@@ -209,27 +219,25 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             if use_semantic_captions:
                 results = [doc[self.sourcepage_field] + ": " + nonewlines(" . ".join([c.text for c in doc['@search.captions']])) async for doc in r]
             else:
+                # semantic captions turned off (default)
                 results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) async for doc in r]
             content = "\n".join(results)
 
-
-            # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
-            prompt_override = overrides.get("prompt_override")
-            if prompt_override is None:
-                system_message = self.system_message_chat_conversation.format(noidea=system_message_noidea, promptlang=user_prompt_lang_name, injected_prompt="")
-                #print(system_message)
-            elif prompt_override.startswith(">>>"):
-                system_message = self.system_message_chat_conversation.format(injected_prompt=prompt_override[3:] + "\n")
-
             # STEP 3: Generate a contextual and content specific answer using the search results and chat history
+
+             # define system message for final RAG approach
+            system_message = self.system_message_chat_conversation.format(noidea=system_message_noidea, promptlang=user_prompt_lang_name, injected_prompt="")
+
             main_llm_req_start = time.perf_counter()
 
+            # Execute Request against GPT3.5 or 4 that includes company/custom data
             messages = self.get_messages_from_history(
                         system_message,
                         self.chatgpt_model,
                         history,
-                        history[-1]["user"]+ "\n\nSources:\n" + content, # Model does not handle lengthy system messages well. Moving sources to latest user conversation to solve follow up questions prompt.
+                        history[-1]["user"]+ "\n\nSources:\n" + content, 
                         max_tokens=self.chatgpt_token_limit)
+            # Model does not handle lengthy system messages well. Moving sources to latest user conversation to solve follow up questions prompt.
 
             chat_completion = await openai.ChatCompletion.acreate(
                 deployment_id=self.chatgpt_deployment,
@@ -246,14 +254,14 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             chat_time = round(time.perf_counter() - start_chat, r_dec)
 
         # handle all errors except rate limit the same, as no difference is needed here
-        except Exception as e:
-            exc = True
-            errorMessage = e.args[0]
-            error_res = { "answer": errorMessage, "thoughts": "error"}
         except openai.error.RateLimitError as e:
             exc = True
             errorMessage = e
-            error_res = { "answer": errorMessage, "thoughts": "ratelimit"}
+            error_res = { "answer": errorMessage, "keywords": "ratelimit"}
+        except Exception as e:
+            exc = True
+            errorMessage = e.args[0]
+            error_res = { "answer": errorMessage, "keywords": "error"}
 
         # define logs for applicationinsights
         log_values = {
@@ -276,16 +284,14 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             applicationLog(json.dumps(log_values), "error")
             return error_res
 
-        applicationLog(json.dumps(log_values), "warning")
-
         chat_content = chat_completion.choices[0].message.content
-
-        msg_to_display = '\n\n'.join([str(message) for message in messages])
 
         citationList = getCitationObject(chat_content)
 
-        return {"data_points": citationList, "answer": chat_content, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
+        return {"data_points": citationList, "answer": chat_content, "keywords": query_text}
     
+
+    # function to extract the messages from the history and transform them into the correct format
     def get_messages_from_history(self, system_prompt: str, model_id: str, history: list[dict[str, str]], user_conv: str, few_shots = [], max_tokens: int = 4096) -> list:
         message_builder = MessageBuilder(system_prompt, model_id)
 

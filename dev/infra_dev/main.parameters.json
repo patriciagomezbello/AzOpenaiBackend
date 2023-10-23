@@ -53,38 +53,11 @@
     "chatGptDeploymentName": {
       "value": "${AZURE_OPENAI_CHATGPT_DEPLOYMENT=chat}"
     },
-    "chatGptModelName": {
-      "value": "${AZURE_OPENAI_CHATGPT_MODEL_NAME=gpt-35-turbo}"
-    },
-    "chatGptModelVersion": {
-      "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=0613}"
-    },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
     },
-    "usePrivateLinkScope": {
-      "value": "${AZURE_USE_PRIVATE_LINK_SCOPE=true}"
-    },
-    "redeployOpenAI": {
-      "value": "${AZURE_REDEPLOY_OPENAI=true}"
-    },
-    "allowed_cors": {
-      "value": "${AZURE_ALLOWED_CORS}"
-    },
     "authClient": {
       "value": "${AZURE_AUTH_ClIENT}"
-    },
-    "vnetResourceGroupName": {
-      "value": "${AZURE_VNET_RESOURCE_GROUP}"
-    },
-    "vnetName": {
-      "value": "${AZURE_VNET_NAME}"
-    },
-    "subnetName": {
-      "value": "${AZURE_SUBNET_NAME}"
-    },
-    "subnetName_AppService": {
-      "value": "${AZURE_SUBNET_NAME_APPSERVICE}"
     }
   }
 }

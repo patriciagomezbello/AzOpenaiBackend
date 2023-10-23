@@ -10,10 +10,6 @@ param sku object = {
   name: 'S0'
 }
 
-param virtualNetworkSubnetId string
-param virtualNetworkSubnetId_AppService string
-
-
 resource account 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   name: name
   location: location
@@ -23,19 +19,8 @@ resource account 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
     customSubDomainName: customSubDomainName
     publicNetworkAccess: publicNetworkAccess
     networkAcls: {
-      defaultAction: 'Deny'
-      virtualNetworkRules: [
-        {
-          id: virtualNetworkSubnetId
-          ignoreMissingVnetServiceEndpoint: false
-        }
-        {
-          id: virtualNetworkSubnetId_AppService
-          ignoreMissingVnetServiceEndpoint: false
-        }
-      ]
+      defaultAction: 'Allow'
       }
-      
   }
   sku: sku
 }
@@ -50,7 +35,7 @@ resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01
   }
   sku: contains(deployment, 'sku') ? deployment.sku : {
     name: 'Standard'
-    capacity: 100
+    capacity: 20
   }
 }]
 

@@ -7,9 +7,11 @@ param sku object = {
 }
 
 param authOptions object = {}
-param semanticSearch string = 'disabled'
 
-resource search 'Microsoft.Search/searchServices@2021-04-01-preview' = {
+param virtualNetworkSubnetId string
+
+
+resource search 'Microsoft.Search/searchServices@2022-09-01' = {
   name: name
   location: location
   tags: tags
@@ -19,22 +21,55 @@ resource search 'Microsoft.Search/searchServices@2021-04-01-preview' = {
   properties: {
     authOptions: authOptions
     disableLocalAuth: false
-    disabledDataExfiltrationOptions: []
     encryptionWithCmk: {
       enforcement: 'Unspecified'
     }
     hostingMode: 'default'
     networkRuleSet: {
-      bypass: 'None'
       ipRules: []
     }
     partitionCount: 1
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'disabled'
     replicaCount: 1
-    semanticSearch: semanticSearch
   }
   sku: sku
 }
+
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+  name: 'PE-${name}'
+  location: location
+  properties: {
+    subnet: {
+      id: virtualNetworkSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        properties: {
+          privateLinkServiceId: search.id
+          groupIds: [
+            'searchService'
+          ]
+        }
+        name: 'PrivateEndpointSearch'
+      }
+    ]
+  }
+}
+
+//TODO: check if we need this, throws error but still a connection is there
+// resource privateEndpointConnection 'Microsoft.Search/searchServices/privateEndpointConnections@2022-09-01' = {
+//   name: 'PECON-${name}'
+//   parent: search
+//   properties: {
+//     privateEndpoint: {
+//       id: privateEndpoint.id
+//     }
+//     privateLinkServiceConnectionState: {
+//       status: 'Approved'
+//     }
+//   }
+// }
+
 
 output id string = search.id
 output endpoint string = 'https://${name}.search.windows.net/'

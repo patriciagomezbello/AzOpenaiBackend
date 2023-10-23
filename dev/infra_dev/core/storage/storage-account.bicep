@@ -19,26 +19,12 @@ param sku object = { name: 'Standard_LRS' }
 
 param containers array = []
 
-param virtualNetworkSubnetId string
-param virtualNetworkSubnetId_AppService string
-
-param keyVaultURI string
-param keyName string
-
-param userAssignedIdentityId string
-
-resource storage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: name
   location: location
   tags: tags
   kind: kind
   sku: sku
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${userAssignedIdentityId}': {}
-    }
-  }
   properties: {
     accessTier: accessTier
     allowBlobPublicAccess: allowBlobPublicAccess
@@ -48,39 +34,9 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     dnsEndpointType: dnsEndpointType
     minimumTlsVersion: minimumTlsVersion
     networkAcls: {
-      defaultAction: 'Deny'
       bypass: 'AzureServices'
-      virtualNetworkRules: [
-        {
-          id: virtualNetworkSubnetId
-          action: 'Allow'
-        }
-        {
-          id: virtualNetworkSubnetId_AppService
-          action: 'Allow'
-        }
-      ]
+      defaultAction: 'Allow'
     }
-    encryption: {
-      services: {
-         blob: {
-            enabled: true
-         }
-         file: {
-            enabled: true
-         }
-      }
-      identity: {
-        userAssignedIdentity: userAssignedIdentityId
-      }
-      requireInfrastructureEncryption: true
-      keySource: 'Microsoft.Keyvault'
-      keyvaultproperties: {
-        keyname: keyName
-        keyvaulturi: endsWith(keyVaultURI,'/') ? substring(keyVaultURI,0,length(keyVaultURI)-1) : keyVaultURI
-      }
-    }
-    supportsHttpsTrafficOnly: true
     publicNetworkAccess: publicNetworkAccess
   }
 

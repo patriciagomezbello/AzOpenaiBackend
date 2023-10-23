@@ -18,6 +18,7 @@ cd .azure
 mkdir $envName
 
 # Create a config.json file inside the .azure folder
+
 echo '{"version":1,"defaultEnvironment":"'"$envName"'"}' > config.json
 
 # Replace $envName with the actual value of the GitLab CI variable $envName
@@ -37,6 +38,19 @@ cp $ENVIRONMENT .env
 
 # navigate back
 cd ../../
+
+# Check if DEV_ENV is set to "true", to be able to deploy the insecure variant
+if [ "$DEV_ENV" == "true" ]; then
+    # Delete all files and subdirectories in the "infra" folder
+    rm -r infra/*
+
+    echo "deleted secure infra folder"
+
+    # Copy the content of the "dev/infra_dev" folder to the "infra" folder
+    cp -R dev/infra_dev/* infra/
+
+    echo "replaced with old, insecure variant for development"
+fi
 
 # Copy context.py to core
 cp $CONTEXT app/backend/core/context.py
@@ -80,14 +94,8 @@ fi
 
 echo "Abbreviations dictionary exported to $python_file"
 
-cat $python_file
-
 ls
 
 rm abbrev.csv
 
 cd ../../../
-
-
-
-

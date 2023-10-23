@@ -16,7 +16,6 @@
 	- abbrev.py (is cicd variable) contains generated abbreviations that LLMs cannot know
 	- requirements.txt contains the python packages for the backend
 
-- data2convert/ for data in different formats -> urls, png,jpeg,jpg, md
 
 **pages.json** in every directory will create name1.pdf, name2.pdf in directory
 
@@ -29,28 +28,67 @@
 
 ## How to deploy: **Fork repository and adjust CI/CD Settings**
 
-### General Information
+### General Information & Requirements
 
-- Service Principal for deployment needs *Contributor* and *Telit-AccessAdministrator* rights for subscription
-- Access Token, as it is recommeneded to not make it valid for longer then a few weeks
+- Service Principal for deployment needs *Contributor* rights
+- A private gitlab runner is required -> a package that automatically installs one is available [in this repository](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
+- The resource group has to be created upfront and be named "rg-<AZURE_ENV_NAME>"
+	- if the AZURE_ENV_NAME = mate, the resource group must be named = rg-mate
+	- if it is not done like this, there will be issues with providing rbac rights during the deployment
+
+There is a requirement to add an ACCESS_TOKEN to your project to enable automatic infrastructure updates (state)
+- **Step 1**: go to settings in your gitlab project, then go on Access Tokens
+![ACCESS_TOKEN_1](documentation/ACCESS_TOKEN_1.png)
+- **Step 2**: create a new Access Token that has api-Access and maintainer rights
+![ACCESS_TOKEN_2](documentation/ACCESS_TOKEN_2.png)
+- **Step 3**: create the token and copy it out (needs to be added as a ci/cd variable named "ACCESS_TOKEN")
+![ACCESS_TOKEN_3](documentation/ACCESS_TOKEN_3.png)
+
 
 ### File Variables 
 
 - **ENVIRONMENT**
-	- Environment for deployment, deployment variables
-	- AUTH_CLIENT 		-> backend service principal client id
-	- ENV_NAME 			-> name of the environment (can be named invidually, needs to be consistent after)
-	- SUBSCRIPTION-ID 	-> id of subscription
-	- LOCATION 			-> please choose westeurope, everything else will be denied by policy
+
+| Variable | Description |
+| -------- | -------- | 
+| AZURE_AUTH_CLIENT *					| Client ID of app registration used for auth  						|
+| AZURE_ENV_NAME *						| name of the environment 											| 
+| AZURE_SUBSCRIPTION_ID *				| id of subscription  												| 
+| AZURE_TENANT_ID *						| id of the tenant   												| 
+| AZURE_LOCATION *						| location should be westeurope										| 
+| AZURE_VNET_RESOURCE_GROUP * 			| Name of the existing VNET resource group	    					| 
+| AZURE_VNET_NAME *						| Name of the existing VNET											| 
+| AZURE_SUBNET_NAME *					| Name of the existing Subnet inside the existing VNET				| 
+| AZURE_SUBNET_NAME_APPSERVICE *		| Name of the existing Subnet inside the existing VNET  			| 
+| AZURE_ALLOWED_CORS *					| List of allowed URLs for cors  									| 
+| AZURE_REDEPLOY_OPENAI   				| (re)deploys OpenAI Instance (for fixing current bug)  			|  
+| AZURE_OPENAI_CHATGPT_MODEL_NAME   	| model name (gpt-35-turbo, gpt-35-turbo-16k, gpt-4, gpt-4-32k)   	| 
+| AZURE_OPENAI_CHATGPT_MODEL_VERSION   	| model version (0613, 0914)   										| 
+
+\* = **mandatory**
+
+Example: 
 ```
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_ENV_NAME="azure-search-openai-dev-env-name"
 AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
+AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
 AZURE_LOCATION="westeurope"
+AZURE_VNET_RESOURCE_GROUP="rg-ci-vnet"
+AZURE_VNET_NAME="vnet_dtit_cid00xx"
+AZURE_SUBNET_NAME="sn-standard"
+AZURE_SUBNET_NAME_APPSERVICE="sn-appservice"
+AZURE_ALLOWED_CORS="http://localhost:1887,https://your.ui.url"
+
+### optional parameters (shown with default values)
+
+AZURE_REDEPLOY_OPENAI=true (after first deployment will be automatically false)
+AZURE_OPENAI_CHATGPT_MODEL_NAME=gpt-35-turbo 
+AZURE_OPENAI_CHATGPT_MODEL_VERSION=0613 
+
 ```
 **Important**: This is a minimal setup, more variables can be put into this file to use more existing services
-
-
+____
 
 - **CONTEXT**
 	- Context for the model to have an adjusted frame for the questions and answers. Python File
@@ -79,6 +117,7 @@ query_prompt_template = """Below is a history of the conversation so far, and a 
 
 
 ```
+____
 
 - **ABBREV**
 	- Abbreviations in csv format, will be transformed for better performance during each deployment
@@ -89,20 +128,50 @@ CMS, Content Management System
 LLM, Large Learning Model
 ```
 
-### Environment Variables (not stored as file, but as variable)
+_____
 
-- **OpenAILocation** 		-> *francecentral* or *westeurope* are supported
-- **REPO_URL** 				-> gitlab repository url for the data (https://gitlab.devops.telekom.de/red-october/ccoe-data)
-- **AZURE_CLIENT_ID** 		-> service principal id (sp for deployment)
-- **AZURE_CLIENT_SECRET** 	-> secret for the service principal
-- **AZURE_TENANT_ID**		-> tenant id (628242bd-7e70-4aa9-8ee1-72586b4540fe for our use cases)
-- **ACCESS_TOKEN**			-> for api access, can be created under settings/accesstoken -> api, maintainer and up to 3 months validity
+### Environment CI/CD Variables (not stored as file variables, but as variable)
+| Variable | Description |
+| -------- | -------- | 
+| OpenAILocation		|  *francecentral*, *swedencentral* or *westeurope* are supported
+| REPO_URL 				|  gitlab repository url for the data (https://gitlab.devops.telekom.de/red-october/ccoe-data)
+| AZURE_CLIENT_ID 		|  service principal id (sp for deployment)
+| AZURE_CLIENT_SECRET 	|  secret for the service principal
+| AZURE_TENANT_ID		|  tenant id (628242bd-7e70-4aa9-8ee1-72586b4540fe for our use cases)
+| ACCESS_TOKEN      	|  for api access, can be created under settings/accesstoken -> api, maintainer and up to 3 months validity
+| RUNNER_NAME      		|  The name of the provisioned private gitlab runner in the same subscription
+| RUNNER_RG     		|  The resource group name of the provisioned private gitlab runner in the same subscription
+| RUNNER_TAG    		|  The tag of the provisioned private gitlab runner in the same subscription
+| DEV_ENV				|  *true* or *false*, only set in Gitlab please!!! (will delete the secure variant and replace with public variant during pipeline)
 
+### How to connect the data repository with your infrastructure and application?
 
+In order to connect your file data (pdfs, mds etc.) to your backend, a second repository is required, that needs to have all pdf files in a folder named **data** and all other supported file formats in a folder named **data2convert**
 
-## How to run and use locally?
+To enable a permanent connection between those repositories, the follwing needs to be done:
 
-- this works in bash shell, required are Python 3.10 or higher, azd and az cli
+- Step 1: Go to Settings and CI/CD -> Token Access
+![DATA_ACCESS_1](documentation/DATA_ACCESS_1.png)
+
+- Step 2: Put in your data (group or personal name / project name)
+![DATA_ACCESS_2](documentation/DATA_ACCESS_2.png)
+
+- Step 3: Check if it has been added
+![DATA_ACCESS_3](documentation/DATA_ACCESS_3.png)
+
+## How to use the pipeline:
+
+- A private gitlab runner is required -> a package that automatically installs one is available [in this repository](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private), you can shut it down. The pipeline will automatically start and stop the runner if everything runs fine. Please also have a look at automatic shutdown times, to prevent to much costs.
+
+- When you start a pipeline, nothing will be provisioned automatically
+
+- If nothing is provisioned yet, you have to either execute the **all_start job** (provision + deploy) or the **provision_start** job
+
+- If you want to update your infrastructure only, **provision_start**, if you want to update your application only, **deploy_start**
+
+### How to run and use locally?
+
+- this works in bash shell, required are Python 3.10 or higher, azd and az cli (only tested on mac os)
 
 ### login 
 

@@ -73,7 +73,7 @@ def get_oai_chatmodel_tiktok(aoaimodel: str) -> str:
     return AOAI_2_OAI.get(aoaimodel) or aoaimodel
 
 
-def addTokenCount(tokenDict: dict, res: dict):
+def addTokenCount(tokenDict: dict, res: dict) -> None:
     """Adds the tokens of a OpenAI Response to a dict"""
     if res.model in tokenDict:
         tokenDict[res.model] += res.usage.total_tokens
@@ -82,12 +82,12 @@ def addTokenCount(tokenDict: dict, res: dict):
 
 
 # to extract the sources cited by the GPT answer according to the prompt instructions
-def extractCitedSources(text):
+def extractCitedSources(text: str) -> list:
     pattern = r'\[(.*?)\]'
     citationResults = re.findall(pattern, text)
     return citationResults
 
-def filter_duplicates(list_of_dicts):
+def filter_duplicates(list_of_dicts: list) -> list:
     unique_values = set()
     filtered_list = []
     for d in list_of_dicts:
@@ -96,18 +96,22 @@ def filter_duplicates(list_of_dicts):
             filtered_list.append(d)
     return filtered_list
 
-# Define a function to extract citation information from a given text
+
 # In this function, getCitationObject takes a text input and extracts citation information, creating a list of dictionaries containing information about each citation, such as its position in the text, URL, and associated page number.
-def getCitationObject(text):
+def getCitationObject(text:str) -> list:
+
     # Initialize an empty list to store citation objects
     citationObject = []
+
     # Define a regular expression pattern to match citations within square brackets
     pattern = r'\[(.*?)\]'
+
     # Find all matching citations in the text using the pattern
     citationResults = re.findall(pattern, text)
     
     # Check if there are any citation results found in the text
     if len(citationResults) > 0:
+        
         # Define a regular expression pattern to extract the page number from the document name
         getPagePattern = r"-([0-9]+)(?:-\d)?\."
         
@@ -150,7 +154,6 @@ def detectLang(text, defaultLang='de'):
         return defaultLang
 
 async def cgsIndexColumnFacetDist(client, facet):
-    
     try:
         facets_search = await client.search(
                     top=0,
@@ -166,13 +169,12 @@ async def cgsIndexColumnFacetDist(client, facet):
                 )
         res = await facets_search.get_facets()
         return res[facet]
-        #return res
     except Exception as e:
         print(e)
         print("setting default to 'de' due to error in facets search query")
         return [{'count': 1, 'value': 'de'}]
 
-def getLang(iso_country_code):
+def getLang(iso_country_code) -> dict:
     default_lang = {'iso': 'de','name': 'German'}
     if iso_country_code and len(iso_country_code) == 2:
         try:

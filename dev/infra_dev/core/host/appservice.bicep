@@ -16,16 +16,11 @@ param runtimeName string
 param runtimeNameAndVersion string = '${runtimeName}|${runtimeVersion}'
 param runtimeVersion string
 
-param virtualNetworkSubnetId_AppService string
-
-// Documentation
-// https://learn.microsoft.com/en-gb/azure/templates/microsoft.web/sites?pivots=deployment-language-bicep
-
 // Microsoft.Web/sites Properties
 param kind string = 'app,linux'
 
 // Microsoft.Web/sites/config
-param allowedOrigins array
+param allowedOrigins array = ['http://localhost:5173', 'https://green-coast-0e6ebe703.3.azurestaticapps.net']
 param alwaysOn bool = true
 param appCommandLine string = ''
 param appSettings object = {}
@@ -42,7 +37,7 @@ param healthCheckPath string = ''
 param clientId string = ''
 param tenantId string = ''
 
-resource appService 'Microsoft.Web/sites@2022-09-01' = {
+resource appService 'Microsoft.Web/sites@2022-03-01' = {
   name: name
   location: location
   tags: tags
@@ -66,7 +61,6 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     }
     clientAffinityEnabled: clientAffinityEnabled
     httpsOnly: true
-    virtualNetworkSubnetId: virtualNetworkSubnetId_AppService
   }
 
   identity: { type: managedIdentity ? 'SystemAssigned' : 'None' }
@@ -128,7 +122,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
   
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = if (!(empty(keyVaultName))) {
+resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = if (!(empty(keyVaultName))) {
   name: keyVaultName
 }
 

@@ -40,7 +40,7 @@ CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
 CONFIG_SEARCH_CLIENT = "search_client"
 
-bp = Blueprint("routes", __name__, static_folder='static')
+bp = Blueprint("routes", __name__)
 
 if platform.system() == 'Darwin':
     print('cors disabled')
@@ -63,23 +63,24 @@ class Overrides:
 class ChatRequestData:
     history: List[History]
     approach: str = "rrr"
-    overrides: Optional[Overrides] = None
+    overrides: Overrides = None
 
 @dataclass
 class DataPoint:
+    """Endpoint for adding feedback to Application Insights for later evaluation"""
     docName: str
     page: int
 
 @dataclass
 class ChatResponseData:
     answer: str
-    thoughts: str
-    data_points: List[DataPoint] = None
+    keywords: str
+    data_points: List[DataPoint]
 
 @dataclass
 class ErrorChatResponseData:
     answer: str
-    thoughts: str
+    keywords: str
 
 @dataclass
 class CatResponse:
@@ -103,6 +104,7 @@ class FeedbackResponseData:
 @document_response(CatResponse, 200)
 @document_response(ErrorResponse, 400)
 async def category():
+    """Endpoint for receiving the available categories"""
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
         search_res = await cgsIndexColumnFacetDist(search_client, "category")
@@ -122,6 +124,7 @@ async def category():
 @document_response(ErrorChatResponseData, 429)
 @document_response(ErrorChatResponseData, 500)
 async def chat():
+    """Endpoint for chatting with the custom model"""
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
@@ -134,9 +137,9 @@ async def chat():
         async with aiohttp.ClientSession() as s:
             openai.aiosession.set(s)
             r = await impl.run(request_json["history"], request_json.get("overrides") or {})
-        if (r["thoughts"] == "error"):
+        if (r["keywords"] == "error"):
             return (jsonify(r)), 500
-        elif (r["thoughts"] == "ratelimit"):
+        elif (r["keywords"] == "ratelimit"):
             return (jsonify(r)), 429
         return jsonify(r)
     except Exception as e:
@@ -148,6 +151,7 @@ async def chat():
 # can access all the files. This is also slow and memory hungry.
 @bp.route("/content/<path>", methods=["GET"])
 async def content(path):
+    """Endpoint for downloading pdfs from storage blob"""
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     blob = await blob_container_client.get_blob_client(path).download_blob()
     if not blob.properties or not blob.properties.has_key("content_settings"):
@@ -165,6 +169,7 @@ async def content(path):
 @document_response(FeedbackResponseData)
 @document_response(ErrorChatResponseData, 400)
 async def feedback():
+    """Endpoint for adding feedback to Application Insights for later evaluation"""
     try: 
         request_json = await request.get_json()
         if (len(request_json["history"]) > 0):

@@ -1,10 +1,33 @@
-stages: # List of stages for jobs, and their order of execution
+### list of stages, starting with test, then auto_start, each relevant stage and stop
+stages: 
   - test
+  - auto_start
   - all
-  - code
-  - infrastructure
+  - app
+  - infra
   - data
-image: alzdns.azurecr.io/azd-deploy:latest
+  - auto_stop
+
+
+### declare image to use in all stages, using mtr azd-deploy from azure team
+image: mtr.devops.telekom.de/ccoe_azure/azd-deploy
+
+
+### declare private runner name to use in relevant stages # TODO: put in documentation and adjust here (delete, can be external)
+variables: 
+  DEFAULT_RUNNER: azure-prod04-docker 
+
+
+### workflow setting -> if DEV_ENV, set RUNNER to default, as not private setup is needed
+workflow:
+  rules:
+    - if: '$DEV_ENV == "true"'
+      variables:
+        RUNNER_TAG: $DEFAULT_RUNNER
+    - if: '$DEV_ENV != "true"'
+
+
+# ### include gitlab scanning
 
 # include:
 #   - template: Security/SAST.gitlab-ci.yml
@@ -19,40 +42,107 @@ image: alzdns.azurecr.io/azd-deploy:latest
 #     rules:
 #       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-.before_script_template: &auth
+
+### auth setup for each step to login and logout before and after
+.auth_template: &auth
   before_script:
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
     - azd auth login --client-id $AZURE_CLIENT_ID --client-secret $AZURE_CLIENT_SECRET --tenant-id $AZURE_TENANT_ID
+    - az account set --subscription $SUBSCRIPTION_ID
   after_script:
     - az logout
     - azd auth logout
 
-default:
+### private runner setup (start and stop runner before each task via templates)
+.runner_start_template: &runner_start
+  <<: *auth
+  script: 
+    - |-
+      if [ "$DEV_ENV" == "true" ]; then
+        echo "skip vm startup"
+      else
+        echo "start private runner"
+        az vm start -g $RUNNER_RG -n $RUNNER_NAME
+      fi
+  allow_failure: false
   tags:
-    - azure-prod02-docker
+    - $DEFAULT_RUNNER
+  
 
-all-job:  
+.runner_stop_template: &runner_stop
+  <<: *auth
+  script: 
+    - |-
+      if [ "$DEV_ENV" == "true" ] | [ "$NO_RUNNER_STOP" == "true" ]; then
+          echo "skip vm stop"
+      else
+        echo "stop private runner"
+        az vm stop -g $RUNNER_RG -n $RUNNER_NAME
+      fi
+  tags:
+    - $DEFAULT_RUNNER
+
+
+### all start jobs in automatic_start stage, that will trigger each relevant stage and start the vm before running the job
+
+all_start:
+  stage: auto_start
+  <<: *runner_start
+  when: manual
+
+app_start:
+  stage: auto_start
+  <<: *runner_start
+  when: manual
+
+infra_start:
+  stage: auto_start
+  <<: *runner_start
+  when: manual
+
+data_start:
+  stage: auto_start
+  <<: *runner_start
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "trigger"'
+    - if: '$CI_PIPELINE_SOURCE != "trigger"'
+      when: manual
+
+
+### execution of the tasks in their own stage to be able to extend it in case needed
+### they each will only run after specified start job in automatic_start
+
+all_task:  
   stage: all
+  needs: 
+    - all_start
   <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - azd up
+    - azd env get-values
     - bash ./deploy/set_env.sh
   artifacts:
     paths:
       - .ENVIRONMENT
-  when: manual
-
-code-job:  
-  stage: code
+  tags:
+    - $RUNNER_TAG
+  
+app_task:  
+  stage: app
+  needs: 
+    - app_start
   <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - azd deploy
-  when: manual
+  tags:
+    - $RUNNER_TAG
 
-infrastructure-job:
-  stage: infrastructure  
+infra_task:
+  stage: infra
+  needs: 
+    - infra_start
   <<: *auth 
   script:
     - bash ./deploy/setup_env.sh
@@ -61,15 +151,47 @@ infrastructure-job:
   artifacts:
     paths:
       - .ENVIRONMENT
-  when: manual
+  tags: 
+    - $RUNNER_TAG
 
-data-job:
-  stage: data  
+data_task:
+  stage: data
+  needs: 
+    - data_start
   <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "trigger"'
-    - if: '$CI_PIPELINE_SOURCE != "trigger"'
-      when: manual
+  tags: 
+    - $RUNNER_TAG
+
+
+### all stop jobs in automatic_stop stage, that will trigger after each relevant stage and stop the runner vm
+
+all_terminate:
+  stage: all
+  <<: *runner_stop
+  needs: 
+    - all_start
+    - all_task
+
+app_terminate:
+  stage: app
+  <<: *runner_stop
+  needs: 
+    - app_start
+    - app_task
+
+infra_terminate:
+  stage: infra
+  <<: *runner_stop
+  needs: 
+    - infra_start
+    - infra_task
+
+data_terminate:
+  stage: data
+  <<: *runner_stop
+  needs: 
+    - data_start
+    - data_task
