@@ -41,9 +41,6 @@
     "searchServiceResourceGroupName": {
       "value": "${AZURE_SEARCH_SERVICE_RESOURCE_GROUP}"
     },
-    "searchServiceSkuName": {
-      "value": "standard"
-    },
     "storageAccountName": {
       "value": "${AZURE_STORAGE_ACCOUNT}"
     },
@@ -73,6 +70,12 @@
     },
     "authClient": {
       "value": "${AZURE_AUTH_ClIENT}"
+    },
+    "appServicePlanSku": {
+      "value": "${AZURE_APPSERVICE_SKU=B1}"
+    },
+    "searchServiceSkuName": {
+      "value": "${AZURE_SEARCH_SERVICE_SKU=standard}"
     },
     "vnetResourceGroupName": {
       "value": "${AZURE_VNET_RESOURCE_GROUP}"

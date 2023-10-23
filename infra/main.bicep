@@ -12,6 +12,10 @@ param location string
 param authClient string
 
 param appServicePlanName string = ''
+
+@allowed(['B1','B2','B3','S1','S2','S3','P1','P2','P3','P4'])
+param appServicePlanSku string = 'B1'
+
 param backendServiceName string = ''
 param resourceGroupName string = ''
 
@@ -21,7 +25,9 @@ param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
 param searchServiceResourceGroupLocation string = location
 
+@allowed(['basic','standard','standard2','standard3'])
 param searchServiceSkuName string = 'standard'
+
 param searchIndexName string = 'gptkbindex'
 
 param storageAccountName string = ''
@@ -198,7 +204,7 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
     location: location
     tags: tags
     sku: {
-      name: 'B1'
+      name: appServicePlanSku
       capacity: 1
     }
     kind: 'linux'

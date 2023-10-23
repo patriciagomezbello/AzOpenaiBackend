@@ -64,6 +64,8 @@ There is a requirement to add an ACCESS_TOKEN to your project to enable automati
 | AZURE_REDEPLOY_OPENAI   				| (re)deploys OpenAI Instance (for fixing current bug)  			|  
 | AZURE_OPENAI_CHATGPT_MODEL_NAME   	| model name (gpt-35-turbo, gpt-35-turbo-16k, gpt-4, gpt-4-32k)   	| 
 | AZURE_OPENAI_CHATGPT_MODEL_VERSION   	| model version (0613, 0914)   										| 
+| AZURE_SEARCH_SERVICE_SKU  			| standard (basic,standard,standard2,standard3)						| 
+| AZURE_APPSERVICE_SKU  				| B1 (B1,B2,B3,S1,S2,S3,P1,P2,P3,P4)  								| 
 
 \* = **mandatory**
 
