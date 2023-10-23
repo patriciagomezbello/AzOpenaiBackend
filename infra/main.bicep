@@ -159,6 +159,10 @@ module keyvault 'core/vault/keyvault.bicep' = {
 module serviceEndpoints 'core/subnet/service-endpoints.bicep' = {
   name: 'serviceEndpoints'
   scope: resourceGroupVNET
+  dependsOn: [
+    subnet_default
+    subnet_AppService
+  ]
   params: {
     vnetName: vnet.name
     subnetDefaultName: subnet_default.name
