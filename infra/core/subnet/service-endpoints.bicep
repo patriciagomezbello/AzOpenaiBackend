@@ -43,6 +43,9 @@ resource serviceEndpointDefault 'Microsoft.Network/virtualNetworks/subnets@2023-
 resource serviceEndpointAppService 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' = {
   name: subnetAppServiceName
   parent: vnet
+  dependsOn: [
+    serviceEndpointDefault
+  ]
   properties: { 
     addressPrefix: subnetAppServiceAddressPrefix
     serviceEndpoints: serviceEndpoints
