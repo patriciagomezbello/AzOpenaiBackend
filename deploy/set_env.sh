@@ -6,6 +6,9 @@ CI_VARIABLE_NAME="ENVIRONMENT"
 # set redeploy to false automatically (after initial deployment)
 azd env set AZURE_REDEPLOY_OPENAI false
 
+# set keyvault
+azd env set AZURE_DEPLOY_KEY false
+
 # Get new value using "azd env get-values" command
 value=$(azd env get-values)
 

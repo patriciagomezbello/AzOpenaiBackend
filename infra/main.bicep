@@ -93,6 +93,8 @@ param subnetName_AppService string
 
 param vnetResourceGroupName string 
 
+param deployKey bool = true
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
@@ -158,6 +160,7 @@ module keyvault 'core/vault/keyvault.bicep' = {
     location: location
     virtualNetworkSubnetId: subnet_default.id
     userAssignedIdentityName:'${abbrs.managedIdentityUserAssignedIdentities}${resourceToken}'
+    deployKey: deployKey
   }
 }
 
@@ -479,5 +482,7 @@ output AZURE_STORAGE_ACCOUNT string = storage.outputs.name
 output AZURE_STORAGE_CONTAINER string = storageContainerName
 output AZURE_STORAGE_CONTAINER_DOCS string = storageContainerNameDocs
 output AZURE_STORAGE_RESOURCE_GROUP string = storageResourceGroup.name
+
+output AZURE_KEYVAULT_NAME string = keyvault.name
 
 output BACKEND_URI string = backend.outputs.uri

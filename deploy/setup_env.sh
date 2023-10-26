@@ -50,7 +50,40 @@ if [ "$DEV_ENV" == "true" ]; then
     cp -R dev/infra_dev/* infra/
 
     echo "replaced with old, insecure variant for development"
+fi  
+
+azd env get-values
+
+# extract KEYVAULT_NAME from Environment (.env)
+kvk_line=$(grep "AZURE_DEPLOY_KEY=" "$ENVIRONMENT")
+
+# Extract the value using cut
+key_deploy=$(echo "$kvk_line" | cut -d "=" -f 2)
+key_deploy="${key_deploy%\"}"
+key_deploy="${key_deploy#\"}"
+
+if [ "$DEV_ENV" != "true" && $key_deploy != "false" ]; then
+
+    echo "no deploy setting for the key is set, checking .."
+
+    # extract KEYVAULT_NAME from Environment (.env)
+    kv_line=$(grep "AZURE_KEYVAULT_NAME=" "$ENVIRONMENT")
+
+    # Extract the value using cut
+    KEY_VAULT_NAME=$(echo "$kv_line" | cut -d "=" -f 2)
+    KEY_VAULT_NAME="${KEY_VAULT_NAME%\"}"
+    KEY_VAULT_NAME="${KEY_VAULT_NAME#\"}"
+
+
+    KEY_NAME="storagekey"
+    key=$(az keyvault key list --vault-name $KEY_VAULT_NAME --query "[?name=='$KEY_NAME']")
+
+    if [ -n "$key" ]; then
+        azd env set AZURE_DEPLOY_KEY false
+    fi
 fi
+
+
 
 # Copy context.py to core
 cp $CONTEXT app/backend/core/context.py

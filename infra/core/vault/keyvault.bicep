@@ -4,6 +4,7 @@ param virtualNetworkSubnetId string
 param location string = resourceGroup().location
 param tags object = {}
 param purgeProtection bool = true
+param deployKey bool
 
 @description('Expiration time of the key')
 param keyExpiration int = dateTimeToEpoch(dateTimeAdd(utcNow(), 'P1Y'))
@@ -55,11 +56,12 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
   }
 }
 
-resource kvKey 'Microsoft.KeyVault/vaults/keys@2021-10-01' = {
+resource kvKey 'Microsoft.KeyVault/vaults/keys@2023-02-01' = if (deployKey) {
   parent: keyVault
   name: 'storagekey'
   properties: {
     attributes: {
+      exportable: true
       enabled: true
       exp: keyExpiration
     }

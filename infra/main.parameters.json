@@ -88,6 +88,9 @@
     },
     "subnetName_AppService": {
       "value": "${AZURE_SUBNET_NAME_APPSERVICE}"
+    },
+    "deployKey": {
+      "value": "${AZURE_DEPLOY_KEY}"
     }
   }
 }
