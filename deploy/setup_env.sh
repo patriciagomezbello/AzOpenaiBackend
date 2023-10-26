@@ -1,12 +1,7 @@
 #!/bin/bash
 
 # extract ENV_NAME from Environment (.env)
-line=$(grep "AZURE_ENV_NAME=" "$ENVIRONMENT")
-
-# Extract the value using cut
-envName=$(echo "$line" | cut -d "=" -f 2)
-envName="${envName%\"}"
-envName="${envName#\"}"
+source <(azd env get-values)
 
 # Create a folder named .azure
 mkdir .azure
@@ -14,23 +9,23 @@ mkdir .azure
 # Navigate inside the .azure folder
 cd .azure
 
-# Create a folder using the value of the GitLab CI variable $envName
-mkdir $envName
+# Create a folder using the value of the GitLab CI variable $AZURE_ENV_NAME
+mkdir $AZURE_ENV_NAME
 
 # Create a config.json file inside the .azure folder
 
-echo '{"version":1,"defaultEnvironment":"'"$envName"'"}' > config.json
+echo '{"version":1,"defaultEnvironment":"'"$AZURE_ENV_NAME"'"}' > config.json
 
-# Replace $envName with the actual value of the GitLab CI variable $envName
-sed -i 's/$envName/'"$envName"'/g' config.json
+# Replace $AZURE_ENV_NAME with the actual value of the GitLab CI variable $AZURE_ENV_NAME
+sed -i 's/$AZURE_ENV_NAME/'"$AZURE_ENV_NAME"'/g' config.json
 
-# Navigate into the $envName folder
-cd $envName
+# Navigate into the $AZURE_ENV_NAME folder
+cd $AZURE_ENV_NAME
 
-# Create a config.json file inside the $envName folder
+# Create a config.json file inside the $AZURE_ENV_NAME folder
 echo '{"infra":{"parameters":{"openAiResourceGroupLocation": "'"$OpenAILocation"'"}}}'> config.json 
 
-# Replace $envName with the actual value of the GitLab CI variable $envName
+# Replace $AZURE_ENV_NAME with the actual value of the GitLab CI variable $AZURE_ENV_NAME
 sed -i 's/$OpenAILocation/'"$OpenAILocation"'/g' config.json
 
 # Copy .env to environment
@@ -54,28 +49,13 @@ fi
 
 azd env get-values
 
-# extract KEYVAULT_NAME from Environment (.env)
-kvk_line=$(grep "AZURE_DEPLOY_KEY=" "$ENVIRONMENT")
 
-# Extract the value using cut
-key_deploy=$(echo "$kvk_line" | cut -d "=" -f 2)
-key_deploy="${key_deploy%\"}"
-key_deploy="${key_deploy#\"}"
+if [ "$DEV_ENV" != "true" && $AZURE_KEY_DEPLOY != "false" && -n $AZURE_KEYVAULT_NAME ]; then
 
-if [ "$DEV_ENV" != "true" && $key_deploy != "false" ]; then
-
-    echo "no deploy setting for the key is set, checking .."
-
-    # extract KEYVAULT_NAME from Environment (.env)
-    kv_line=$(grep "AZURE_KEYVAULT_NAME=" "$ENVIRONMENT")
-
-    # Extract the value using cut
-    KEY_VAULT_NAME=$(echo "$kv_line" | cut -d "=" -f 2)
-    KEY_VAULT_NAME="${KEY_VAULT_NAME%\"}"
-    KEY_VAULT_NAME="${KEY_VAULT_NAME#\"}"
-
+    echo "deploy setting for key is checked .."
 
     KEY_NAME="storagekey"
+
     key=$(az keyvault key list --vault-name $KEY_VAULT_NAME --query "[?name=='$KEY_NAME']")
 
     if [ -n "$key" ]; then
