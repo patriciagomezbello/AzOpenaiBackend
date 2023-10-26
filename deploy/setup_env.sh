@@ -21,10 +21,10 @@ mkdir $envName
 
 # Create a config.json file inside the .azure folder
 
-echo '{"version":1,"defaultEnvironment":"'"$AZURE_ENV_NAME"'"}' > config.json
+echo '{"version":1,"defaultEnvironment":"'"$envName"'"}' > config.json
 
 # Replace $AZURE_ENV_NAME with the actual value of the GitLab CI variable $AZURE_ENV_NAME
-sed -i 's/$AZURE_ENV_NAME/'"$AZURE_ENV_NAME"'/g' config.json
+sed -i 's/$AZURE_ENV_NAME/'"$envName"'/g' config.json
 
 # Navigate into the $AZURE_ENV_NAME folder
 cd $envName
