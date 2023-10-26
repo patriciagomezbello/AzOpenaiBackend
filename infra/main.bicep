@@ -93,7 +93,7 @@ param subnetName_AppService string
 
 param vnetResourceGroupName string 
 
-param deployKey bool = true
+param deployKey string = 'true'
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))

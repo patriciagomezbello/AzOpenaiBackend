@@ -41,7 +41,12 @@ cp $ENVIRONMENT .env
 # navigate back
 cd ../../
 
-source <(azd env get-values)
+while IFS='=' read -r key value; do
+    value=$(echo "$value" | sed 's/^"//' | sed 's/"$//')
+    export "$key=$value"
+done <<EOF
+$(azd env get-values)
+EOF
 
 # Check if DEV_ENV is set to "true", to be able to deploy the insecure variant
 if [ "$DEV_ENV" == "true" ]; then
@@ -60,18 +65,8 @@ azd env get-values
 
 
 if [ "$DEV_ENV" != "true" ] && [ "$AZURE_KEY_DEPLOY" != "false" ] && [ -n "$AZURE_KEYVAULT_NAME" ]; then
-
-    echo "deploy setting for key is checked .."
-
-    KEY_NAME="storagekey"
-
-    key=$(az keyvault key list --vault-name $KEY_VAULT_NAME --query "[?name=='$KEY_NAME']")
-
-    if [ -n "$key" ]; then
-        azd env set AZURE_DEPLOY_KEY false
-    fi
+    azd env set AZURE_DEPLOY_KEY false
 fi
-
 
 
 # Copy context.py to core
