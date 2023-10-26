@@ -1,7 +1,14 @@
 #!/bin/bash
 
+
 # extract ENV_NAME from Environment (.env)
-source <(azd env get-values)
+line=$(grep "AZURE_ENV_NAME=" "$ENVIRONMENT")
+
+# Extract the value using cut
+envName=$(echo "$line" | cut -d "=" -f 2)
+envName="${envName%\"}"
+envName="${envName#\"}"
+
 
 # Create a folder named .azure
 mkdir .azure
@@ -10,7 +17,7 @@ mkdir .azure
 cd .azure
 
 # Create a folder using the value of the GitLab CI variable $AZURE_ENV_NAME
-mkdir $AZURE_ENV_NAME
+mkdir $envName
 
 # Create a config.json file inside the .azure folder
 
@@ -20,7 +27,7 @@ echo '{"version":1,"defaultEnvironment":"'"$AZURE_ENV_NAME"'"}' > config.json
 sed -i 's/$AZURE_ENV_NAME/'"$AZURE_ENV_NAME"'/g' config.json
 
 # Navigate into the $AZURE_ENV_NAME folder
-cd $AZURE_ENV_NAME
+cd $envName
 
 # Create a config.json file inside the $AZURE_ENV_NAME folder
 echo '{"infra":{"parameters":{"openAiResourceGroupLocation": "'"$OpenAILocation"'"}}}'> config.json 
@@ -33,6 +40,8 @@ cp $ENVIRONMENT .env
 
 # navigate back
 cd ../../
+
+source <(azd env get-values)
 
 # Check if DEV_ENV is set to "true", to be able to deploy the insecure variant
 if [ "$DEV_ENV" == "true" ]; then
