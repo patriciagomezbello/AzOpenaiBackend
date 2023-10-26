@@ -56,7 +56,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
   }
 }
 
-resource kvKey 'Microsoft.KeyVault/vaults/keys@2023-02-01' = if (deployKey == 'true') {
+resource kvKey 'Microsoft.KeyVault/vaults/keys@2023-02-01' = if (deployKey != 'false') {
   parent: keyVault
   name: 'storagekey'
   properties: {
