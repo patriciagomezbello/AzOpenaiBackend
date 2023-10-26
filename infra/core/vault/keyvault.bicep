@@ -61,7 +61,6 @@ resource kvKey 'Microsoft.KeyVault/vaults/keys@2023-02-01' = if (deployKey != 'f
   name: 'storagekey'
   properties: {
     attributes: {
-      exportable: true
       enabled: true
       exp: keyExpiration
     }
