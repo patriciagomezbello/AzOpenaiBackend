@@ -59,7 +59,7 @@ fi
 azd env get-values
 
 
-if [ "$DEV_ENV" != "true" ] && [ $AZURE_KEY_DEPLOY != "false" ] && [ -n $AZURE_KEYVAULT_NAME ]; then
+if [ "$DEV_ENV" != "true" ] && [ "$AZURE_KEY_DEPLOY" != "false" ] && [ -n "$AZURE_KEYVAULT_NAME" ]; then
 
     echo "deploy setting for key is checked .."
 
