@@ -483,6 +483,6 @@ output AZURE_STORAGE_CONTAINER string = storageContainerName
 output AZURE_STORAGE_CONTAINER_DOCS string = storageContainerNameDocs
 output AZURE_STORAGE_RESOURCE_GROUP string = storageResourceGroup.name
 
-output AZURE_KEYVAULT_NAME string = keyvault.name
+output AZURE_KEYVAULT_NAME string = keyvault.outputs.name
 
 output BACKEND_URI string = backend.outputs.uri
