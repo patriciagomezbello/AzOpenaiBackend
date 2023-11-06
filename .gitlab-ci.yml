@@ -13,18 +13,9 @@ stages:
 image: mtr.devops.telekom.de/ccoe_azure/azd-deploy
 
 
-### declare private runner name to use in relevant stages # TODO: put in documentation and adjust here (delete, can be external)
+### declare private runner name to use in relevant stages (can be parameterized in a todo)
 variables: 
-  DEFAULT_RUNNER: azure-prod04-docker 
-
-
-### workflow setting -> if DEV_ENV, set RUNNER to default, as not private setup is needed
-workflow:
-  rules:
-    - if: '$DEV_ENV == "true"'
-      variables:
-        RUNNER_TAG: $DEFAULT_RUNNER
-    - if: '$DEV_ENV != "true"'
+  DEFAULT_RUNNER: otc_run_docker_m  
 
 
 # ### include gitlab scanning
