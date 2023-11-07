@@ -45,6 +45,23 @@ There is a requirement to add an ACCESS_TOKEN to your project to enable automati
 ![ACCESS_TOKEN_3](documentation/ACCESS_TOKEN_3.png)
 
 
+### Environment CI/CD Variables (not stored as file variables, but as variable)
+| Variable | Description |
+| -------- | -------- | 
+| OpenAILocation		|  *francecentral*, *swedencentral* or *westeurope* are supported
+| REPO_URL 				|  gitlab repository url for the data (https://gitlab.devops.telekom.de/red-october/ccoe-data)
+| AZURE_CLIENT_ID 		|  service principal id (sp for deployment)
+| AZURE_CLIENT_SECRET 	|  secret for the service principal
+| AZURE_TENANT_ID		|  tenant id (628242bd-7e70-4aa9-8ee1-72586b4540fe for our use cases)
+| ACCESS_TOKEN      	|  for api access, can be created under settings/accesstoken -> api, maintainer and up to 3 months validity
+| RUNNER_NAME      		|  The name of the provisioned private gitlab runner in the same subscription
+| RUNNER_RG     		|  The resource group name of the provisioned private gitlab runner in the same subscription
+| RUNNER_TAG    		|  The tag of the provisioned private gitlab runner in the same subscription
+| SUBSCRIPTION_ID  		|  The id of the subscription
+| DEV_ENV				|  *true* or *false*, only set in Gitlab please!!! (will delete the secure variant and replace with public variant during pipeline)
+
+_____
+
 ### File Variables 
 
 - **ENVIRONMENT**
@@ -131,20 +148,6 @@ LLM, Large Learning Model
 ```
 
 _____
-
-### Environment CI/CD Variables (not stored as file variables, but as variable)
-| Variable | Description |
-| -------- | -------- | 
-| OpenAILocation		|  *francecentral*, *swedencentral* or *westeurope* are supported
-| REPO_URL 				|  gitlab repository url for the data (https://gitlab.devops.telekom.de/red-october/ccoe-data)
-| AZURE_CLIENT_ID 		|  service principal id (sp for deployment)
-| AZURE_CLIENT_SECRET 	|  secret for the service principal
-| AZURE_TENANT_ID		|  tenant id (628242bd-7e70-4aa9-8ee1-72586b4540fe for our use cases)
-| ACCESS_TOKEN      	|  for api access, can be created under settings/accesstoken -> api, maintainer and up to 3 months validity
-| RUNNER_NAME      		|  The name of the provisioned private gitlab runner in the same subscription
-| RUNNER_RG     		|  The resource group name of the provisioned private gitlab runner in the same subscription
-| RUNNER_TAG    		|  The tag of the provisioned private gitlab runner in the same subscription
-| DEV_ENV				|  *true* or *false*, only set in Gitlab please!!! (will delete the secure variant and replace with public variant during pipeline)
 
 ### How to connect the data repository with your infrastructure and application?
 

@@ -85,7 +85,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           enabled: true
           registration:{
             clientId: clientId
-            openIdIssuer: 'https://sts.windows.net/${tenantId}/v2.0'
+            openIdIssuer: 'https://login.microsoftonline.com/common/v2.0'
           }
         }
       }
