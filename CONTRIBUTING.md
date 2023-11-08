@@ -22,13 +22,13 @@ Merge requests are the best way to propose changes to the codebase. We actively 
 6. Issue that merge request!
 
 ## Any contributions you make will be under the [Software License](LICENSE)
-In short, when you submit code changes, your submissions are understood to be under the same [Software License](LICENSE) that covers the project. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [Software License](license.md) that covers the project. Feel free to contact the maintainers if that's a concern.
 
 ## Use a Consistent Coding Style
 Let's ensure code consistency throughout the project. (But recommendations are fine, python is "interesting" for backend purposes)
 
 ## License
-By contributing, you agree that your contributions will be licensed under its [Software License](LICENSE).
+By contributing, you agree that your contributions will be licensed under its [Software License](license.md).
 
 ## References
 This document was adapted from the open-source contribution guidelines for [Public Lab](https://publiclab.org/)'s [Super Navigation](https://github.com/publiclab/supernova) project.
