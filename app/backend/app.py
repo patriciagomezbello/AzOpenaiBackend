@@ -3,6 +3,7 @@ import mimetypes
 import os
 import json
 import time
+import jwt
 import platform
 from dataclasses import dataclass
 from typing import List, Optional
@@ -39,6 +40,32 @@ CONFIG_ASK_APPROACHES = "ask_approaches"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
 CONFIG_SEARCH_CLIENT = "search_client"
+
+# initialize Allowed Role
+ALLOWED_ROLE = os.getenv("AZURE_AUTH_ROLE")
+
+if ALLOWED_ROLE is None:
+    ALLOWED_ROLE = "all"
+
+
+# the authentication and validity of token is handled by Azure
+# therefore, this method to check the role is valid
+# no check with the respective AD is required in this way
+# before request is not possible, as there the header is not readable
+async def checkAuthorization(request):
+    if ALLOWED_ROLE != "all":
+        auth_header = request.headers.get("Authorization")
+        parts = auth_header.split()
+        token = parts[1]
+        try:
+            decoded_token = jwt.decode(
+                jwt=token, algorithms=["RS256"], options={"verify_signature": False}
+            )
+        except jwt.exceptions.InvalidTokenError:
+            return 401
+        if ALLOWED_ROLE not in decoded_token["roles"]:
+            return 403
+
 
 bp = Blueprint("routes", __name__)
 
@@ -115,6 +142,9 @@ class FeedbackResponseData:
 @document_response(CatResponse, 200)
 @document_response(ErrorResponse, 400)
 async def category():
+    authorization = await checkAuthorization(request)
+    if authorization == 403 or authorization == 401:
+        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
     """Endpoint for receiving the available categories"""
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
@@ -135,6 +165,9 @@ async def category():
 @document_response(ErrorChatResponseData, 500)
 async def chat():
     """Endpoint for chatting with the custom model"""
+    authorization = await checkAuthorization(request)
+    if authorization == 403 or authorization == 401:
+        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
@@ -164,6 +197,9 @@ async def chat():
 # can access all the files. This is also slow and memory hungry.
 @bp.route("/content/<path>", methods=["GET"])
 async def content(path):
+    authorization = await checkAuthorization(request)
+    if authorization == 403 or authorization == 401:
+        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
     """Endpoint for downloading pdfs from storage blob"""
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     blob = await blob_container_client.get_blob_client(path).download_blob()
@@ -185,6 +221,9 @@ async def content(path):
 @document_response(FeedbackResponseData)
 @document_response(ErrorChatResponseData, 400)
 async def feedback():
+    authorization = await checkAuthorization(request)
+    if authorization == 403 or authorization == 401:
+        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
     """Endpoint for adding feedback to Application Insights for later evaluation"""
     try:
         request_json = await request.get_json()
@@ -208,7 +247,6 @@ async def ensure_openai_token():
 
 @bp.before_app_serving
 async def setup_clients():
-    # Replace these with your own values, either in environment variables or directly here
     AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
     AZURE_STORAGE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER_DOCS")
     AZURE_SEARCH_SERVICE = os.getenv("AZURE_SEARCH_SERVICE")
