@@ -42,14 +42,16 @@ CONFIG_SEARCH_CLIENT = "search_client"
 
 bp = Blueprint("routes", __name__)
 
-if platform.system() == 'Darwin':
-    print('cors disabled')
+if platform.system() == "Darwin":
+    print("cors disabled")
     bp = cors(bp, allow_origin="*")
+
 
 @dataclass
 class History:
     user: str
     bot: Optional[str]
+
 
 @dataclass
 class Overrides:
@@ -59,17 +61,21 @@ class Overrides:
     top: int
     temperature: float
 
+
 @dataclass
 class ChatRequestData:
     history: List[History]
     approach: str = "rrr"
     overrides: Overrides = None
 
+
 @dataclass
 class DataPoint:
     """Endpoint for adding feedback to Application Insights for later evaluation"""
+
     docName: str
     page: int
+
 
 @dataclass
 class ChatResponseData:
@@ -77,23 +83,28 @@ class ChatResponseData:
     keywords: str
     data_points: List[DataPoint]
 
+
 @dataclass
 class ErrorChatResponseData:
     answer: str
     keywords: str
 
+
 @dataclass
 class CatResponse:
     categories: List[str]
+
 
 @dataclass
 class ErrorResponse:
     error: str
 
+
 @dataclass
 class FeedbackRequestData:
     history: List[History]
     opinion: int
+
 
 @dataclass
 class FeedbackResponseData:
@@ -108,13 +119,12 @@ async def category():
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
         search_res = await cgsIndexColumnFacetDist(search_client, "category")
-        values = [item['value'] for item in search_res]
+        values = [item["value"] for item in search_res]
         res = {"categories": values}
         return jsonify(res)
     except Exception as e:
         res = {"error": e.args[0]}
         return jsonify({"error": str(e)}), 500
-    
 
 
 @bp.route("/chat", methods=["POST"])
@@ -136,15 +146,18 @@ async def chat():
         # Workaround for: https://github.com/openai/openai-python/issues/371
         async with aiohttp.ClientSession() as s:
             openai.aiosession.set(s)
-            r = await impl.run(request_json["history"], request_json.get("overrides") or {})
-        if (r["keywords"] == "error"):
+            r = await impl.run(
+                request_json["history"], request_json.get("overrides") or {}
+            )
+        if r["keywords"] == "error":
             return (jsonify(r)), 500
-        elif (r["keywords"] == "ratelimit"):
+        elif r["keywords"] == "ratelimit":
             return (jsonify(r)), 429
         return jsonify(r)
     except Exception as e:
         applicationLog("Exception in /chat", "exc")
         return jsonify({"error": str(e)}), 500
+
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
@@ -162,7 +175,10 @@ async def content(path):
     blob_file = io.BytesIO()
     await blob.readinto(blob_file)
     blob_file.seek(0)
-    return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
+    return await send_file(
+        blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path
+    )
+
 
 @bp.route("/feedback", methods=["POST"])
 @document_request(FeedbackRequestData)
@@ -170,9 +186,9 @@ async def content(path):
 @document_response(ErrorChatResponseData, 400)
 async def feedback():
     """Endpoint for adding feedback to Application Insights for later evaluation"""
-    try: 
+    try:
         request_json = await request.get_json()
-        if (len(request_json["history"]) > 0):
+        if len(request_json["history"]) > 0:
             applicationLog(json.dumps(request_json))
         return jsonify({"response": "feedback has been forwarded"})
     except Exception as e:
@@ -183,13 +199,15 @@ async def feedback():
 async def ensure_openai_token():
     openai_token = current_app.config[CONFIG_OPENAI_TOKEN]
     if openai_token.expires_on < time.time() + 60:
-        openai_token = await current_app.config[CONFIG_CREDENTIAL].get_token("https://cognitiveservices.azure.com/.default")
+        openai_token = await current_app.config[CONFIG_CREDENTIAL].get_token(
+            "https://cognitiveservices.azure.com/.default"
+        )
         current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
         openai.api_key = openai_token.token
 
+
 @bp.before_app_serving
 async def setup_clients():
-
     # Replace these with your own values, either in environment variables or directly here
     AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
     AZURE_STORAGE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER_DOCS")
@@ -202,32 +220,36 @@ async def setup_clients():
     MAX_TOKENS_QUERY = os.getenv("MAX_TOKENS_QUERY") or 32
     MAX_TOKENS_ANSWER = os.getenv("MAX_TOKENS_ANSWER") or 1024
 
-
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")
 
-    # Use the current user identity to authenticate with Azure OpenAI, Cognitive Search and Blob Storage (no secrets needed,
-    # just use 'az login' locally, and managed identity when deployed on Azure). If you need to use keys, use separate AzureKeyCredential instances with the
-    # keys for each service
-    # If you encounter a blocking error during a DefaultAzureCredential resolution, you can exclude the problematic credential by using a parameter (ex. exclude_shared_token_cache_credential=True)
-    azure_credential = DefaultAzureCredential(exclude_shared_token_cache_credential = True)
-    
+    # Use the current user identity to authenticate with Azure OpenAI, Cognitive Search and Blob Storage
+    # just use 'az login' locally, and managed identity when deployed on Azure). If you need to use keys,
+    # use separate AzureKeyCredential instances with the keys for each service
+    # If you encounter a blocking error during a DefaultAzureCredential resolution,
+    # you can exclude the problematic credential by using a parameter (ex. exclude_shared_token_cache_credential=True)
+
+    azure_credential = DefaultAzureCredential(
+        exclude_shared_token_cache_credential=True
+    )
 
     # Set up clients for Cognitive Search and Storage
     search_client = SearchClient(
         endpoint=f"https://{AZURE_SEARCH_SERVICE}.search.windows.net",
         index_name=AZURE_SEARCH_INDEX,
-        credential=azure_credential)
+        credential=azure_credential,
+    )
     blob_client = BlobServiceClient(
         account_url=f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net",
-        credential=azure_credential)
+        credential=azure_credential,
+    )
     blob_container_client = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
 
-    # Find out which document languages are present and which is the most common to set it later as a defult language in the environment
-    facets_results = await cgsIndexColumnFacetDist(search_client,'doclang')
-    os.environ['FACETS_RESULTS'] = str(facets_results)
+    # Find out which document languages are present and which is the most common to set it later as
+    # a default language in the environment
+    facets_results = await cgsIndexColumnFacetDist(search_client, "doclang")
+    os.environ["FACETS_RESULTS"] = str(facets_results)
     print(facets_results)
-
 
     # Used by the OpenAI SDK
     openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"
@@ -244,8 +266,9 @@ async def setup_clients():
     current_app.config[CONFIG_BLOB_CONTAINER_CLIENT] = blob_container_client
     current_app.config[CONFIG_SEARCH_CLIENT] = search_client
 
-    # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
-    # or some derivative, here we include several for exploration purposes
+    # Various approaches to integrate GPT and external knowledge,
+    # most applications will use a single one of these patterns or some derivative,
+    # here we include several for exploration purposes
     current_app.config[CONFIG_ASK_APPROACHES] = {
         "rrr": ChatReadRetrieveReadApproach(
             search_client,
@@ -271,6 +294,7 @@ async def setup_clients():
         )
     }
 
+
 def create_app():
     if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         configure_azure_monitor()
@@ -279,6 +303,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API",version="1.0"))
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="1.0"))
 
     return app

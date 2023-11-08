@@ -1,0 +1,15 @@
+{
+    "flake8.args": [
+        "--max-line-length=120",
+        "--ignore=E203,W503,W605 ",
+        "--exclude=context.py"
+     ],
+     "python.analysis.typeCheckingMode": "basic",
+     "python.analysis.diagnosticSeverityOverrides": {
+       "reportGeneralTypeIssues": "information",
+       "reportOptionalMemberAccess": "information",
+       "reportUnboundVariable": "information",
+       "reportMissingImports": "information",
+       "reportInvalidStringEscapeSequence": "information"
+     }
+}

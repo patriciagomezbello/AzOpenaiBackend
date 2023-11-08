@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import tiktoken
 import re
-import pycountry     
+import pycountry
 import openai
 import logging
-from lingua import  Language, LanguageDetectorBuilder
+from lingua import Language, LanguageDetectorBuilder
 
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
@@ -13,22 +13,21 @@ MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo-16k": 16000,
     "gpt-3.5-turbo-16k": 16000,
     "gpt-4": 8100,
-    "gpt-4-32k": 32000
+    "gpt-4-32k": 32000,
 }
 
-AOAI_2_OAI = {
-    "gpt-35-turbo": "gpt-3.5-turbo",
-    "gpt-35-turbo-16k": "gpt-3.5-turbo-16k"
-}
+AOAI_2_OAI = {"gpt-35-turbo": "gpt-3.5-turbo", "gpt-35-turbo-16k": "gpt-3.5-turbo-16k"}
 
 # Define the EVAL level
 EVAL = 35
 logging.addLevelName(EVAL, "EVAL")
 
+
 def eval(self, message, *args, **kws):
     if self.isEnabledFor(EVAL):
         # Yes, logger takes its '*args' as 'args'.
         self._log(EVAL, message, args, **kws)
+
 
 # Add the method to logging.Logger
 logging.Logger.eval = eval
@@ -83,131 +82,167 @@ def addTokenCount(tokenDict: dict, res: dict) -> None:
 
 # to extract the sources cited by the GPT answer according to the prompt instructions
 def extractCitedSources(text: str) -> list:
-    pattern = r'\[(.*?)\]'
+    pattern = r"\[(.*?)\]"
     citationResults = re.findall(pattern, text)
     return citationResults
+
 
 def filter_duplicates(list_of_dicts: list) -> list:
     unique_values = set()
     filtered_list = []
     for d in list_of_dicts:
-        if (d['docName'], d['page']) not in unique_values:
-            unique_values.add((d['docName'], d['page']))
+        if (d["docName"], d["page"]) not in unique_values:
+            unique_values.add((d["docName"], d["page"]))
             filtered_list.append(d)
     return filtered_list
 
 
-# In this function, getCitationObject takes a text input and extracts citation information, creating a list of dictionaries containing information about each citation, such as its position in the text, URL, and associated page number.
-def getCitationObject(text:str) -> list:
-
+# In this function, getCitationObject takes a text input and extracts citation information,
+# creating a list of dictionaries containing information about each citation,
+# such as its position in the text, URL, and associated page number.
+def getCitationObject(text: str) -> list:
     # Initialize an empty list to store citation objects
     citationObject = []
 
     # Define a regular expression pattern to match citations within square brackets
-    pattern = r'\[(.*?)\]'
+    pattern = r"\[(.*?)\]"
 
     # Find all matching citations in the text using the pattern
     citationResults = re.findall(pattern, text)
-    
+
     # Check if there are any citation results found in the text
     if len(citationResults) > 0:
-        
         # Define a regular expression pattern to extract the page number from the document name
         getPagePattern = r"-([0-9]+)(?:-\d)?\."
-        
+
         # Loop through the citations found in the text
         # the "i" must stay !!!!!
         for i, docName in enumerate(citationResults):
             # Extract the page number from the document name using the getPagePattern
 
             page = re.search(getPagePattern, docName)
-            
+
             # If a valid page number is found, convert it to an integer and add 1
             if page:
-                pageNum = int(page.group(1)) + 1  # real page numbers start with 1, whereas indexing starts with 0
+                pageNum = (
+                    int(page.group(1)) + 1
+                )  # real page numbers start with 1, whereas indexing starts with 0
             else:
                 pageNum = None  # If no page number is found, set pageNum to None
 
             # Append a new dictionary (map) to the citationObject list containing the relevant information
-            citationObject.append({"docName": re.sub(r'-\d+.pdf', '.pdf', docName), "page": pageNum})
-
+            citationObject.append(
+                {"docName": re.sub(r"-\d+.pdf", ".pdf", docName), "page": pageNum}
+            )
 
     f_citationObject = filter_duplicates(citationObject)
     # Return the list of citationObjects
     return f_citationObject
 
 
-def detectLang(text, defaultLang='de'):
-    detector = LanguageDetectorBuilder.from_languages(Language.ENGLISH, Language.GERMAN, Language.HUNGARIAN, Language.CROATIAN, Language.SLOVAK, 
-                                                      Language.RUSSIAN, Language.CZECH, Language.GREEK,Language.PUNJABI, Language.PORTUGUESE, 
-                                                      Language.POLISH,Language.CZECH, Language.SPANISH, Language.SERBIAN,
-                                                      Language.AFRIKAANS, Language.ALBANIAN, Language.BULGARIAN, Language.FRENCH, Language.PORTUGUESE,
-                                                      Language.ROMANIAN, Language.MACEDONIAN, Language.HINDI, Language.DUTCH, Language.DANISH, 
-                                                      Language.ITALIAN, Language.CHINESE, Language.MALAY, Language.BOSNIAN).build()
+def detectLang(text, defaultLang="de"):
+    detector = LanguageDetectorBuilder.from_languages(
+        Language.ENGLISH,
+        Language.GERMAN,
+        Language.HUNGARIAN,
+        Language.CROATIAN,
+        Language.SLOVAK,
+        Language.RUSSIAN,
+        Language.CZECH,
+        Language.GREEK,
+        Language.PUNJABI,
+        Language.PORTUGUESE,
+        Language.POLISH,
+        Language.CZECH,
+        Language.SPANISH,
+        Language.SERBIAN,
+        Language.AFRIKAANS,
+        Language.ALBANIAN,
+        Language.BULGARIAN,
+        Language.FRENCH,
+        Language.PORTUGUESE,
+        Language.ROMANIAN,
+        Language.MACEDONIAN,
+        Language.HINDI,
+        Language.DUTCH,
+        Language.DANISH,
+        Language.ITALIAN,
+        Language.CHINESE,
+        Language.MALAY,
+        Language.BOSNIAN,
+    ).build()
     try:
         lang = str(detector.detect_language_of(text))
-        language = lang.split('.')[1].capitalize()
+        language = lang.split(".")[1].capitalize()
         iso_lang = pycountry.languages.get(name=language).alpha_2
         return iso_lang
     except Exception as e:
         print(e)
         return defaultLang
 
+
 async def cgsIndexColumnFacetDist(client, facet):
     try:
         facets_search = await client.search(
-                    top=0,
-                    skip=0,
-                    query_type="simple",
-                    select="",
-                    search_text="*", 
-                    search_fields=[], 
-                    filter="", 
-                    facets=[facet], 
-                    order_by="",
-                    include_total_count=True
-                )
+            top=0,
+            skip=0,
+            query_type="simple",
+            select="",
+            search_text="*",
+            search_fields=[],
+            filter="",
+            facets=[facet],
+            order_by="",
+            include_total_count=True,
+        )
         res = await facets_search.get_facets()
         return res[facet]
     except Exception as e:
         print(e)
         print("setting default to 'de' due to error in facets search query")
-        return [{'count': 1, 'value': 'de'}]
+        return [{"count": 1, "value": "de"}]
+
 
 def getLang(iso_country_code) -> dict:
-    default_lang = {'iso': 'de','name': 'German'}
+    default_lang = {"iso": "de", "name": "German"}
     if iso_country_code and len(iso_country_code) == 2:
         try:
             language = pycountry.languages.get(alpha_2=iso_country_code)
-            return {'iso': iso_country_code, 'name': language.name}
+            return {"iso": iso_country_code, "name": language.name}
         except Exception as e:
-            print('Error evaluating language from alpha 2 iso code - returning default')
+            print("Error evaluating language from alpha 2 iso code - returning default")
             print(e)
             return default_lang
     else:
-        print('Returning default due to wrong alpha 2 iso code provided')
+        print("Returning default due to wrong alpha 2 iso code provided")
         return default_lang
 
 
 def translateText(text, target_language, chatgpt_deployment):
     prompt = f"Translate the following text to {target_language}:\n\n{text}\n\n"
-    messages = [{"role":"system","content":"You are an AI assistant to translate text"},{"role":"user","content":prompt}]
+    messages = [
+        {"role": "system", "content": "You are an AI assistant to translate text"},
+        {"role": "user", "content": prompt},
+    ]
     response = openai.ChatCompletion.create(
         engine=chatgpt_deployment,
-        messages = messages,
+        messages=messages,
         temperature=0.0,
         max_tokens=800,
         top_p=0.95,
         frequency_penalty=0,
         presence_penalty=0,
-        stop=None)
+        stop=None,
+    )
     query_text = response.choices[0].message.content
     return query_text
 
 
 def replace_abbreviations(string, abbreviations):
-    # Create a lower case dictionary for matching 
-    lower_abbreviations = {abbrev.lower(): replacement for abbrev, replacement in abbreviations.items()}
+    # Create a lower case dictionary for matching
+    lower_abbreviations = {
+        abbrev.lower(): replacement for abbrev, replacement in abbreviations.items()
+    }
 
     words = string.split()
 
@@ -223,29 +258,37 @@ def replace_abbreviations(string, abbreviations):
         elif "-" in word and len(word.split("-")) == 2:
             parts = word.split("-")
             lower_parts = lower_word.split("-")
-            if lower_parts[0] in lower_abbreviations and lower_parts[1] in lower_abbreviations:
-                words[i] = f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
-        
+            if (
+                lower_parts[0] in lower_abbreviations
+                and lower_parts[1] in lower_abbreviations
+            ):
+                words[
+                    i
+                ] = f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
+
         # Handle special characters at the end of a word.
-        elif re.search(r"\w[.,!?;]", word): 
-            parts = re.split(r"([\.,!?;])", word) 
+        elif re.search(r"\w[.,!?;]", word):
+            parts = re.split(r"([\.,!?;])", word)
             replaced_parts = []
 
-            for part in parts[:-1]: # exclude the last element (it's an empty string from splitting at the end character)
-                lower_part = part.lower() # use lower case for matching
+            for part in parts[
+                :-1
+            ]:  # exclude the last element (it's an empty string from splitting at the end character)
+                lower_part = part.lower()  # use lower case for matching
                 if lower_part in lower_abbreviations:
-                    replaced_parts.append(lower_abbreviations[lower_part]) # use original dictionary for substitution
+                    replaced_parts.append(
+                        lower_abbreviations[lower_part]
+                    )  # use original dictionary for substitution
                 else:
                     replaced_parts.append(part)
-            replaced_parts.append(parts[-1]) # add the special char back 
-                
+            replaced_parts.append(parts[-1])  # add the special char back
+
             words[i] = "".join(replaced_parts)
 
     return " ".join(words)
 
 
 def applicationLog(message, level="eval"):
-
     if level == "eval":
         logger.eval(message)
     elif level == "error":
@@ -254,7 +297,3 @@ def applicationLog(message, level="eval"):
         logger.exception(message)
     else:
         logger.warning(message)
-
-
-
-
