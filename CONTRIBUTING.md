@@ -1,4 +1,4 @@
-# Contributing to [Azure Search OpenAI Backend]
+# Contributing to Azure Search OpenAI Backend
 
 We love your input! We want to make contributing to this project as easy and transparent as possible, whether it's:
 
@@ -10,8 +10,8 @@ We love your input! We want to make contributing to this project as easy and tra
 ## We Develop with Gitlab
 We use gitlab to host code, to track issues and feature requests, as well as accept merge requests.
 
-## We Use [Gitlab Issues]
-Merge Requests are the best way to propose changes to the codebase (we use [Github Flow](https://guides.github.com/introduction/flow/index.html)). 
+## We Use Gitlab Issues
+Merge Requests are the best way to propose changes to the codebase. 
 
 ## All code changes happen through merge requests
 Merge requests are the best way to propose changes to the codebase. We actively welcome your merge requests:
