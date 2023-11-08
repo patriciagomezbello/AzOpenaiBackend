@@ -53,6 +53,9 @@
     "chatGptDeploymentName": {
       "value": "${AZURE_OPENAI_CHATGPT_DEPLOYMENT=chat}"
     },
+    "authRole": {
+      "value": "${AZURE_AUTH_ROLE}"
+    },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
     },

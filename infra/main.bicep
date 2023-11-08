@@ -79,6 +79,9 @@ param useApplicationInsights bool = false
 
 param usePrivateLinkScope bool = true
 
+@description('Role that needs to be in auth token for authorisation')
+param authRole string 
+
 @description('Redeploy OpenAI (must be set to false after first deployment)')
 param redeployOpenAI bool = true
 
@@ -101,7 +104,6 @@ var tags = { 'azd-env-name': environmentName }
 
 var subscriptionName = subscription().displayName
 
-//TODO: check if integrated 
 var resourceGroupLGAWS = 'cloud-integrated-infrastructure'
 
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
@@ -233,6 +235,7 @@ module backend 'core/host/appservice.bicep' = {
     allowedOrigins: allowed_cors_list
     virtualNetworkSubnetId_AppService: subnet_AppService.id
     appSettings: {
+      AZURE_AUTH_ROLE: (!empty(authRole)) ? authRole : 'all'
       AZURE_STORAGE_ACCOUNT: storage.outputs.name
       AZURE_STORAGE_CONTAINER: storageContainerName
       AZURE_STORAGE_CONTAINER_DOCS: storageContainerNameDocs

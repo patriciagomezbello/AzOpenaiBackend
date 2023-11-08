@@ -62,6 +62,9 @@
     "usePrivateLinkScope": {
       "value": "${AZURE_USE_PRIVATE_LINK_SCOPE=true}"
     },
+    "authRole": {
+      "value": "${AZURE_AUTH_ROLE}"
+    },
     "redeployOpenAI": {
       "value": "${AZURE_REDEPLOY_OPENAI=true}"
     },

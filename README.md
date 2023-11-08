@@ -78,6 +78,7 @@ _____
 | AZURE_SUBNET_NAME *					| Name of the existing Subnet inside the existing VNET				| 
 | AZURE_SUBNET_NAME_APPSERVICE *		| Name of the existing Subnet inside the existing VNET  			| 
 | AZURE_ALLOWED_CORS *					| List of allowed URLs for cors  									| 
+| AZURE_AUTH_ROLE   					| Name of the Role (not set = no authorisation, just authentication)|  
 | AZURE_REDEPLOY_OPENAI   				| (re)deploys OpenAI Instance (for fixing current bug)  			|  
 | AZURE_OPENAI_CHATGPT_MODEL_NAME   	| model name (gpt-35-turbo, gpt-35-turbo-16k, gpt-4, gpt-4-32k)   	| 
 | AZURE_OPENAI_CHATGPT_MODEL_VERSION   	| model version (0613, 0914)   										| 

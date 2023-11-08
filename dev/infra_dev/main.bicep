@@ -57,6 +57,9 @@ param embeddingDeploymentName string = 'text-embedding-ada-002'
 param embeddingDeploymentCapacity int = 120
 param embeddingModelName string = 'text-embedding-ada-002'
 
+@description('Role that needs to be in auth token for authorisation')
+param authRole string 
+
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
@@ -134,6 +137,7 @@ module backend 'core/host/appservice.bicep' = {
     clientId: authClient
     tenantId: tenant().tenantId
     appSettings: {
+      AZURE_AUTH_ROLE: (!empty(authRole)) ? authRole : 'all'
       AZURE_STORAGE_ACCOUNT: storage.outputs.name
       AZURE_STORAGE_CONTAINER: storageContainerName
       AZURE_STORAGE_CONTAINER_DOCS: storageContainerNameDocs
