@@ -18,20 +18,20 @@ variables:
   DEFAULT_RUNNER: otc_run_docker_m  
 
 
-# ### include gitlab scanning
+### include gitlab scanning
 
-# include:
-#   - template: Security/SAST.gitlab-ci.yml
-#     rules:
-#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+include:
+  - template: Security/SAST.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-#   - template: Security/Secret-Detection.gitlab-ci.yml
-#     rules:
-#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+  - template: Security/Secret-Detection.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-#   - template: Security/Dependency-Scanning.gitlab-ci.yml
-#     rules:
-#       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
 
 ### auth setup for each step to login and logout before and after
