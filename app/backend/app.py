@@ -144,7 +144,12 @@ class FeedbackResponseData:
 async def category():
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     """Endpoint for receiving the available categories"""
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
@@ -154,7 +159,7 @@ async def category():
         return jsonify(res)
     except Exception as e:
         res = {"error": e.args[0]}
-        return jsonify({"error": str(e)}), 500
+        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
 
 
 @bp.route("/chat", methods=["POST"])
@@ -167,15 +172,26 @@ async def chat():
     """Endpoint for chatting with the custom model"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     if not request.is_json:
-        return jsonify({"error": "request must be json"}), 415
+        return (
+            jsonify({"error": {"code": 415, "message": "request must be json"}}),
+            415,
+        )
     request_json = await request.get_json()
     approach = request_json["approach"]
     try:
         impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
         if not impl:
-            return jsonify({"error": "unknown approach"}), 400
+            return (
+                jsonify({"error": {"code": 400, "message": "unknown approach"}}),
+                400,
+            )
         # Workaround for: https://github.com/openai/openai-python/issues/371
         async with aiohttp.ClientSession() as s:
             openai.aiosession.set(s)
@@ -183,13 +199,24 @@ async def chat():
                 request_json["history"], request_json.get("overrides") or {}
             )
         if r["keywords"] == "error":
-            return (jsonify(r)), 500
+            return (jsonify({"error": {"code": 500, "message": r["answer"]}}), 500)
         elif r["keywords"] == "ratelimit":
-            return (jsonify(r)), 429
+            return (
+                jsonify(
+                    {
+                        "error": {
+                            "code": 429,
+                            "message": "current ratelimit reached",
+                        }
+                    }
+                ),
+                429,
+            )
+        # return answer if no error
         return jsonify(r)
     except Exception as e:
         applicationLog("Exception in /chat", "exc")
-        return jsonify({"error": str(e)}), 500
+        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
 
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
@@ -199,7 +226,12 @@ async def chat():
 async def content(path):
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     """Endpoint for downloading pdfs from storage blob"""
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     blob = await blob_container_client.get_blob_client(path).download_blob()
@@ -223,15 +255,20 @@ async def content(path):
 async def feedback():
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     """Endpoint for adding feedback to Application Insights for later evaluation"""
     try:
         request_json = await request.get_json()
         if len(request_json["history"]) > 0:
             applicationLog(json.dumps(request_json))
-        return jsonify({"response": "feedback has been forwarded"})
+        return jsonify({"message": "feedback has been forwarded"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
 
 
 @bp.before_request
