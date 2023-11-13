@@ -20,7 +20,6 @@ from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 from quart import (
     Blueprint,
     Quart,
-    abort,
     current_app,
     jsonify,
     request,
@@ -69,6 +68,7 @@ async def checkAuthorization(request):
 
 bp = Blueprint("routes", __name__)
 
+# for local mac development
 if platform.system() == "Darwin":
     print("cors disabled")
     bp = cors(bp, allow_origin="*")
@@ -112,19 +112,19 @@ class ChatResponseData:
 
 
 @dataclass
-class ErrorChatResponseData:
-    answer: str
-    keywords: str
+class ErrorMessage:
+    code: int
+    message: str
+
+
+@dataclass
+class ErrorResponseData:
+    error: ErrorMessage
 
 
 @dataclass
 class CatResponse:
     categories: List[str]
-
-
-@dataclass
-class ErrorResponse:
-    error: str
 
 
 @dataclass
@@ -140,8 +140,10 @@ class FeedbackResponseData:
 
 @bp.route("/category", methods=["GET"])
 @document_response(CatResponse, 200)
-@document_response(ErrorResponse, 400)
+@document_response(ErrorResponseData, 400)
+@document_response(ErrorResponseData, 403)
 async def category():
+    """Endpoint for receiving the available categories"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
         return (
@@ -150,7 +152,6 @@ async def category():
             ),
             403,
         )
-    """Endpoint for receiving the available categories"""
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
         search_res = await cgsIndexColumnFacetDist(search_client, "category")
@@ -165,9 +166,11 @@ async def category():
 @bp.route("/chat", methods=["POST"])
 @document_request(ChatRequestData)
 @document_response(ChatResponseData, 200)
-@document_response(ErrorChatResponseData, 400)
-@document_response(ErrorChatResponseData, 429)
-@document_response(ErrorChatResponseData, 500)
+@document_response(ErrorResponseData, 400)
+@document_response(ErrorResponseData, 403)
+@document_response(ErrorResponseData, 415)
+@document_response(ErrorResponseData, 429)
+@document_response(ErrorResponseData, 500)
 async def chat():
     """Endpoint for chatting with the custom model"""
     authorization = await checkAuthorization(request)
@@ -223,7 +226,10 @@ async def chat():
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
 # can access all the files. This is also slow and memory hungry.
 @bp.route("/content/<path>", methods=["GET"])
+@document_response(ErrorResponseData, 403)
+@document_response(ErrorResponseData, 404)
 async def content(path):
+    """Endpoint for downloading pdfs from storage blob"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
         return (
@@ -232,11 +238,33 @@ async def content(path):
             ),
             403,
         )
-    """Endpoint for downloading pdfs from storage blob"""
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
-    blob = await blob_container_client.get_blob_client(path).download_blob()
+    try:
+        blob = await blob_container_client.get_blob_client(path).download_blob()
+    except Exception:
+        return (
+            jsonify(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": "document not found or not available",
+                    }
+                }
+            ),
+            404,
+        )
     if not blob.properties or not blob.properties.has_key("content_settings"):
-        abort(404)
+        return (
+            jsonify(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": "document not found or not available",
+                    }
+                }
+            ),
+            404,
+        )
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -251,8 +279,10 @@ async def content(path):
 @bp.route("/feedback", methods=["POST"])
 @document_request(FeedbackRequestData)
 @document_response(FeedbackResponseData)
-@document_response(ErrorChatResponseData, 400)
+@document_response(ErrorResponseData, 400)
+@document_response(ErrorResponseData, 403)
 async def feedback():
+    """Endpoint for adding feedback to Application Insights for later evaluation"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
         return (
@@ -261,7 +291,6 @@ async def feedback():
             ),
             403,
         )
-    """Endpoint for adding feedback to Application Insights for later evaluation"""
     try:
         request_json = await request.get_json()
         if len(request_json["history"]) > 0:
@@ -378,6 +407,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="1.0"))
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="1.0.1"))
 
     return app
