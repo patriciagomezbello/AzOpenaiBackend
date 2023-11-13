@@ -13,7 +13,7 @@ param authClient string
 
 param appServicePlanName string = ''
 
-@allowed(['B1','B2','B3','S1','S2','S3','P1','P2','P3','P4'])
+@allowed([ 'B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P1', 'P2', 'P3', 'P4' ])
 param appServicePlanSku string = 'B1'
 
 param backendServiceName string = ''
@@ -25,7 +25,7 @@ param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
 param searchServiceResourceGroupLocation string = location
 
-@allowed(['basic','standard','standard2','standard3'])
+@allowed([ 'basic', 'standard', 'standard2', 'standard3' ])
 param searchServiceSkuName string = 'standard'
 
 param searchIndexName string = 'gptkbindex'
@@ -39,7 +39,7 @@ param storageContainerNameDocs string = 'docs'
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 @description('Location for the OpenAI resource group')
-@allowed(['westeurope', 'francecentral', 'swedencentral','canadaeast','eastus','uksouth'])
+@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'canadaeast', 'eastus', 'uksouth' ])
 @metadata({
   azd: {
     type: 'location'
@@ -58,17 +58,16 @@ param formRecognizerSkuName string = 'S0'
 param chatGptDeploymentName string
 param chatGptDeploymentCapacity int = 60
 
-@allowed(['gpt-35-turbo', 'gpt-35-turbo-16k', 'gpt-35-turbo-instruct', 'gpt-4', 'gpt-4-32k'])
+@allowed([ 'gpt-35-turbo', 'gpt-35-turbo-16k', 'gpt-35-turbo-instruct', 'gpt-4', 'gpt-4-32k' ])
 param chatGptModelName string = 'gpt-35-turbo'
 
-
-@allowed(['0613', '0914'])
+@allowed([ '0613', '0914' ])
 param chatGptModelVersion string = '0613'
 
 param embeddingDeploymentName string = 'embedding'
 param embeddingDeploymentCapacity int = 120
 
-@allowed(['text-embedding-ada-002', ])
+@allowed([ 'text-embedding-ada-002', ])
 param embeddingModelName string = 'text-embedding-ada-002'
 
 @description('Id of the user or app to assign application roles')
@@ -77,16 +76,14 @@ param principalId string = ''
 @description('Use Application Insights for monitoring and performance tracing')
 param useApplicationInsights bool = false
 
-param usePrivateLinkScope bool = true
-
 @description('Role that needs to be in auth token for authorisation')
-param authRole string 
+param authRole string
 
 @description('Redeploy OpenAI (must be set to false after first deployment)')
 param redeployOpenAI bool = true
 
 @description('List of cors allowed addresses for the api')
-param allowed_cors string 
+param allowed_cors string
 
 var allowed_cors_list = split(allowed_cors, ',')
 
@@ -94,7 +91,7 @@ param vnetName string
 param subnetName string
 param subnetName_AppService string
 
-param vnetResourceGroupName string 
+param vnetResourceGroupName string
 
 param deployKey string = 'true'
 
@@ -161,7 +158,7 @@ module keyvault 'core/vault/keyvault.bicep' = {
     name: '${abbrs.keyVaultVaults}${resourceToken}'
     location: location
     virtualNetworkSubnetId: subnet_default.id
-    userAssignedIdentityName:'${abbrs.managedIdentityUserAssignedIdentities}${resourceToken}'
+    userAssignedIdentityName: '${abbrs.managedIdentityUserAssignedIdentities}${resourceToken}'
     deployKey: deployKey
   }
 }
@@ -195,8 +192,6 @@ module monitoring './core/monitor/monitoring.bicep' = if (useApplicationInsights
     location: location
     tags: tags
     applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
-    virtualNetworkSubnetId: subnet_default.id
-    privateLinkScope: usePrivateLinkScope
   }
 }
 
@@ -434,7 +429,7 @@ module searchSvcContribRoleUser 'core/security/role.bicep' = {
 }
 
 // SYSTEM IDENTITIES
-module openAiRoleBackend 'core/security/role.bicep' =  {
+module openAiRoleBackend 'core/security/role.bicep' = {
   scope: openAiResourceGroup
   name: 'openai-role-backend'
   params: {
