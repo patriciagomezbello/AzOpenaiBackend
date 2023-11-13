@@ -20,7 +20,6 @@ from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 from quart import (
     Blueprint,
     Quart,
-    abort,
     current_app,
     jsonify,
     request,
@@ -69,6 +68,7 @@ async def checkAuthorization(request):
 
 bp = Blueprint("routes", __name__)
 
+# for local mac development
 if platform.system() == "Darwin":
     print("cors disabled")
     bp = cors(bp, allow_origin="*")
@@ -112,19 +112,19 @@ class ChatResponseData:
 
 
 @dataclass
-class ErrorChatResponseData:
-    answer: str
-    keywords: str
+class ErrorMessage:
+    code: int
+    message: str
+
+
+@dataclass
+class ErrorResponseData:
+    error: ErrorMessage
 
 
 @dataclass
 class CatResponse:
     categories: List[str]
-
-
-@dataclass
-class ErrorResponse:
-    error: str
 
 
 @dataclass
@@ -140,12 +140,18 @@ class FeedbackResponseData:
 
 @bp.route("/category", methods=["GET"])
 @document_response(CatResponse, 200)
-@document_response(ErrorResponse, 400)
+@document_response(ErrorResponseData, 400)
+@document_response(ErrorResponseData, 403)
 async def category():
+    """Endpoint for receiving the available categories"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
-    """Endpoint for receiving the available categories"""
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
         search_res = await cgsIndexColumnFacetDist(search_client, "category")
@@ -154,28 +160,41 @@ async def category():
         return jsonify(res)
     except Exception as e:
         res = {"error": e.args[0]}
-        return jsonify({"error": str(e)}), 500
+        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
 
 
 @bp.route("/chat", methods=["POST"])
 @document_request(ChatRequestData)
 @document_response(ChatResponseData, 200)
-@document_response(ErrorChatResponseData, 400)
-@document_response(ErrorChatResponseData, 429)
-@document_response(ErrorChatResponseData, 500)
+@document_response(ErrorResponseData, 400)
+@document_response(ErrorResponseData, 403)
+@document_response(ErrorResponseData, 415)
+@document_response(ErrorResponseData, 429)
+@document_response(ErrorResponseData, 500)
 async def chat():
     """Endpoint for chatting with the custom model"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     if not request.is_json:
-        return jsonify({"error": "request must be json"}), 415
+        return (
+            jsonify({"error": {"code": 415, "message": "request must be json"}}),
+            415,
+        )
     request_json = await request.get_json()
     approach = request_json["approach"]
     try:
         impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
         if not impl:
-            return jsonify({"error": "unknown approach"}), 400
+            return (
+                jsonify({"error": {"code": 400, "message": "unknown approach"}}),
+                400,
+            )
         # Workaround for: https://github.com/openai/openai-python/issues/371
         async with aiohttp.ClientSession() as s:
             openai.aiosession.set(s)
@@ -183,28 +202,69 @@ async def chat():
                 request_json["history"], request_json.get("overrides") or {}
             )
         if r["keywords"] == "error":
-            return (jsonify(r)), 500
+            return (jsonify({"error": {"code": 500, "message": r["answer"]}}), 500)
         elif r["keywords"] == "ratelimit":
-            return (jsonify(r)), 429
+            return (
+                jsonify(
+                    {
+                        "error": {
+                            "code": 429,
+                            "message": "current ratelimit reached",
+                        }
+                    }
+                ),
+                429,
+            )
+        # return answer if no error
         return jsonify(r)
     except Exception as e:
         applicationLog("Exception in /chat", "exc")
-        return jsonify({"error": str(e)}), 500
+        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
 
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
 # can access all the files. This is also slow and memory hungry.
 @bp.route("/content/<path>", methods=["GET"])
+@document_response(ErrorResponseData, 403)
+@document_response(ErrorResponseData, 404)
 async def content(path):
+    """Endpoint for downloading pdfs from storage blob"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
-    """Endpoint for downloading pdfs from storage blob"""
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
-    blob = await blob_container_client.get_blob_client(path).download_blob()
+    try:
+        blob = await blob_container_client.get_blob_client(path).download_blob()
+    except Exception:
+        return (
+            jsonify(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": "document not found or not available",
+                    }
+                }
+            ),
+            404,
+        )
     if not blob.properties or not blob.properties.has_key("content_settings"):
-        abort(404)
+        return (
+            jsonify(
+                {
+                    "error": {
+                        "code": 404,
+                        "message": "document not found or not available",
+                    }
+                }
+            ),
+            404,
+        )
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -219,19 +279,25 @@ async def content(path):
 @bp.route("/feedback", methods=["POST"])
 @document_request(FeedbackRequestData)
 @document_response(FeedbackResponseData)
-@document_response(ErrorChatResponseData, 400)
+@document_response(ErrorResponseData, 400)
+@document_response(ErrorResponseData, 403)
 async def feedback():
+    """Endpoint for adding feedback to Application Insights for later evaluation"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
-        return jsonify({"error": f"role {ALLOWED_ROLE} is missing"}), 403
-    """Endpoint for adding feedback to Application Insights for later evaluation"""
+        return (
+            jsonify(
+                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
+            ),
+            403,
+        )
     try:
         request_json = await request.get_json()
         if len(request_json["history"]) > 0:
             applicationLog(json.dumps(request_json))
-        return jsonify({"response": "feedback has been forwarded"})
+        return jsonify({"message": "feedback has been forwarded"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
 
 
 @bp.before_request
@@ -341,6 +407,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="1.0"))
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="1.0.1"))
 
     return app
