@@ -67,8 +67,8 @@ include:
       if [ "$DEV_ENV" == "true" ] | [ "$NO_RUNNER_STOP" == "true" ]; then
           echo "skip vm stop"
       else
-        echo "stop private runner"
-        az vm stop -g $RUNNER_RG -n $RUNNER_NAME
+        echo "deallocate private runner"
+        az vm deallocate --name $RUNNER_NAME --resource-group $RUNNER_RG
       fi
   tags:
     - $DEFAULT_RUNNER
