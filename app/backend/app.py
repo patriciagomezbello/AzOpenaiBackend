@@ -186,9 +186,9 @@ async def chat():
             jsonify({"error": {"code": 415, "message": "request must be json"}}),
             415,
         )
-    request_json = await request.get_json()
-    approach = request_json["approach"]
     try:
+        request_json = await request.get_json()
+        approach = request_json["approach"]
         impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
         if not impl:
             return (
@@ -407,6 +407,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="1.0.1"))
+    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="v1.0.0"))
 
     return app
