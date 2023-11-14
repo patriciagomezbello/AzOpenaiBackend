@@ -33,7 +33,7 @@ param storageContainerNameDocs string = 'docs'
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 @description('Location for the OpenAI resource group')
-@allowed(['westeurope', 'francecentral', 'swedencentral','canadaeast','eastus','uksouth'])
+@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'canadaeast', 'eastus', 'uksouth' ])
 @metadata({
   azd: {
     type: 'location'
@@ -58,7 +58,7 @@ param embeddingDeploymentCapacity int = 120
 param embeddingModelName string = 'text-embedding-ada-002'
 
 @description('Role that needs to be in auth token for authorisation')
-param authRole string 
+param authRole string
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
@@ -317,7 +317,7 @@ module searchSvcContribRoleUser 'core/security/role.bicep' = {
 }
 
 // SYSTEM IDENTITIES
-module openAiRoleBackend 'core/security/role.bicep' =  {
+module openAiRoleBackend 'core/security/role.bicep' = {
   scope: openAiResourceGroup
   name: 'openai-role-backend'
   params: {

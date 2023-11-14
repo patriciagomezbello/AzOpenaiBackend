@@ -13,8 +13,8 @@ param authClient string
 
 param appServicePlanName string = ''
 
-@allowed([ 'B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P1', 'P2', 'P3', 'P4' ])
-param appServicePlanSku string = 'B1'
+@allowed([ 'B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P0v3', 'P1v3', 'P2v3', 'P3v3' ])
+param appServicePlanSku string = 'S1'
 
 param backendServiceName string = ''
 param resourceGroupName string = ''
@@ -39,7 +39,7 @@ param storageContainerNameDocs string = 'docs'
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 @description('Location for the OpenAI resource group')
-@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'canadaeast', 'eastus', 'uksouth' ])
+@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'polandcentral' ])
 @metadata({
   azd: {
     type: 'location'
