@@ -829,6 +829,9 @@ if __name__ == "__main__":
                 elif file.endswith(".html"):
                     pdfkit.from_file(file_path, target)
 
+                elif file.endswith(".txt"):
+                    pdfkit.from_file(file_path, target)
+
                 # handle pictures
                 elif (
                     file.endswith(".jpg")
