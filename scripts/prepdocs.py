@@ -804,7 +804,7 @@ if __name__ == "__main__":
     delete_non_pdf_files(args.files)
 
     # FILE CONVERTION BEGINS
-    DATA_CONVERT = False
+    DATA_CONVERT = True
     if DATA_CONVERT:
         # handle data2convert folder to get a unique approach only using pdf files
         for root, dirs, files in os.walk(args.files2convert):
