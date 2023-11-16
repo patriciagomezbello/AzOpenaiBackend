@@ -805,6 +805,9 @@ if __name__ == "__main__":
 
     # FILE CONVERTION BEGINS
     DATA_CONVERT = True
+
+    pdfkit_options = {"encoding": "UTF-8"}
+
     if DATA_CONVERT:
         # handle data2convert folder to get a unique approach only using pdf files
         for root, dirs, files in os.walk(args.files2convert):
@@ -827,10 +830,10 @@ if __name__ == "__main__":
                     )
 
                 elif file.endswith(".html"):
-                    pdfkit.from_file(file_path, target)
+                    pdfkit.from_file(file_path, target, options=pdfkit_options)
 
                 elif file.endswith(".txt"):
-                    pdfkit.from_file(file_path, target)
+                    pdfkit.from_file(file_path, target, options=pdfkit_options)
 
                 # handle pictures
                 elif (
