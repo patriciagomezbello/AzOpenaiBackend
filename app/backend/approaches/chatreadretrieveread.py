@@ -240,41 +240,43 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 query_text = None
 
             # cog search lexicon speller query language dict of supported languages
-            cgs_query_languages = {
-                "en": "en-us",
-                "de": "de-de",
-                "es": "es-es",
-                "fr": "fr-fr",
-                "nl": "nl-nl",
-            }
+            # cgs_query_languages = {
+            #     "en": "en-us",
+            #     "de": "de-de",
+            #     "es": "es-es",
+            #     "fr": "fr-fr",
+            #     "nl": "nl-nl",
+            # }
 
             start_cog_search = time.perf_counter()
 
             # Perform cognitive search
 
             if overrides.get("semantic_ranker") and has_text:
+                print("test")
                 # semantic ranker -> turned on (default)
                 r = await self.search_client.search(
                     query_text,
                     filter=filter,
                     query_type=QueryType.SEMANTIC,
-                    query_language=cgs_query_languages.get(lang, "en-us"),
-                    query_speller="lexicon",
                     semantic_configuration_name="default",
                     top=top,
                     query_caption="extractive|highlight-false"
                     if use_semantic_captions
                     else None,
-                    vector=query_vector,
-                    top_k=50 if query_vector else None,
-                    vector_fields="embedding" if query_vector else None,
+                    vector_queries=[
+                        {
+                            "kind": "vector",
+                            "fields": "embedding",
+                            "vector": query_vector,
+                        }
+                    ],
                 )
 
             else:
                 r = await self.search_client.search(
                     query_text,
                     filter=filter,
-                    query_language=cgs_query_languages.get(lang, "en-us"),
                     top=top,
                     vector=query_vector,
                     top_k=50 if query_vector else None,
