@@ -33,7 +33,6 @@ param searchIndexName string = 'gptkbindex'
 param storageAccountName string = ''
 param storageResourceGroupName string = ''
 param storageResourceGroupLocation string = location
-param storageContainerName string = 'content'
 param storageContainerNameDocs string = 'docs'
 
 param openAiServiceName string = ''
@@ -78,6 +77,9 @@ param useApplicationInsights bool = false
 
 @description('Role that needs to be in auth token for authorisation')
 param authRole string
+
+@description('Tenant where the user is authenticated, must be specified if the UI and backend tenants differ')
+param authTenant string
 
 @description('Redeploy OpenAI (must be set to false after first deployment)')
 param redeployOpenAI bool = true
@@ -231,8 +233,9 @@ module backend 'core/host/appservice.bicep' = {
     virtualNetworkSubnetId_AppService: subnet_AppService.id
     appSettings: {
       AZURE_AUTH_ROLE: (!empty(authRole)) ? authRole : 'all'
+      AZURE_AUTH_CLIENT: authClient
+      AZURE_AUTH_TENANT: (!empty(authTenant)) ? authTenant : 'same'
       AZURE_STORAGE_ACCOUNT: storage.outputs.name
-      AZURE_STORAGE_CONTAINER: storageContainerName
       AZURE_STORAGE_CONTAINER_DOCS: storageContainerNameDocs
       AZURE_OPENAI_SERVICE: openAi.outputs.name
       AZURE_SEARCH_INDEX: searchIndexName
@@ -350,7 +353,7 @@ module storage 'core/storage/storage-account.bicep' = {
     }
     containers: [
       {
-        name: storageContainerName
+        name: storageContainerNameDocs
         publicAccess: 'None'
       }
     ]
@@ -477,7 +480,6 @@ output AZURE_SEARCH_SERVICE string = searchService.outputs.name
 output AZURE_SEARCH_SERVICE_RESOURCE_GROUP string = searchServiceResourceGroup.name
 
 output AZURE_STORAGE_ACCOUNT string = storage.outputs.name
-output AZURE_STORAGE_CONTAINER string = storageContainerName
 output AZURE_STORAGE_CONTAINER_DOCS string = storageContainerNameDocs
 output AZURE_STORAGE_RESOURCE_GROUP string = storageResourceGroup.name
 

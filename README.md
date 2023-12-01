@@ -59,6 +59,7 @@
 | AZURE_SUBNET_NAME_APPSERVICE \*    | Name of the existing Subnet inside the existing VNET               |
 | AZURE_ALLOWED_CORS \*              | List of allowed URLs for cors                                      |
 | AZURE_AUTH_ROLE                    | Name of the Role (not set = no authorisation, just authentication) |
+| AZURE_AUTH_TENANT                  | REQUIRED only if Role is set AND UI Tenant != Backend Tenant       |
 | AZURE_REDEPLOY_OPENAI              | (re)deploys OpenAI Instance (for fixing current bug)               |
 | AZURE_OPENAI_CHATGPT_MODEL_NAME    | model name (gpt-35-turbo, gpt-35-turbo-16k, gpt-4, gpt-4-32k)      |
 | AZURE_OPENAI_CHATGPT_MODEL_VERSION | model version (0613, 0914)                                         |
@@ -76,10 +77,10 @@ AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
 AZURE_LOCATION="westeurope"
 AZURE_VNET_RESOURCE_GROUP="rg-ci-vnet"
-AZURE_VNET_NAME="vnet_dtit_cid00xx"
+AZURE_VNET_NAME="vnet_dtit_cix00xx"
 AZURE_SUBNET_NAME="sn-standard"
 AZURE_SUBNET_NAME_APPSERVICE="sn-appservice"
-AZURE_ALLOWED_CORS="http://localhost:1887,https://your.ui.url"
+AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
 ```
 
 additional, non-mandatory variables that are optional
@@ -88,6 +89,7 @@ additional, non-mandatory variables that are optional
 AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
 AZURE_OPENAI_CHATGPT_MODEL_VERSION="0613"
 AZURE_AUTH_ROLE="Model.User"
+AZURE_AUTH_TENANT="bde4dffc-4b60-4cf6-8b04-a5eeb25f5c4f"
 AZURE_APPSERVICE_SKU="S1"
 AZURE_SEARCH_SERVICE_SKU="standard"
 ```

@@ -65,6 +65,9 @@
     "authRole": {
       "value": "${AZURE_AUTH_ROLE}"
     },
+    "authTenant": {
+      "value": "${AZURE_AUTH_TENANT}"
+    },
     "redeployOpenAI": {
       "value": "${AZURE_REDEPLOY_OPENAI=true}"
     },
