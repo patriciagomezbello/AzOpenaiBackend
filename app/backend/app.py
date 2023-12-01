@@ -11,6 +11,7 @@ from typing import List, Optional
 import aiohttp
 import openai
 from azure.identity.aio import DefaultAzureCredential
+
 from azure.monitor.opentelemetry import configure_azure_monitor
 from azure.search.documents.aio import SearchClient
 from azure.storage.blob.aio import BlobServiceClient
@@ -31,7 +32,7 @@ from quart_schema import QuartSchema, Info, document_request, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
-
+from core.auth import decode_and_verify_jwt
 
 CONFIG_OPENAI_TOKEN = "openai_token"
 CONFIG_CREDENTIAL = "azure_credential"
@@ -42,6 +43,11 @@ CONFIG_SEARCH_CLIENT = "search_client"
 
 # initialize Allowed Role
 ALLOWED_ROLE = os.getenv("AZURE_AUTH_ROLE")
+AUTH_CLIENT = os.getenv("AZURE_AUTH_CLIENT")
+AUTH_CLIENT_TENANT = os.getenv("AZURE_AUTH_TENANT")
+
+if AUTH_CLIENT_TENANT is None:
+    AUTH_CLIENT_TENANT = "same"
 
 if ALLOWED_ROLE is None:
     ALLOWED_ROLE = "all"
@@ -49,7 +55,7 @@ if ALLOWED_ROLE is None:
 
 # the authentication and validity of token is handled by Azure
 # therefore, this method to check the role is valid
-# no check with the respective AD is required in this way
+# no check with the respective AD is required in this way in case of "same tenant"
 # before request is not possible, as there the header is not readable
 async def checkAuthorization(request):
     if ALLOWED_ROLE != "all":
@@ -57,9 +63,14 @@ async def checkAuthorization(request):
         parts = auth_header.split()
         token = parts[1]
         try:
-            decoded_token = jwt.decode(
-                jwt=token, algorithms=["RS256"], options={"verify_signature": False}
-            )
+            if AUTH_CLIENT_TENANT != "same":
+                decoded_token = decode_and_verify_jwt(
+                    token=token, tenant_id=AUTH_CLIENT_TENANT, app_id=AUTH_CLIENT
+                )
+            else:
+                decoded_token = jwt.decode(
+                    jwt=token, algorithms=["RS256"], options={"verify_signature": False}
+                )
         except jwt.exceptions.InvalidTokenError:
             return 401
         if ALLOWED_ROLE not in decoded_token["roles"]:
@@ -138,11 +149,11 @@ class FeedbackResponseData:
     response: str
 
 
-@bp.route("/category", methods=["GET"])
+@bp.route("/categories", methods=["GET"])
 @document_response(CatResponse, 200)
 @document_response(ErrorResponseData, 400)
 @document_response(ErrorResponseData, 403)
-async def category():
+async def categories():
     """Endpoint for receiving the available categories"""
     authorization = await checkAuthorization(request)
     if authorization == 403 or authorization == 401:
