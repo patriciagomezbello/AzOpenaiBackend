@@ -79,21 +79,25 @@ include:
 all_start:
   stage: auto_start
   <<: *runner_start
+  allow_failure: false 
   when: manual
 
 app_start:
   stage: auto_start
   <<: *runner_start
+  allow_failure: false 
   when: manual
 
 infra_start:
   stage: auto_start
   <<: *runner_start
+  allow_failure: false 
   when: manual
 
 data_start:
   stage: auto_start
   <<: *runner_start
+  allow_failure: false 
   rules:
     - if: '$CI_PIPELINE_SOURCE == "trigger"'
     - if: '$CI_PIPELINE_SOURCE != "trigger"'
@@ -153,6 +157,7 @@ data_task:
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
+  allow_failure: false 
   tags: 
     - $RUNNER_TAG
 
