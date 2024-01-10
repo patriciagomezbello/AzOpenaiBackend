@@ -103,7 +103,9 @@ var tags = { 'azd-env-name': environmentName }
 
 var subscriptionName = subscription().displayName
 
-var resourceGroupLGAWS = 'cloud-integrated-infrastructure'
+var isContainsCN = contains(subscriptionName, 'cn')
+
+var resourceGroupLGAWS = isContainsCN ? 'cloud-native-infrastructure' : 'cloud-integrated-infrastructure'
 
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'
