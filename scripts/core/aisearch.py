@@ -14,8 +14,9 @@ from azure.search.documents.indexes.models import (
     VectorSearchProfile,
 )
 from azure.search.documents import SearchClient
+from azure.core.exceptions import ResourceNotFoundError
 from azure.search.documents.indexes import SearchIndexClient
-from .helper import name_from_path
+from .helper import name_from_path, url_to_id_cleanup
 import re
 import openai
 import time
@@ -36,6 +37,15 @@ def create_search_index(index_name, search_creds, searchservice, verbose=False):
     else:
         if verbose:
             print(f"Search index {index_name} already exists")
+
+
+def delete_search_index(index_name, search_creds, searchservice, verbose=False):
+    print(f"deleting search index {index_name}")
+    index_client = SearchIndexClient(
+        endpoint=f"https://{searchservice}.search.windows.net/",
+        credential=search_creds,
+    )
+    index_client.delete_index(index=index_name)
 
 
 def create_index(indexName):
@@ -140,19 +150,17 @@ def index_sections(
             print(f"\tIndexed {len(results)} sections, {succeeded} succeeded")
 
 
-def remove_from_index(
+def remove_file_from_index(
     file_path,
     index_name,
     search_creds,
     searchservice,
     file_directory,
     isPath=True,
-    verbose=False,
 ):
-    if verbose:
-        print(
-            f"Removing sections from '{file_path or '<all>'}' from search index '{index_name}'"
-        )
+    print(
+        f"Removing sections from '{file_path or '<all>'}' from search index '{index_name}'"
+    )
     search_client = SearchClient(
         endpoint=f"https://{searchservice}.search.windows.net/",
         index_name=index_name,
@@ -160,15 +168,110 @@ def remove_from_index(
     )
     file = name_from_path(file_path, file_directory) if isPath else file_path
     while True:
-        filter = None if file_path is None else f"sourcefile eq '{file}'"
+        filter = f"sourcefile eq '{file}'"
         r = search_client.search("", filter=filter, top=1000, include_total_count=True)
         if r.get_count() == 0:
             break
         r = search_client.delete_documents(documents=[{"id": d["id"]} for d in r])
-        if verbose:
-            print(f"\tRemoved {len(r)} sections from index")
+        print(f"\tRemoved {len(r)} sections from index")
         # It can take a few seconds for search results to reflect changes, so wait a bit
         time.sleep(2)
+
+
+def remove_lc_from_index(
+    base,
+    index_name,
+    search_creds,
+    searchservice,
+):
+    print(
+        f"Removing sections from '{base or '<all>'}' from search index '{index_name}'"
+    )
+
+    search_client = SearchClient(
+        endpoint=f"https://{searchservice}.search.windows.net/",
+        index_name=index_name,
+        credential=search_creds,
+    )
+    while True:
+        filter = f"sourcefile eq '{base}'"
+        r = search_client.search("", filter=filter, top=1000, include_total_count=True)
+        if r.get_count() == 0:
+            break
+        r = search_client.delete_documents(documents=[{"id": d["id"]} for d in r])
+        print(f"\tRemoved {len(r)} sections from index")
+        # It can take a few seconds for search results to reflect changes, so wait a bit
+        time.sleep(2)
+
+
+def cleanup_lc_sections_from_index(
+    counter_dict: dict[str, int],
+    index_name: str,
+    search_creds,
+    search_service: str,
+) -> None:
+    """
+    Cleanup documents from specified azure search index based on the given counter dictionary.
+
+    Args:
+        counter_dict: A dictionary in which keys are url's and values are number of documents with that url.
+        index_name: Azure search index name from where documents need to be deleted.
+        search_creds: Credential for connecting azure search service.
+        search_service: Azure search service name.
+
+    Returns:
+        None
+    """
+    print(f"Starting cleanup of search index '{index_name}'...")
+
+    # Create a search client for the specified azure search service and index
+    search_client = SearchClient(
+        endpoint=f"https://{search_service}.search.windows.net/",
+        index_name=index_name,
+        credential=search_creds,
+    )
+
+    # Iterating through all the url's in counter dictionary
+    for key in counter_dict:
+        cleanup_num = counter_dict[key] + 1
+        # Performing recursive cleanup operation on each url
+        cleanup_search_recursive(search_client=search_client, key=key, num=cleanup_num)
+    print(f"Cleanup of search index '{index_name}' finished.")
+
+
+def cleanup_search_recursive(search_client: SearchClient, key: str, num: int) -> None:
+    """
+    Recursive function to delete documents from azure search index.
+
+    Args:
+        search_client: Azure search client object for interacting with azure search service.
+        key: URL of the document.
+        num: Number denotes how many documents with that URL needs to be deleted.
+
+    Returns:
+        None
+    """
+    # Transform the url to the id format used in the search index
+    id = url_to_id_cleanup(url=key, number=num)
+
+    # Search for documents where id equals the generated document id
+    try:
+        result = search_client.get_document(
+            key=id, selected_fields=["id", "sourcepage"]
+        )
+        print(result)
+        # Delete the documents that were found
+        delete_result = search_client.delete_documents(documents=[{"id": id}])
+        print(f"\tDeleted {len(delete_result)} documents from index")
+        # It can take a few seconds for search results to reflect changes, so wait a bit
+        time.sleep(2)
+        # Perform the cleanup operation again as there could still be some documents left to be deleted.
+        cleanup_search_recursive(search_client, key, num + 1)
+    except ResourceNotFoundError:
+        print(f"\tNo documents found for deletion with id={id}")
+    except Exception as e:
+        print(e)
+        print(f"unexspected issue while cleaning up lc data with id={id}")
 
 
 # updates only the category of a file (returns nothing)
@@ -215,3 +318,30 @@ def create_embedding(engine, input):
         # Retry creating the OpenAI Embedding for the input section
         emb = create_embedding(engine=engine, input=input)
     return emb
+
+
+async def cgsIndexColumnFacetDist(searchservice, index_name, search_creds, facet):
+    search_client = SearchClient(
+        endpoint=f"https://{searchservice}.search.windows.net/",
+        index_name=index_name,
+        credential=search_creds,
+    )
+    try:
+        facets_search = await search_client.search(
+            top=0,
+            skip=0,
+            query_type="simple",
+            select="",
+            search_text="*",
+            search_fields=[],
+            filter="",
+            facets=[facet],
+            order_by="",
+            include_total_count=True,
+        )
+        res = await facets_search.get_facets()
+        return res[facet]
+    except Exception as e:
+        print(e)
+        print("setting default to 'de' due to error in facets search query")
+        return [{"count": 1, "value": "de"}]

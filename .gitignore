@@ -10,6 +10,9 @@ data2convert/
 backup/
 deploy/local.sh
 
+langchain_config.json
+scripts/test/*
+
 .DS_Store
 *.DS_Store
 

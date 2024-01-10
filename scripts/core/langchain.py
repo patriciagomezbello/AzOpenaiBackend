@@ -2,8 +2,11 @@ from langchain.document_loaders import (
     ConfluenceLoader,
     DocusaurusLoader,
     RecursiveUrlLoader,
+    GitLoader,
 )
 from bs4 import BeautifulSoup as Soup
+import os
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
 def lc_load_url_docs(url, max_depth=2):
@@ -15,31 +18,73 @@ def lc_load_url_docs(url, max_depth=2):
     return documents
 
 
-def lc_load_docusaurus_docs(url, filter_url):
+def lc_load_docusaurus_docs(url):
     loader = DocusaurusLoader(
         url,
-        filter_urls=[filter_url],
-        # This will only include the content that matches these tags, otherwise they will be removed
-        custom_html_tags=["#content", ".main"],
+        # filter_urls=[filter_url],
+        # # This will only include the content that matches these tags, otherwise they will be removed
+        # custom_html_tags=["#content", ".main"],
     )
     documents = loader.load()
+    print(documents)
     return documents
 
 
 def lc_load_confluence_docs(
-    url, token, include_attachments=False, limit=50, max_pages=50
+    url, username, token_ref, space_key, include_att=False, limit=50, max_pages=50
 ):
-    loader = ConfluenceLoader(url=url, token=token)
+    token = os.getenv(token_ref)
+    loader = ConfluenceLoader(url=url, username=username, api_key=token)
     documents = loader.load(
-        space_key="openjpa",
-        include_attachments=include_attachments,
+        space_key=space_key,
+        include_attachments=include_att,
         limit=limit,
         max_pages=max_pages,
     )
     return documents
 
 
-def get_langchain_map(documents):
+def lc_load_git_docs(url, path, filter):
+    if filter != "" or filter is not None:
+        loader = GitLoader(
+            clone_url=url,
+            repo_path=path,
+            file_filter=lambda file_path: file_path.endswith(filter),
+        )
+    else:
+        loader = GitLoader(
+            clone_url=url,
+            repo_path=path,
+        )
+
+    documents = loader.load()
+    return documents
+
+
+loader_map = {
+    "confluence": lc_load_confluence_docs,
+    "docusaurus": lc_load_docusaurus_docs,
+    "git": lc_load_git_docs,
+    "rurl": lc_load_url_docs,
+}
+
+
+def handle_lc_config_item(config_item):
+    try:
+        documents = loader_map[config_item["loader"]](**config_item["config"])
+        base = config_item["config"]["url"]
+        if config_item["loader"] == "confluence":
+            base += f'/display/{config_item["config"]["space_key"]}'
+        lc_map = get_langchain_map(documents=documents, base=base)
+        return lc_map
+    except Exception as e:
+        print(e)
+        print(f"no valid config for {config_item['loader']}, please check docs")
+        return -1
+
+
+# TODO: baselink for deletion
+def get_langchain_map(documents, base):
     document_map = []
 
     for i, document in enumerate(documents):
@@ -47,23 +92,40 @@ def get_langchain_map(documents):
 
         # build page text by replacing charcters in table spans with table html
         document_text = document.page_content
-        document_title = document.metadata["title"]
         document_source = document.metadata["source"]
+        document_base = base
 
-        document_map.append(
-            {"source": document_source, "title": document_title, "text": document_text}
-        )
+        document_map.append((document_source, document_base, document_text))
     return document_map
 
 
+def split_langchain_text_recursive(
+    document_map, section_overlap=100, max_section_length=1100
+):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=max_section_length,
+        chunk_overlap=section_overlap,
+    )
+
+    for val in document_map:
+        s_text = splitter.split_text(val[2])
+        for text in s_text:
+            yield (val[0], val[1], text)
+
+
 def split_langchain_text(
-    document_map, section_overlap, max_section_length, sentence_search_limit
+    document_map,
+    section_overlap,
+    max_section_length,
+    sentence_search_limit,
 ):
     SENTENCE_ENDINGS = [".", "!", "?"]
     WORDS_BREAKS = [",", ";", ":", " ", "(", ")", "[", "]", "{", "}", "\t", "\n"]
 
     for p in document_map:
-        all_text = p.text
+        # yield (p[2],p[0])
+
+        all_text = p[2]
         length = len(all_text)
         start = 0
         end = length
@@ -108,7 +170,20 @@ def split_langchain_text(
                 start += 1
 
             section_text = all_text[start:end]
-            yield (section_text, p.source, p.title)
+            yield (p[0], p[1], section_text)
+
+            last_table_start = section_text.rfind("<table")
+            if (
+                last_table_start > 2 * sentence_search_limit
+                and last_table_start > section_text.rfind("</table")
+            ):
+                # If the section ends with an unclosed table, we need to start the next section with the table.
+                # If table starts inside sentence_search_limit, we ignore it,
+                # as that will cause an infinite loop for tables longer than max_section_length
+                # If last table starts inside section_overlap, keep overlapping
+                start = min(end - section_overlap, start + last_table_start)
+            else:
+                start = end - section_overlap
 
         if start + section_overlap < end:
-            yield (all_text[start:end], p.source, p.title)
+            yield (p[0], p[1], all_text[start:end])

@@ -1,16 +1,18 @@
 import os
-import argparse
 import time
 import openai
-from lingua import Language, LanguageDetectorBuilder
+from lingua import Language, LanguageDetector, LanguageDetectorBuilder
 from azure.identity import AzureDeveloperCliCredential
 from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient
 from core.aisearch import (
+    cleanup_lc_sections_from_index,
     create_search_index,
     index_sections,
-    remove_from_index,
+    remove_file_from_index,
     create_embedding,
+    delete_search_index,
+    remove_lc_from_index,
 )
 from core.helper import (
     check_time,
@@ -25,16 +27,22 @@ from core.helper import (
 from core.document import get_document_text, split_text
 from core.convert import convert_files
 from core.blob import blob_name_from_file_page, upload_blobs_docs, remove_blobs_docs
-from core.langchain import split_langchain_text
+from core.langchain import (
+    split_langchain_text,
+    split_langchain_text_recursive,
+    handle_lc_config_item,
+)
+from core.parser import parser
+import json
 
 
-MAX_SECTION_LENGTH = int(os.getenv("MAX_SECTION_LENGTH", 1100))
-SENTENCE_SEARCH_LIMIT = 100
-SECTION_OVERLAP = 100
+MAX_SECTION_LENGTH: int = int(os.getenv("MAX_SECTION_LENGTH", 1100))
+SENTENCE_SEARCH_LIMIT: int = 100
+SECTION_OVERLAP: int = 100
 
 
 # build languages for usage
-detector = LanguageDetectorBuilder.from_languages(
+detector: LanguageDetector = LanguageDetectorBuilder.from_languages(
     Language.ENGLISH,
     Language.GERMAN,
     Language.HUNGARIAN,
@@ -100,25 +108,32 @@ def create_document_sections(file_path, page_map, accessKeys, category=None):
         }
 
 
-def create_langchain_sections(document_map, accessKeys, category=None):
-    # file_id = file_path_to_id(file_path)
-    # # Loop through the text and page numbers created by split_text function
+def create_langchain_sections(
+    document_map, accessKeys, splitter="standard", category=None
+):
+    # define dictionary with source as key and number (counter) as value
+    counter_dict: dict[str, int] = {}
 
-    # file = name_from_path(file_path=file_path, files_directory=args.files)
-    counter = 0
-    for i, (section, source, title) in enumerate(
+    for i, (source, base, section) in enumerate(
         split_langchain_text(
             document_map=document_map,
             max_section_length=MAX_SECTION_LENGTH,
             section_overlap=SECTION_OVERLAP,
             sentence_search_limit=SENTENCE_SEARCH_LIMIT,
         )
+        if splitter == "standard"
+        else split_langchain_text_recursive(
+            document_map=document_map,
+            max_section_length=MAX_SECTION_LENGTH,
+            section_overlap=SECTION_OVERLAP,
+        )
     ):
-        id = url_to_id(source, counter)
+        # check if key already exists, if not initilaize with zero
+
+        id = url_to_id(source, counter_dict)
+
         # Attempt to create an OpenAI Embedding for the input text section
         emb = create_embedding(engine=args.openaideployment, input=section)
-
-        counter = counter + 1
 
         # Return a dictionary with the processed section details, like id, content, embedding, etc.
         yield {
@@ -129,57 +144,21 @@ def create_langchain_sections(document_map, accessKeys, category=None):
             "category": category,
             "accesskeys": accessKeys,
             "sourcepage": source,
-            "sourcefile": title,
+            "sourcefile": base,
         }
+
+    # call recursive cleanup function with filled counter_dict
+    cleanup_lc_sections_from_index(
+        counter_dict=counter_dict,
+        index_name=args.index,
+        search_creds=search_creds,
+        search_service=args.searchservice,
+    )
 
 
 # SCRIPT EXECUTION BEGINS
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Prepare documents by extracting content from PDFs, splitting content into sections,  \
-            uploading to blob storage, and indexing in a search index.",
-    )
-    parser.add_argument("files", help="Files to be processed pdfs")
-    parser.add_argument("--files2convert", help="Files to be converted to pdfs)")
-    parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
-    parser.add_argument("--containerdocs", help="Azure Blob Storage container for docs")
-    parser.add_argument("--storagekey", required=False)
-    parser.add_argument("--tenantid", required=False, help="Optional")
-    parser.add_argument("--searchservice", help="Name of Azure AI Search service")
-    parser.add_argument("--openaiservice", help="Name of OpenAI service")
-    parser.add_argument(
-        "--openaideployment",
-        help="Name of the Azure OpenAI model deployment for an embedding model ('text-embedding-ada-002' recommended)",
-    )
-    parser.add_argument("--openaikey", required=False, help="Optional")
-    parser.add_argument(
-        "--index",
-        help="Name of the Azure AI Search index where content should be indexed (will be created if it doesn't exist)",
-    )
-    parser.add_argument("--searchkey", required=False, help="Optional")
-    parser.add_argument(
-        "--removeall",
-        action="store_true",
-        help="Remove all blobs from blob storage and documents from the search index",
-    )
-    parser.add_argument(
-        "--localpdfparser",
-        action="store_true",
-        help="Use PyPdf local PDF parser (supports only digital PDFs) instead of Azure Form Recognizer service",
-    )
-    parser.add_argument(
-        "--formrecognizerservice",
-        required=False,
-        help="Optional. Name of the Azure Form Recognizer service which will be used to extract text,  \
-            tables and layout from the documents (must exist already)",
-    )
-    parser.add_argument(
-        "--formrecognizerkey",
-        required=False,
-        help="Optional",
-    )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
     def get_credentials(
@@ -256,35 +235,124 @@ if __name__ == "__main__":
         openai.api_version,
     ) = get_credentials()
 
-    # delete non pdf files from data
-    delete_non_pdf_files(args.files)
-
-    # FILE CONVERTION BEGINS
-    DATA_CONVERT = True
-
-    pdfkit_options = {"encoding": "UTF-8"}
-
-    if DATA_CONVERT:
-        convert_files(folder=args.files2convert)
-
     # INDEX HANDLING BEGINS
-    if args.removeall:
-        remove_from_index(
-            file_path=None,
+    if args.reset_index == "true":
+        delete_search_index(
             index_name=args.index,
             search_creds=search_creds,
             searchservice=args.searchservice,
-            file_directory=args.files,
-            verbose=args.verbose,
         )
+    # create index (or not if it already exists)
+    create_search_index(
+        index_name=args.index,
+        search_creds=search_creds,
+        searchservice=args.searchservice,
+        verbose=args.verbose,
+    )
+
+    print("data")
+    print(args.data_mode)
+    print(args.lc_mode)
+
+    if args.data_mode == "lc" or args.data_mode == "all":
+        # handling of LANGCHAIN connector
+
+        # TODO: show current loaded langchain documents in pipeline
+
+        if args.lc_mode == "delete":
+            print("---> langchain data deletion")
+            try:
+                f = open("langchain_config.json")
+                config = json.load(f)
+                for item in config:
+                    try:
+                        delete_base = item["config"]["url"]
+                        if item["loader"] == "confluence":
+                            delete_base += f'/display/{item["config"]["space_key"]}'
+                        remove_lc_from_index(
+                            base=delete_base,
+                            index_name=args.index,
+                            search_creds=search_creds,
+                            searchservice=args.searchservice,
+                        )
+                    except Exception as e:
+                        print(e)
+                        print(
+                            f'removing data from index {args.index} with base {item["config"]["url"]}'
+                        )
+
+            except Exception as e:
+                print(e)
+                print(f"removing data from index {args.index} failed")
+
+        elif args.lc_mode == "create":
+            print("---> langchain data indexing")
+            try:
+                f = open("langchain_config.json")
+                config = json.load(f)
+                for item in config:
+                    if check_time(start_time):
+                        print("Refreshing credentials")
+                        (
+                            search_creds,
+                            storage_creds,
+                            default_creds,
+                            azd_credential,
+                            formrecognizer_creds,
+                            openai.api_type,
+                            openai.api_key,
+                            openai.api_base,
+                            openai.api_version,
+                        ) = get_credentials()
+                        start_time = time.time()
+                    document_map = handle_lc_config_item(item)
+                    if document_map == -1:
+                        continue
+                    splitter = item.get("splitter")
+                    splitter = (
+                        "standard"
+                        if splitter not in ["standard", "recursive"]
+                        else splitter
+                    )
+                    print("creating sections ...")
+                    lc_sections = create_langchain_sections(
+                        document_map=document_map,
+                        accessKeys=["All"],
+                        splitter=splitter,
+                        category=item.get("category"),
+                    )
+                    print("indexing sections...")
+                    index_sections(
+                        index_name=args.index,
+                        searchservice=args.searchservice,
+                        search_creds=search_creds,
+                        file={item["loader"]},
+                        sections=lc_sections,
+                    )
+                    print(f'{item["loader"]} was processed and indexed sucessfully')
+
+                print("---> langchain data successfully indexed")
+
+            except Exception as e:
+                print("config could not be loaded or processed properly")
+                print(e)
+
     else:
-        # create index (or not if it already exists)
-        create_search_index(
-            index_name=args.index,
-            search_creds=search_creds,
-            searchservice=args.searchservice,
-            verbose=args.verbose,
-        )
+        print("---> no langchain data deletion or indexing was requested")
+
+    #  handling of the files
+    if args.data_mode == "file" or args.data_mode == "all":
+        # data conversion and deleting
+
+        # delete non pdf files from data
+        delete_non_pdf_files(args.files)
+
+        # FILE CONVERTION BEGINS
+
+        pdfkit_options = {"encoding": "UTF-8"}
+
+        if args.data_conversion == "true":
+            convert_files(folder=args.files2convert)
 
         # init blob in main script for docs comparison
         docs_service = BlobServiceClient(
@@ -304,6 +372,8 @@ if __name__ == "__main__":
         # loop through all files in args.files (should be 'data')
         # creates a local hashmap that has an array with the file_path 'data/example.pdf',
         # md5hash and category that is the first folder after the args.files
+
+        print("---> file indexing")
 
         for root, dirs, files in os.walk(args.files):
             for file in files:
@@ -328,7 +398,7 @@ if __name__ == "__main__":
             blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
 
         # loop through local files
-        print("go through files locally")
+        print("checking local files...")
 
         # every local file of the hashmap will be processed, local_data is the array of values of the hashmap
         for file, local_data in local_hashmap.items():
@@ -356,7 +426,8 @@ if __name__ == "__main__":
                 remote_hash = blob_hashmap[file]
                 # remote_category = get_search_value(file=file,key="category")
 
-                # check if the hashes are the same, if not, file will be upserted, no else case, only elif for category
+                # check if the hashes are the same, if not, file will be upserted, no else case, only elif for
+                # category
                 if local_data[1] != remote_hash:
                     try:
                         print(f"{file} changed, will be processed again")
@@ -400,13 +471,12 @@ if __name__ == "__main__":
                             storage_creds=storage_creds,
                             verbose=args.verbose,
                         )
-                        remove_from_index(
+                        remove_file_from_index(
                             file_path=file_path_local,
                             index_name=args.index,
                             search_creds=search_creds,
                             searchservice=args.searchservice,
                             file_directory=args.files,
-                            verbose=args.verbose,
                         )
                         break
                 # if the categories are not similar, exchange the category value in index
@@ -458,18 +528,17 @@ if __name__ == "__main__":
                         storage_creds=storage_creds,
                         verbose=args.verbose,
                     )
-                    remove_from_index(
+                    remove_file_from_index(
                         file_path=file_path_local,
                         index_name=args.index,
                         search_creds=search_creds,
                         searchservice=args.searchservice,
                         file_directory=args.files,
-                        verbose=args.verbose,
                     )
                     break
 
         # loop through blob files
-        print("go through files in blob")
+        print("checking remote files...")
         for file in blob_hashmap:
             if file not in local_hashmap:
                 # only in remote, remove file
@@ -484,14 +553,13 @@ if __name__ == "__main__":
                         verbose=args.verbose,
                         isPath=False,
                     )
-                    remove_from_index(
+                    remove_file_from_index(
                         file_path=file,
                         isPath=False,
                         index_name=args.index,
                         search_creds=search_creds,
                         searchservice=args.searchservice,
                         file_directory=args.files,
-                        verbose=args.verbose,
                     )
                     overview[2] += 1
                 except Exception as e:
@@ -501,6 +569,8 @@ if __name__ == "__main__":
                     print("Error:", e)
                     break
         print(
-            f"{str(overview[0])} files were changed, {str(overview[1])} files were added,  \
-{str(overview[2])} files were deleted"
+            f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
+files were added, {str(overview[2])} files were deleted"
         )
+    else:
+        print("---> no file data deletion, updating or indexing was requested")

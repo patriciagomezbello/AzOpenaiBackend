@@ -77,9 +77,30 @@ def file_path_to_id(file_path):
     return f"file-{filename_ascii}-{filename_hash}"
 
 
-def url_to_id(url, counter):
+# def url_to_id(url, counter):
+#     url_hash = base64.b16encode(url.encode("utf-8")).decode("ascii")
+#     return f"url-{url_hash}-{str(counter)}"
+
+
+def url_to_id(url: str, counter_dict: dict[str, int]):
+    # check if url is already in counter_dict, if not, add it and initialize with 0
+    if counter_dict.get(url) is not None:
+        counter_dict[url] += 1
+    else:
+        counter_dict[url] = 0
+
+    # add counter value and increase counter in counter_dict for the source
+
     url_hash = base64.b16encode(url.encode("utf-8")).decode("ascii")
-    return f"url-{url_hash}-{str(counter)}"
+    return f"url-{url_hash}-{str(counter_dict[url])}"
+
+
+# this function will create similar ids, but will create potential ids for cleanup
+def url_to_id_cleanup(url: str, number: int):
+    # add counter value and increase counter in counter_dict for the source
+
+    url_hash = base64.b16encode(url.encode("utf-8")).decode("ascii")
+    return f"url-{url_hash}-{str(number)}"
 
 
 def check_time(start_time, seconds=300):
