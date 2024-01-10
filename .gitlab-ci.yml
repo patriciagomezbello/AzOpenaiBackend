@@ -4,7 +4,6 @@ stages:
   - auto_start
   - all
   - app
-  - infra
   - data
   - auto_stop
 
@@ -83,25 +82,19 @@ include:
 all_start:
   stage: auto_start
   <<: *runner_start
-  allow_failure: false 
+  allow_failure: false
   when: manual
 
 app_start:
   stage: auto_start
   <<: *runner_start
-  allow_failure: false 
-  when: manual
-
-infra_start:
-  stage: auto_start
-  <<: *runner_start
-  allow_failure: false 
+  allow_failure: false
   when: manual
 
 data_start:
   stage: auto_start
   <<: *runner_start
-  allow_failure: false 
+  allow_failure: false
   rules:
     - if: '$CI_PIPELINE_SOURCE == "trigger"'
     - if: '$CI_PIPELINE_SOURCE != "trigger"'
@@ -137,21 +130,6 @@ app_task:
   tags:
     - $RUNNER_TAG
 
-infra_task:
-  stage: infra
-  needs:
-    - infra_start
-  <<: *auth
-  script:
-    - bash ./deploy/setup_env.sh
-    - azd provision
-    - bash ./deploy/set_env.sh
-  artifacts:
-    paths:
-      - .ENVIRONMENT
-  tags:
-    - $RUNNER_TAG
-
 data_task:
   stage: data
   image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy
@@ -179,13 +157,6 @@ app_terminate:
   needs:
     - app_start
     - app_task
-
-infra_terminate:
-  stage: infra
-  <<: *runner_stop
-  needs:
-    - infra_start
-    - infra_task
 
 data_terminate:
   stage: data
