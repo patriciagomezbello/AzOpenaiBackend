@@ -1,5 +1,5 @@
 ### list of stages, starting with test, then auto_start, each relevant stage and stop
-stages: 
+stages:
   - test
   - auto_start
   - all
@@ -8,15 +8,12 @@ stages:
   - data
   - auto_stop
 
-
 ### declare image to use in all stages, using mtr azd-deploy from azure team
 image: mtr.devops.telekom.de/ccoe_azure/azd-deploy
 
-
 ### declare private runner name to use in relevant stages (can be parameterized in a todo)
-variables: 
-  DEFAULT_RUNNER: otc_run_docker_m  
-
+variables:
+  DEFAULT_RUNNER: otc_run_docker_m
 
 ### include gitlab scanning
 
@@ -33,7 +30,6 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
 
-
 ### auth setup for each step to login and logout before and after
 .auth_template: &auth
   before_script:
@@ -44,10 +40,19 @@ include:
     - az logout
     - azd auth logout
 
+### auth setup for each step to login and logout before and after
+.auth_template_start: &auth_az
+  before_script:
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    - az account set --subscription $SUBSCRIPTION_ID
+  after_script:
+    - az logout
+
 ### private runner setup (start and stop runner before each task via templates)
 .runner_start_template: &runner_start
-  <<: *auth
-  script: 
+  <<: *auth_az
+  image: mtr.devops.telekom.de/ccoe_azure/az-deploy
+  script:
     - |-
       if [ "$DEV_ENV" == "true" ]; then
         echo "skip vm startup"
@@ -58,11 +63,11 @@ include:
   allow_failure: false
   tags:
     - $DEFAULT_RUNNER
-  
 
 .runner_stop_template: &runner_stop
-  <<: *auth
-  script: 
+  <<: *auth_az
+  image: mtr.devops.telekom.de/ccoe_azure/az-deploy
+  script:
     - |-
       if [ "$DEV_ENV" == "true" ] | [ "$NO_RUNNER_STOP" == "true" ]; then
           echo "skip vm stop"
@@ -72,7 +77,6 @@ include:
       fi
   tags:
     - $DEFAULT_RUNNER
-
 
 ### all start jobs in automatic_start stage, that will trigger each relevant stage and start the vm before running the job
 
@@ -103,13 +107,12 @@ data_start:
     - if: '$CI_PIPELINE_SOURCE != "trigger"'
       when: manual
 
-
 ### execution of the tasks in their own stage to be able to extend it in case needed
 ### they each will only run after specified start job in automatic_start
 
-all_task:  
+all_task:
   stage: all
-  needs: 
+  needs:
     - all_start
   <<: *auth
   script:
@@ -122,10 +125,10 @@ all_task:
       - .ENVIRONMENT
   tags:
     - $RUNNER_TAG
-  
-app_task:  
+
+app_task:
   stage: app
-  needs: 
+  needs:
     - app_start
   <<: *auth
   script:
@@ -136,9 +139,9 @@ app_task:
 
 infra_task:
   stage: infra
-  needs: 
+  needs:
     - infra_start
-  <<: *auth 
+  <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - azd provision
@@ -146,48 +149,47 @@ infra_task:
   artifacts:
     paths:
       - .ENVIRONMENT
-  tags: 
+  tags:
     - $RUNNER_TAG
 
 data_task:
   stage: data
-  needs: 
+  image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy
+  needs:
     - data_start
   <<: *auth
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
-  allow_failure: false 
-  tags: 
+  tags:
     - $RUNNER_TAG
-
 
 ### all stop jobs in automatic_stop stage, that will trigger after each relevant stage and stop the runner vm
 
 all_terminate:
   stage: all
   <<: *runner_stop
-  needs: 
+  needs:
     - all_start
     - all_task
 
 app_terminate:
   stage: app
   <<: *runner_stop
-  needs: 
+  needs:
     - app_start
     - app_task
 
 infra_terminate:
   stage: infra
   <<: *runner_stop
-  needs: 
+  needs:
     - infra_start
     - infra_task
 
 data_terminate:
   stage: data
   <<: *runner_stop
-  needs: 
+  needs:
     - data_start
     - data_task

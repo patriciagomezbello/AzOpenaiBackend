@@ -1,19 +1,54 @@
-# <span style="color: #e20074">Mate as a Service </span>
+# <span style="color: #e20074">Mate as a Service by CCOE DTIT (formerly T-Chat)</span>
 
-**What is Mate?**
+# **What is Mate?**
 
-- using telekom/private data with Azure OpenAI services and Cognitive Search (RAG-approach) as a service
+- using telekom/private data with Azure OpenAI services and Azure AI (formerly Cognitive) Search (RAG-approach) as a service
 - initially forked from [Microsoft Azure Sample Repository](https://github.com/Azure-Samples/azure-search-openai-demo/tree/main)
 - It is PSA-compliant (without the data, that every user needs to get approved separatly)
 - When you are going to use this software for production, please reach out for the group workers council (KBR). For preparation reach out first for Jerome Chvaillier (Jerome.Chevaillier@telekom.de)
 
-## How to deploy: **Fork repository and adjust CI/CD Settings**
+# **Roadmap**
 
-### General Information & Requirements
+- [ ] Direct File Blob Data Integration (January 2024)
+- [ ] Standardised OpenID Connect Auth (January 2024)
+- [x] Langchain Data Integration (January 2024)
+- [x] Feedback and Application Insights (November 2023)
+- [x] Language Support (October 2023)
+- [x] Initial Release (October 2023)
 
-- **The resource group has to be created upfront and be named "rg->AZURE_ENV_NAME>"**
+| Contents                                                                       |
+| ------------------------------------------------------------------------------ |
+| **1** How to deploy                                                            |
+| - **1.1** Information & What needs to be done **before** deployment            |
+| - **1.2** What needs to be done **after** deployment                           |
+| - **1.3** Environment CI/CD Variables                                          |
+| - **1.4** File CI/CD Variables                                                 |
+| -- **1.4.1** ENVIRONMENT                                                       |
+| -- **1.4.2** CONTEXT                                                           |
+| -- **1.4.3** ABBREV                                                            |
+| **2** Data Integration                                                         |
+| - **2.1** Data Integration Variables                                           |
+| - **2.2** File Integration (PDFs and convertible files)                        |
+| - **2.3** Langchain Integration (MyWiki/Confluence, Websites/Urls, Docusaurus) |
+| -- **2.2.1** Environment CI/CD Variables                                       |
+| -- **2.2.2** File CI/CD Variables                                              |
+
+---
+
+---
+
+---
+
+### 1 How to deploy: **Fork repository and adjust CI/CD Settings**
+
+#### 1.1 Information & What needs to be done **before** deployment
+
+- **The resource group has to be created upfront and be named "rg-<AZURE_ENV_NAME>"**
+
   - if the AZURE_ENV_NAME = mate, the resource group must be named = rg-mate
   - if it is not done like this, there will be issues with providing rbac rights during the deployment
+    ***
+
 - currently only Enterprise Subscriptions are supported (dtit_cid0000, dtit_cip0000)
 - Service Principal for deployment needs _Contributor_ rights (the respective SP_dtit_cix0000 Service Principal is fine for usage)
 - A private gitlab runner is required -> a package that automatically installs one is available [in this repository](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
@@ -21,11 +56,13 @@
   - one with /27 prefix (e.g. sn-mate) and onefor the web app service with at least /28 prefix (e.g. sn-mate-appservice)
   - the further configuration of those subnets will be done by the pipeline of the backend automatically
 
-### What needs to be done after deployment
+#### 1.2 What needs to be done **after** deployment
 
 - You need to submit a request to add your search service to our central dns, as it is privately connected. This can be done via [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906). Please name the subscription, name of search service, the internal ip (found in the private endpoint of the search service under dns configuration).
 
-### Environment CI/CD Variables
+#### 1.3 Environment CI/CD Variables
+
+- all these variables have to be injected into the CI/CD Settings as a seperate variable
 
 | Variable            | Description                                                                                              |
 | ------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -42,9 +79,37 @@
 
 ---
 
-### File Variables
+#### 1.4 File CI/CD Variables
 
-- **ENVIRONMENT** (Name of Variable: _Environment_, then paste the mandatory example below table and fill out/adjust)
+##### 1.4.1 **ENVIRONMENT**
+
+(Name of Variable: _Environment_, then paste the mandatory example below table and fill out/adjust)
+
+**mandatory** (Example):
+
+```
+AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
+AZURE_ENV_NAME="azure-search-openai-dev-env-name"
+AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
+AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
+AZURE_LOCATION="westeurope"
+AZURE_VNET_RESOURCE_GROUP="rg-ci-vnet"
+AZURE_VNET_NAME="vnet_dtit_cix00xx"
+AZURE_SUBNET_NAME="sn-standard"
+AZURE_SUBNET_NAME_APPSERVICE="sn-appservice"
+AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
+```
+
+additional, non-mandatory variables that are optional (Example):
+
+```
+AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
+AZURE_OPENAI_CHATGPT_MODEL_VERSION="0613"
+AZURE_AUTH_ROLE="Model.User"
+AZURE_AUTH_TENANT="bde4dffc-4b60-4cf6-8b04-a5eeb25f5c4f"
+AZURE_APPSERVICE_SKU="B1"
+AZURE_SEARCH_SERVICE_SKU="standard"
+```
 
 | Variable                           | Description                                                        |
 | ---------------------------------- | ------------------------------------------------------------------ |
@@ -68,40 +133,17 @@
 
 \* = **mandatory**
 
-All Mandatory (Example):
-
-```
-AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
-AZURE_ENV_NAME="azure-search-openai-dev-env-name"
-AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
-AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
-AZURE_LOCATION="westeurope"
-AZURE_VNET_RESOURCE_GROUP="rg-ci-vnet"
-AZURE_VNET_NAME="vnet_dtit_cix00xx"
-AZURE_SUBNET_NAME="sn-standard"
-AZURE_SUBNET_NAME_APPSERVICE="sn-appservice"
-AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
-```
-
-additional, non-mandatory variables that are optional
-
-```
-AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
-AZURE_OPENAI_CHATGPT_MODEL_VERSION="0613"
-AZURE_AUTH_ROLE="Model.User"
-AZURE_AUTH_TENANT="bde4dffc-4b60-4cf6-8b04-a5eeb25f5c4f"
-AZURE_APPSERVICE_SKU="S1"
-AZURE_SEARCH_SERVICE_SKU="standard"
-```
-
 **Important**: This is a minimal setup, more variables can be put into this file to use more existing services
 
 ---
 
-- **CONTEXT** (Name of Variable: _CONTEXT_, please take example and adjust only the upper three points (not the sourcing))
-  - Context for the model to have an adjusted frame for the questions and answers. Python File
-  - system_message_chat_conversation -> system message for the model
-  - query_prompt_template -> query prompt for using question to retrieve information
+##### 1.4.2 **CONTEXT**
+
+(Name of Variable: _CONTEXT_, please take example and adjust only the upper three points (not the sourcing))
+
+Context for the model to have an adjusted frame for the questions and answers. Python File
+system_message_chat_conversation -> system message for the model
+query_prompt_template -> query prompt for using question to retrieve information
 
 ```python
 
@@ -128,9 +170,10 @@ query_prompt_template = """Below is a history of the conversation so far, and a 
 
 ---
 
-- **ABBREV** (Name of Variable: _ABBREV_, please put in at least one)
-  - Abbreviations in csv format, will be transformed for better performance during each deployment
-  - can be used to overwrite Abbrevations with Telekom Abbreviations
+##### 1.4.3 **ABBREV** (Name of Variable: _ABBREV_, please put in at least one)
+
+Abbreviations in csv format, will be transformed for better performance during each deployment
+can be used to overwrite Abbrevations with Telekom Abbreviations
 
 ```csv
 CMS, Content Management System
@@ -149,20 +192,48 @@ This is not required, but strongly recommended as it fully autmates the deployme
 - **Step 3**: create the token and copy it out (needs to be added as a ci/cd variable named "ACCESS_TOKEN")
   ![ACCESS_TOKEN_3](documentation/ACCESS_TOKEN_3.png)
 
-### How to connect the data repository with your infrastructure and application?
+### 2 Data Integration
+
+What is supported?
+
+- PDFs (or files that can be converted to pdfs)
+
+- Langchain Integration (Confluence/MyWiki, Docusaurus, URLs/Websites, can be extended with other document loaders)
+
+Why only those?
+
+- We value interpretabilty and therefore we always want to integrate a way for the end user to access sources.
+- The integration of sources that are not accessable or at least showable (like databases etc.) are currently not planned.
+
+Please be aware: The integration must be done by someone that is proficient with gitlab and fully understands its functionality
+
+#### 2.1 Data Integration Variables
+
+In general, there are CI/CD variables, that enable different settings for the data loading process
+
+Because of backwards compatability, all of those values are not mandatory, but can be set. You can see each default value here and also other possible values
+
+**DATA_MODE** -> Mode of Data integration
+default value: _file_
+possible values: _lc_ or _all_
+
+_file_ will only import files
+
+_lc_ will only import what is specified in the langchain config and mode(see 2.3)
+
+_all_ will import both/all
+
+**DATA_CONVERT**
+default value: _false_
+possible value: _true_
+
+if set true, data from the data2convert folder (see 2.2) will be converted and put into the data folder during data integration
+
+#### 2.2 File Integration (PDFs and convertible files)
 
 In order to connect your file data (pdfs, mds etc.) to your backend, a second repository is required, that needs to have all pdf files in a folder named **data** and all other supported file formats in a folder named **data2convert**
 
-**pages.json** in every directory will create name1.pdf, name2.pdf in directory from public webpages
-
-```json
-{
-  "name1": "https://example.com",
-  "name2": "https://example.de"
-}
-```
-
-**langchain connector** with connecting to private Confluence (telekom mywiki) or Jira coming in **december 2023** ...
+**COMING IN JANUARY 2024** -> FILE_MODE Variable, will allow to not use git, but also Azure Storage Blobs directly for data integration
 
 To enable a permanent connection between those repositories, a connection needs to be established. The Data repository must allow the project repository to access its data with the CI_JOB_TOKEN -> This is done like this:
 
@@ -174,6 +245,95 @@ To enable a permanent connection between those repositories, a connection needs 
 
 - Step 3: Check if it has been added
   ![DATA_ACCESS_3](documentation/DATA_ACCESS_3.png)
+
+#### 2.3 Langchain Integration (MyWiki/Confluence, Websites/Urls, Docusaurus)
+
+##### 2.3.1 Gitlab CI/CD Variables
+
+Gitlab Enviroment variable **LC_MODE** can be either:
+
+- create
+- delete
+
+-> create will create and update the index if called (will also clean up, if content is less then before)
+-> delete with delete the indexed sections for the documents
+
+everything that is in the config when executed will be created or deleted, depending on the setting
+
+##### 2.3.2 File CI/CD Variables
+
+Gitlab CI/CD File variable **LANGCHAIN_CONFIG** example
+
+```json
+[
+  {
+    "loader": "confluence",
+    "category": "wiki",
+    "splitter": "standard",
+    "config": {
+      "url": "url of confluence, (e.g wiki.telekom.de)",
+      "username": "email of user",
+      "token_ref": "name of variable where api_key of user is put",
+      "space_key": "space from wiki/confluence",
+      "include_att": false,
+      "limit": 10,
+      "max_pages": 10
+    }
+  },
+  {
+    "loader": "rurl",
+    "splitter": "standard",
+    "config": {
+      "url": "url of website",
+      "max_depth": 3
+    }
+  },
+  {
+    "loader": "docusaurus",
+    "splitter": "standard",
+    "config": {
+      "url": "url of website built on docusaurus"
+    }
+  }
+]
+```
+
+## Langchain Document loaders - Parameters
+
+**mandatory**
+
+- loader -> type of document loader
+  currently supported: _confluence_ (mywiki/wiki), _docusaurus_ (documentation), _rurl_ (website with link depth)
+
+- config -> config for the specific loader
+
+**config for confluence**
+
+- url -> string, base url of confluence
+- username -> string, email of user
+- token_ref -> string, variable in gitlab, where token for the loader is located (!! no token inside langchain config !!)
+- space_key -> string, name of the confluence/wiki space that is aimed to be indexed
+- include_att -> boolean, if attachments are also included (can cause issues, if datatype is not common/integrated)
+- limit -> number, max number of pages in general that is processed
+- max_pages, number, max number of pages per space that is processed
+
+**config for rurl**
+
+- url -> string, base url of website
+- max_depth -> max depth of links (recursive integration of website)
+
+**config for docusaurus**
+
+- url -> string, base url of website, where docusaurus documentation is hosted
+
+**not mandatory**
+
+- splitter -> type of splitter for splitting content/documents to sections for search
+  currently supported: _standard_ (splitting like Microsoft, default value), _recursive_ (langchain splitting)
+
+- category -> category for document search
+  currently supported -> string for category, can be selected
+  if no category is wanted, delete the parameter from the object in the list
 
 ## How to use the pipeline:
 
