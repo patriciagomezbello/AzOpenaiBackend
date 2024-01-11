@@ -231,6 +231,7 @@ module backend 'core/host/appservice.bicep' = {
     managedIdentity: true
     clientId: authClient
     tenantId: tenant().tenantId
+    authTenant: (!empty(authTenant)) ? authTenant : 'same'
     allowedOrigins: allowed_cors_list
     virtualNetworkSubnetId_AppService: subnet_AppService.id
     appSettings: {
