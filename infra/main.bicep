@@ -9,8 +9,6 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-param authClient string
-
 param appServicePlanName string = ''
 
 @allowed([ 'B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P0v3', 'P1v3', 'P2v3', 'P3v3' ])
@@ -106,6 +104,16 @@ var subscriptionName = subscription().displayName
 var isContainsCN = contains(subscriptionName, 'cn')
 
 var resourceGroupLGAWS = isContainsCN ? 'cloud-native-infrastructure' : 'cloud-integrated-infrastructure'
+
+param authClient string
+param authClientSecretSetting string
+
+param oidcClientId string
+param oidcIssuerUrl string
+param oidcScopes string
+param oidcClientSecretSetting string
+
+var oidcScopesArray = split(oidcScopes, ',')
 
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'
@@ -230,8 +238,13 @@ module backend 'core/host/appservice.bicep' = {
     scmDoBuildDuringDeployment: true
     managedIdentity: true
     clientId: authClient
+    clientSecretSetting: authClientSecretSetting
     tenantId: tenant().tenantId
     authTenant: (!empty(authTenant)) ? authTenant : 'same'
+    oidcClientId: oidcClientId
+    oidcClientSecretSetting: oidcClientSecretSetting
+    oidcIssuerUrl: oidcIssuerUrl
+    oidcScopes: oidcScopesArray
     allowedOrigins: allowed_cors_list
     virtualNetworkSubnetId_AppService: subnet_AppService.id
     appSettings: {
