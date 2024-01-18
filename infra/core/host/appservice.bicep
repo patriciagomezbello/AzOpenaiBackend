@@ -10,13 +10,14 @@ param managedIdentity bool = !empty(keyVaultName)
 
 // MSAL variables
 param authTenant string
+param clientSecretSetting string
 
 // OIDC variables
 param authProvider string = 'msal' // 'oidc' or 'msal'
 param oidcClientId string
 param oidcIssuerUrl string
 @secure()
-param oidcClientSecret string
+param oidcClientSecretSetting string
 param oidcScopes array = []
 
 // Runtime Properties
@@ -99,6 +100,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           enabled: true
           registration: {
             clientId: clientId
+            clientSecret: clientSecretSetting
             openIdIssuer: (authTenant == 'same') ? tenantLogin : commonLogin
           }
         }
@@ -107,7 +109,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           enabled: true
           registration: {
             clientId: oidcClientId
-            clientSecret: oidcClientSecret
+            clientSecret: oidcClientSecretSetting
             openIdIssuer: oidcIssuerUrl
             responseType: 'code' // Typically "code" for server side flows
             scopes: oidcScopes

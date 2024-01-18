@@ -332,6 +332,7 @@ module searchService 'core/search/search-services.bicep' = {
     location: searchServiceResourceGroupLocation
     tags: tags
     virtualNetworkSubnetId: subnet_default.id
+    isNative: isContainsCN
     authOptions: {
       aadOrApiKey: {
         aadAuthFailureMode: 'http401WithBearerChallenge'

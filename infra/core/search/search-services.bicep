@@ -1,6 +1,7 @@
 param name string
 param location string = resourceGroup().location
 param tags object = {}
+param isNative bool
 
 param sku object = {
   name: 'standard'
@@ -9,7 +10,6 @@ param sku object = {
 param authOptions object = {}
 
 param virtualNetworkSubnetId string
-
 
 resource search 'Microsoft.Search/searchServices@2022-09-01' = {
   name: name
@@ -56,20 +56,26 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   }
 }
 
-//TODO: check if we need this, throws error but still a connection is there
-// resource privateEndpointConnection 'Microsoft.Search/searchServices/privateEndpointConnections@2022-09-01' = {
-//   name: 'PECON-${name}'
-//   parent: search
-//   properties: {
-//     privateEndpoint: {
-//       id: privateEndpoint.id
-//     }
-//     privateLinkServiceConnectionState: {
-//       status: 'Approved'
-//     }
-//   }
-// }
+//if (isNative) 
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-01-01' = {
+  name: 'privatelink.search.windows.net'
+  location: 'global'
+}
 
+resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2020-04-01' = {
+  parent: privateEndpoint
+  name: 'peDNSZoneGroup'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'config1'
+        properties: {
+          privateDnsZoneId: privateDnsZone.id
+        }
+      }
+    ]
+  }
+}
 
 output id string = search.id
 output endpoint string = 'https://${name}.search.windows.net/'
