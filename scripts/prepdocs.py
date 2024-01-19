@@ -26,7 +26,12 @@ from core.helper import (
 )
 from core.document import get_document_text, split_text
 from core.convert import convert_files
-from core.blob import blob_name_from_file_page, upload_blobs_docs, remove_blobs_docs
+from core.blob import (
+    blob_name_from_file_page,
+    remove_all_blobs_from_container,
+    upload_blobs_docs,
+    remove_blobs_docs,
+)
 from core.langchain import (
     split_langchain_text,
     split_langchain_text_recursive,
@@ -242,6 +247,12 @@ if __name__ == "__main__":
             search_creds=search_creds,
             searchservice=args.searchservice,
         )
+        remove_all_blobs_from_container(
+            container_name=args.containerdocs,
+            storage_account=args.storageaccount,
+            storage_creds=storage_creds,
+            verbose=args.verbose,
+        )
     # create index (or not if it already exists)
     create_search_index(
         index_name=args.index,
@@ -395,7 +406,11 @@ if __name__ == "__main__":
 
         # creation of the blob hashmap with the blob.name (file_name) and the md5hash as value
         for blob in blob_list:
-            blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+            if blob.content_settings.content_md5 is not None:
+                blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+            else:
+                blob_hashmap[blob.name] = bytes()
+                print(f"no hash for blob found for {blob.name}")
 
         # loop through local files
         print("checking local files...")
