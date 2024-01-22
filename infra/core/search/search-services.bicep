@@ -1,7 +1,7 @@
 param name string
 param location string = resourceGroup().location
 param tags object = {}
-param isNative bool
+param privateDNSZoneId string
 
 param sku object = {
   name: 'standard'
@@ -56,11 +56,6 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   }
 }
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-01-01' = {
-  name: 'privatelink.search.windows.net'
-  location: 'global'
-}
-
 resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2020-04-01' = {
   parent: privateEndpoint
   name: 'peDNSZoneGroup'
@@ -69,7 +64,7 @@ resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
       {
         name: 'config1'
         properties: {
-          privateDnsZoneId: privateDnsZone.id
+          privateDnsZoneId: privateDNSZoneId
         }
       }
     ]
