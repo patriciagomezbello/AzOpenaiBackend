@@ -56,7 +56,6 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   }
 }
 
-//if (isNative) 
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-01-01' = {
   name: 'privatelink.search.windows.net'
   location: 'global'
