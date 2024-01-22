@@ -77,6 +77,9 @@
     "authClient": {
       "value": "${AZURE_AUTH_ClIENT}"
     },
+    "authProvider": {
+      "value": "${AZURE_AUTH_PROVIDER='microsoft'}"
+    },
     "authClientSecretSetting": {
       "value": "${AZURE_AUTH_ClIENT_SECRET_SETTING='MICROSOFT_PROVIDER_AUTHENTICATION_SECRET'}"
     },

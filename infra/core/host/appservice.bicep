@@ -13,7 +13,7 @@ param authTenant string
 param clientSecretSetting string
 
 // OIDC variables
-param authProvider string = 'msal' // 'oidc' or 'msal'
+param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
 param oidcClientId string
 param oidcIssuerUrl string
 @secure()
@@ -95,7 +95,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
         unauthenticatedClientAction: 'Return401'
         excludedPaths: [ '/docs', '/redocs', '/openapi.json' ]
       }
-      identityProviders: (authProvider == 'msal') ? {
+      identityProviders: (authProvider == 'microsoft') ? {
         azureActiveDirectory: {
           enabled: true
           registration: {
