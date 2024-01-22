@@ -192,6 +192,12 @@ module serviceEndpoints 'core/subnet/service-endpoints.bicep' = {
   }
 }
 
+// service Endpoints required for VNET Integration of services
+module searchDNSZone 'core/dns/dns-zones.bicep' = {
+  name: 'searchDNSZone'
+  scope: resourceGroupVNET
+}
+
 // Monitor application with Azure Monitor
 module monitoring './core/monitor/monitoring.bicep' = if (useApplicationInsights) {
   name: 'monitoring'
@@ -332,7 +338,7 @@ module searchService 'core/search/search-services.bicep' = {
     location: searchServiceResourceGroupLocation
     tags: tags
     virtualNetworkSubnetId: subnet_default.id
-    isNative: isContainsCN
+    privateDNSZoneId: searchDNSZone.outputs.privateDNSZoneId
     authOptions: {
       aadOrApiKey: {
         aadAuthFailureMode: 'http401WithBearerChallenge'
