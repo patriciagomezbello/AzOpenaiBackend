@@ -70,10 +70,12 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         top = overrides.get("top") or 3
 
-        filter_category = overrides.get("filter_category") or None
+        filter_category = overrides.get("category_filter") or None
 
         category_filter = (
-            "category eq '{}'".format(filter_category.replace("'", "''"))
+            " or ".join(
+                "category eq '{}'".format(x.replace("'", "''")) for x in filter_category
+            )
             if filter_category
             else None
         )
@@ -140,12 +142,19 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         )
 
         # build final filter
-        filter = lang_filter + (" and " + category_filter if category_filter else "")
+        print(f"lang filter: {lang_filter}")
+        if lang_filter:
+            print("lang_filter is existing")
+            filter = lang_filter + (
+                " and " + category_filter if category_filter else ""
+            )
+        else:
+            filter = category_filter if category_filter else ""
 
         ques = history[-1]["user"]
 
         # debug
-        # print(f"Current Filter: {filter}")
+        print(f"Current Filter: {filter}")
         ###
 
         # handle abbreviations
@@ -253,7 +262,6 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             # Perform cognitive search
 
             if overrides.get("semantic_ranker") and has_text:
-                print("test")
                 # semantic ranker -> turned on (default)
                 r = await self.search_client.search(
                     query_text,
