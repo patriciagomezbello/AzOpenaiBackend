@@ -7,8 +7,10 @@ from azure.storage.blob import BlobServiceClient
 def blob_name_from_file_page(file_path, files_directory, page=0):
     file_name = name_from_path(file_path, files_directory=files_directory)
 
-    if file_name.split(".")[1] == "pdf":
-        return file_name.split(".")[0] + f"-{page}" + ".pdf"
+    name, extension = file_name.rsplit(".", 1)
+
+    if extension == "pdf":
+        return name + f"-{page}." + extension
     else:
         return os.path.basename(file_name)
 
