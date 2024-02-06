@@ -4,8 +4,6 @@ import os
 import json
 import time
 import platform
-from dataclasses import dataclass
-from typing import List, Optional
 import aiohttp
 import openai
 from azure.identity.aio import DefaultAzureCredential
@@ -28,8 +26,15 @@ from quart_cors import cors
 from quart_schema import QuartSchema, Info, document_request, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
-from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
 from core.auth import Auth
+from core.dataclasses import (
+    ChatRequestData,
+    ChatResponseData,
+    CatResponse,
+    FeedbackRequestData,
+    ErrorResponseData,
+    FeedbackResponseData,
+)
 from core.error import (
     error_response,
 )
@@ -40,10 +45,10 @@ from core.error import (
     error_message_ratelimit,
     error_message_doc_not_found,
 )
+from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
 
 CONFIG_OPENAI_TOKEN = "openai_token"
 CONFIG_CREDENTIAL = "azure_credential"
-CONFIG_ASK_APPROACHES = "ask_approaches"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
 CONFIG_SEARCH_CLIENT = "search_client"
@@ -56,70 +61,6 @@ bp = Blueprint("routes", __name__)
 if platform.system() == "Darwin":
     print("cors disabled")
     bp = cors(bp, allow_origin="*")
-
-
-@dataclass
-class History:
-    user: str
-    bot: Optional[str]
-
-
-@dataclass
-class Overrides:
-    retrieval_mode: str
-    semantic_ranker: bool
-    semantic_captions: bool
-    top: int
-    temperature: float
-
-
-@dataclass
-class ChatRequestData:
-    history: List[History]
-    approach: str = "rrr"
-    overrides: Overrides = None
-
-
-@dataclass
-class DataPoint:
-    """Endpoint for adding feedback to Application Insights for later evaluation"""
-
-    docName: str
-    page: int
-
-
-@dataclass
-class ChatResponseData:
-    answer: str
-    keywords: str
-    data_points: List[DataPoint]
-
-
-@dataclass
-class ErrorMessage:
-    code: int
-    message: str
-
-
-@dataclass
-class ErrorResponseData:
-    error: ErrorMessage
-
-
-@dataclass
-class CatResponse:
-    categories: List[str]
-
-
-@dataclass
-class FeedbackRequestData:
-    history: List[History]
-    opinion: int
-
-
-@dataclass
-class FeedbackResponseData:
-    response: str
 
 
 @bp.route("/categories", methods=["GET"])
@@ -137,7 +78,7 @@ async def categories():
         res = {"categories": values}
         return jsonify(res)
     except Exception as e:
-        return error_response(str(e))
+        return error_response(str(e), 500)
 
 
 @bp.route("/chat", methods=["POST"])
@@ -296,18 +237,6 @@ async def setup_clients():
     # Various approaches to integrate GPT and external knowledge,
     # most applications will use a single one of these patterns or some derivative,
     # here we include several for exploration purposes
-    current_app.config[CONFIG_ASK_APPROACHES] = {
-        "rrr": ChatReadRetrieveReadApproach(
-            search_client,
-            AZURE_OPENAI_CHATGPT_DEPLOYMENT,
-            AZURE_OPENAI_CHATGPT_MODEL,
-            AZURE_OPENAI_EMB_DEPLOYMENT,
-            KB_FIELDS_SOURCEPAGE,
-            KB_FIELDS_CONTENT,
-            MAX_TOKENS_QUERY,
-            MAX_TOKENS_ANSWER,
-        )
-    }
     current_app.config[CONFIG_CHAT_APPROACHES] = {
         "rrr": ChatReadRetrieveReadApproach(
             search_client,
