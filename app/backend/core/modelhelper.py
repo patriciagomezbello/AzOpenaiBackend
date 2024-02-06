@@ -3,7 +3,7 @@ from __future__ import annotations
 import tiktoken
 import re
 import pycountry
-import openai
+from openai import AsyncOpenAI
 import logging
 from lingua import Language, LanguageDetectorBuilder
 from openai.types.chat import ChatCompletion
@@ -32,7 +32,7 @@ def eval(self, message, *args, **kws):
 
 
 # Add the method to logging.Logger
-logging.Logger.eval = eval
+logging.Logger.eval = eval  # type: ignore
 
 # Now you can use EVAL as an argument to logging functions:
 logger = logging.getLogger(__name__)
@@ -237,13 +237,13 @@ def getLang(iso_country_code) -> dict:
         return default_lang
 
 
-def translateText(text, target_language, chatgpt_deployment):
+async def translateText(client: AsyncOpenAI, text, target_language, chatgpt_deployment):
     prompt = f"Translate the following text to {target_language}:\n\n{text}\n\n"
     messages = [
         {"role": "system", "content": "You are an AI assistant to translate text"},
         {"role": "user", "content": prompt},
     ]
-    response = openai.chat.completions.create(
+    response = await client.chat.completions.create(
         model=chatgpt_deployment,
         messages=messages,
         temperature=0.0,
@@ -253,6 +253,7 @@ def translateText(text, target_language, chatgpt_deployment):
         presence_penalty=0,
         stop=None,
     )
+    print(response)
     query_text = response.choices[0].message.content
     return query_text
 
@@ -309,7 +310,7 @@ def replace_abbreviations(string, abbreviations):
 
 def applicationLog(message, level="eval"):
     if level == "eval":
-        logger.eval(message)
+        logger.eval(message)  # type: ignore
     elif level == "error":
         logger.error(message)
     elif level == "exc":

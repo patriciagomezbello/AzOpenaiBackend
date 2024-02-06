@@ -140,8 +140,11 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             noidea_de_text
             if user_prompt_lang == "de"
             else (
-                translateText(
-                    noidea_de_text, user_prompt_lang_name, self.chatgpt_deployment
+                await translateText(
+                    self.openai_client,
+                    noidea_de_text,
+                    user_prompt_lang_name,
+                    self.chatgpt_deployment,
                 )
                 if user_prompt_lang != "de"
                 else "Sorry, I don't know"
@@ -358,7 +361,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             )
 
             chat_content = chat_completion.choices[0].message.content
-
+            print("chat_content: ", chat_content)
             addTokenCount(usedTokens, chat_completion)
 
             main_llm_req_time = round(time.perf_counter() - main_llm_req_start, r_dec)
@@ -370,6 +373,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             errorMessage = e
             error_res = {"answer": errorMessage, "keywords": "ratelimit"}
         except Exception as e:
+            print("Eeeeeeeee")
             errorMessage = e.args[0]
             error_res = {"answer": errorMessage, "keywords": "error"}
         # using except for final error handling no matter what error happens
@@ -411,7 +415,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 "keywords": query_text,  # type: ignore
             }
         else:
-            raise ValueError("No answer generated")
+            return error_res
 
     # function to extract the messages from the history and transform them into the correct format
     def get_messages_from_history(
