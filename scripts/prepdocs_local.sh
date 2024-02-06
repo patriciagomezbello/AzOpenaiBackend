@@ -16,7 +16,7 @@ EOF
 
 if [ -z "$DATA_MODE" ]; then
   # Variable is empty or does not exist, possible values: "file", "lc", "all"
-  DATA_MODE="lc"
+  DATA_MODE="file"
 fi
 
 if [ -z "$DATA_CONVERT" ]; then

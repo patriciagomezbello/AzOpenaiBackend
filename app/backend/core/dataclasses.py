@@ -21,7 +21,7 @@ class Overrides:
 class ChatRequestData:
     history: List[History]
     approach: str = "rrr"
-    overrides: Overrides = None
+    overrides: Optional[Overrides] = None
 
 
 @dataclass

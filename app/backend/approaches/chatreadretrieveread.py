@@ -2,7 +2,10 @@ from typing import Any
 import time
 import json
 import os
-import openai
+from openai import AsyncOpenAI
+from openai import RateLimitError
+from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
 from approaches.approach import ChatApproach
@@ -36,6 +39,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
     def __init__(
         self,
         search_client: SearchClient,
+        openai_client: AsyncOpenAI,
         chatgpt_deployment: str,
         chatgpt_model: str,
         embedding_deployment: str,
@@ -45,6 +49,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         max_tokens_answer: int,
     ):
         self.search_client = search_client
+        self.openai_client = openai_client
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
         self.embedding_deployment = embedding_deployment
@@ -134,11 +139,13 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         system_message_noidea = (
             noidea_de_text
             if user_prompt_lang == "de"
-            else translateText(
-                noidea_de_text, user_prompt_lang_name, self.chatgpt_deployment
+            else (
+                translateText(
+                    noidea_de_text, user_prompt_lang_name, self.chatgpt_deployment
+                )
+                if user_prompt_lang != "de"
+                else "Sorry, I don't know"
             )
-            if user_prompt_lang != "de"
-            else "Sorry, I don't know"
         )
 
         # build final filter
@@ -170,8 +177,13 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         # start logging full request time
         start_chat = time.perf_counter()
 
-        # variable for exception
-        exc = False
+        # variables for potential exception
+        error_res = None
+        errorMessage = None
+
+        # variable for response
+
+        chat_content = None
 
         # time logging decimals
         r_dec = 4
@@ -202,16 +214,24 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             start_keyword = time.perf_counter()
 
             # completion request to openAI to receive the keyword search query
-            chat_completion = await openai.ChatCompletion.acreate(
-                deployment_id=self.chatgpt_deployment,
-                model=self.chatgpt_model,
-                messages=messages,
-                temperature=0.0,
-                max_tokens=self.max_tokens_query,
-                n=1,
+            chat_completion: ChatCompletion = (
+                await self.openai_client.chat.completions.create(
+                    model=(
+                        self.chatgpt_deployment
+                        if self.chatgpt_deployment
+                        else self.chatgpt_model
+                    ),
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=self.max_tokens_query,
+                    n=1,
+                )
             )
 
             query_text = chat_completion.choices[0].message.content
+
+            if query_text is None:
+                raise ValueError("No query generated")
 
             if query_text.strip() == "0":
                 query_text = history[-1][
@@ -224,14 +244,15 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             keyword_request_time = round(time.perf_counter() - start_keyword, r_dec)
 
             # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
-
             # If retrieval mode includes vectors, compute an embedding for the query
             if has_vector:
                 start_embedding = time.perf_counter()
 
                 # create embedding with text-ada002 model
-                query_vector_embedding = await openai.Embedding.acreate(
-                    engine=self.embedding_deployment, input=query_text
+                query_vector_embedding: CreateEmbeddingResponse = (
+                    await self.openai_client.embeddings.create(
+                        model=self.embedding_deployment, input=query_text
+                    )
                 )
                 query_vector = query_vector_embedding.data[0].embedding
 
@@ -269,26 +290,16 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     query_type=QueryType.SEMANTIC,
                     semantic_configuration_name="default",
                     top=top,
-                    query_caption="extractive|highlight-false"
-                    if use_semantic_captions
-                    else None,
+                    query_caption=(
+                        "extractive|highlight-false" if use_semantic_captions else None
+                    ),
                     vector_queries=[
                         {
                             "kind": "vector",
                             "fields": "embedding",
                             "vector": query_vector,
                         }
-                    ],
-                )
-
-            else:
-                r = await self.search_client.search(
-                    query_text,
-                    filter=filter,
-                    top=top,
-                    vector=query_vector,
-                    top_k=50 if query_vector else None,
-                    vector_fields="embedding" if query_vector else None,
+                    ],  # type: ignore
                 )
 
             cog_search_request_time = round(
@@ -334,14 +345,19 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             # Model does not handle lengthy system messages well.
             # Moving sources to latest user conversation to solve follow up questions prompt.
 
-            chat_completion = await openai.ChatCompletion.acreate(
-                deployment_id=self.chatgpt_deployment,
-                model=self.chatgpt_model,
+            chat_completion = await self.openai_client.chat.completions.create(
+                model=(
+                    self.chatgpt_deployment
+                    if self.chatgpt_deployment
+                    else self.chatgpt_model
+                ),
                 messages=messages,
                 temperature=overrides.get("temperature") or 0.7,
                 max_tokens=self.max_tokens_answer,
                 n=1,
             )
+
+            chat_content = chat_completion.choices[0].message.content
 
             addTokenCount(usedTokens, chat_completion)
 
@@ -350,14 +366,26 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             chat_time = round(time.perf_counter() - start_chat, r_dec)
 
         # handle all errors except rate limit the same, as no difference is needed here
-        except openai.error.RateLimitError as e:
-            exc = True
+        except RateLimitError as e:
             errorMessage = e
             error_res = {"answer": errorMessage, "keywords": "ratelimit"}
         except Exception as e:
-            exc = True
             errorMessage = e.args[0]
             error_res = {"answer": errorMessage, "keywords": "error"}
+        # using except for final error handling no matter what error happens
+        except:
+            log_values = {
+                "status": "error",
+                "error_message": errorMessage,
+                "search_type": overrides.get("retrieval_mode"),
+                "full_chat_time": chat_time,
+                "keyword_opt_time": keyword_request_time,
+                "embedding_time": embedding_request_time,
+                "search_time": cog_search_request_time,
+                "main_req_time": main_llm_req_time,
+            }
+            applicationLog(json.dumps(log_values), "error")
+            return error_res
 
         # define logs for applicationinsights
         log_values = {
@@ -374,24 +402,16 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         for key, value in usedTokens.items():
             log_values[key] = value
 
-        # unbound warnings can be ignored, as they are ensured via the exc keyword
-        # maybe refactor in the future, but microsoft did it even more dirty
+        citationList = getCitationObject(chat_content) if chat_content else []
 
-        if exc:
-            log_values["status"] = "error"
-            log_values["errorMessage"] = errorMessage
-            applicationLog(json.dumps(log_values), "error")
-            return error_res
-
-        chat_content = chat_completion.choices[0].message.content
-
-        citationList = getCitationObject(chat_content)
-
-        return {
-            "data_points": citationList,
-            "answer": chat_content,
-            "keywords": query_text,
-        }
+        if chat_content is not None:
+            return {
+                "data_points": citationList,
+                "answer": chat_content,
+                "keywords": query_text,  # type: ignore
+            }
+        else:
+            raise ValueError("No answer generated")
 
     # function to extract the messages from the history and transform them into the correct format
     def get_messages_from_history(

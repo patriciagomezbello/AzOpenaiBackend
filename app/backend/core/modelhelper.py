@@ -6,6 +6,8 @@ import pycountry
 import openai
 import logging
 from lingua import Language, LanguageDetectorBuilder
+from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
@@ -72,19 +74,36 @@ def get_oai_chatmodel_tiktok(aoaimodel: str) -> str:
     return AOAI_2_OAI.get(aoaimodel) or aoaimodel
 
 
-def addTokenCount(tokenDict: dict, res: dict) -> None:
+def addTokenCount(
+    tokenDict: dict, res: ChatCompletion | CreateEmbeddingResponse
+) -> None:
     """Adds the tokens of a OpenAI Response to a dict"""
-    if res.model in tokenDict:
-        tokenDict[res.model] += res.usage.total_tokens
+    if res.usage is not None:
+        if res.model in tokenDict:
+            tokenDict[res.model] += res.usage.total_tokens
+        else:
+            tokenDict[res.model] = res.usage.total_tokens
     else:
-        tokenDict[res.model] = res.usage.total_tokens
+        applicationLog("No token usage in response", "warning")
 
 
-# to extract the sources cited by the GPT answer according to the prompt instructions
+# Function to extract the sources cited by the GPT answer according to the prompt instructions
 def extractCitedSources(text: str) -> list:
+    # Define the pattern to match citations enclosed in square brackets
     pattern = r"\[(.*?)\]"
+
+    # Find all matches of the pattern in the text
     citationResults = re.findall(pattern, text)
-    return citationResults
+
+    # Filter the results to include only sources that end with '.pdf' or start with 'https://'
+    filteredResults = [
+        source
+        for source in citationResults
+        if source.endswith(".pdf") or source.startswith("https://")
+    ]
+
+    # Return the filtered list of cited sources
+    return filteredResults
 
 
 def filter_duplicates(list_of_dicts: list) -> list:
@@ -224,8 +243,8 @@ def translateText(text, target_language, chatgpt_deployment):
         {"role": "system", "content": "You are an AI assistant to translate text"},
         {"role": "user", "content": prompt},
     ]
-    response = openai.ChatCompletion.create(
-        engine=chatgpt_deployment,
+    response = openai.chat.completions.create(
+        model=chatgpt_deployment,
         messages=messages,
         temperature=0.0,
         max_tokens=800,
@@ -262,9 +281,9 @@ def replace_abbreviations(string, abbreviations):
                 lower_parts[0] in lower_abbreviations
                 and lower_parts[1] in lower_abbreviations
             ):
-                words[
-                    i
-                ] = f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
+                words[i] = (
+                    f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
+                )
 
         # Handle special characters at the end of a word.
         elif re.search(r"\w[.,!?;]", word):

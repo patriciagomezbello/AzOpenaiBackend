@@ -2,11 +2,9 @@ import io
 import mimetypes
 import os
 import json
-import time
 import platform
-import aiohttp
-import openai
-from azure.identity.aio import DefaultAzureCredential
+from openai import AsyncAzureOpenAI
+from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 from azure.monitor.opentelemetry import configure_azure_monitor
 from azure.search.documents.aio import SearchClient
 from azure.storage.blob.aio import BlobServiceClient
@@ -47,7 +45,7 @@ from core.error import (
 )
 from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
 
-CONFIG_OPENAI_TOKEN = "openai_token"
+CONFIG_OPENAI_CLIENT = "openai_client"
 CONFIG_CREDENTIAL = "azure_credential"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
@@ -101,12 +99,7 @@ async def chat():
         impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
         if not impl:
             return error_response(message=error_message_unknown_approach, code=400)
-        # Workaround for: https://github.com/openai/openai-python/issues/371
-        async with aiohttp.ClientSession() as s:
-            openai.aiosession.set(s)
-            r = await impl.run(
-                request_json["history"], request_json.get("overrides") or {}
-            )
+        r = await impl.run(request_json["history"], request_json.get("overrides") or {})
         if r["keywords"] == "error":
             return error_response(r["answer"], 500)
         elif r["keywords"] == "ratelimit":
@@ -164,30 +157,32 @@ async def feedback():
         return error_response(str(e), 500)
 
 
-@bp.before_request
-async def ensure_openai_token():
-    openai_token = current_app.config[CONFIG_OPENAI_TOKEN]
-    if openai_token.expires_on < time.time() + 60:
-        openai_token = await current_app.config[CONFIG_CREDENTIAL].get_token(
-            "https://cognitiveservices.azure.com/.default"
-        )
-        current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
-        openai.api_key = openai_token.token
-
-
 @bp.before_app_serving
 async def setup_clients():
+    # Storage settings
     AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
     AZURE_STORAGE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER_DOCS")
+    # AI Search settings
     AZURE_SEARCH_SERVICE = os.getenv("AZURE_SEARCH_SERVICE")
     AZURE_SEARCH_INDEX = os.getenv("AZURE_SEARCH_INDEX")
+    # OpenAI settings
     AZURE_OPENAI_SERVICE = os.getenv("AZURE_OPENAI_SERVICE")
     AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT")
     AZURE_OPENAI_CHATGPT_MODEL = os.getenv("AZURE_OPENAI_CHATGPT_MODEL")
     AZURE_OPENAI_EMB_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMB_DEPLOYMENT")
-    MAX_TOKENS_QUERY = os.getenv("MAX_TOKENS_QUERY") or 32
-    MAX_TOKENS_ANSWER = os.getenv("MAX_TOKENS_ANSWER") or 1024
 
+    if (
+        AZURE_OPENAI_SERVICE is None
+        or AZURE_OPENAI_CHATGPT_DEPLOYMENT is None
+        or AZURE_OPENAI_CHATGPT_MODEL is None
+        or AZURE_OPENAI_EMB_DEPLOYMENT is None
+    ):
+        raise ValueError(
+            "AZURE_OPENAI_ + SERVICE, CHATGPT_DEPLOYMENT, CHATGPT_MODEL or EMB_DEPLOYMENT is not set"
+        )
+    # Chat settings
+    MAX_TOKENS_QUERY = int(os.getenv("MAX_TOKENS_QUERY", 32))
+    MAX_TOKENS_ANSWER = int(os.getenv("MAX_TOKENS_ANSWER", 1024))
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")
 
@@ -202,34 +197,44 @@ async def setup_clients():
     )
 
     # Set up clients for Cognitive Search and Storage
-    search_client = SearchClient(
-        endpoint=f"https://{AZURE_SEARCH_SERVICE}.search.windows.net",
-        index_name=AZURE_SEARCH_INDEX,
-        credential=azure_credential,
-    )
+    if AZURE_SEARCH_INDEX is not None:
+        search_client = SearchClient(
+            endpoint=f"https://{AZURE_SEARCH_SERVICE}.search.windows.net",
+            index_name=AZURE_SEARCH_INDEX,
+            credential=azure_credential,  # type: ignore
+        )
+    else:
+        raise ValueError("AZURE_SEARCH_INDEX is not set")
     blob_client = BlobServiceClient(
         account_url=f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net",
-        credential=azure_credential,
+        credential=azure_credential,  # type: ignore
     )
-    blob_container_client = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
+    if AZURE_STORAGE_CONTAINER is not None:
+        blob_container_client = blob_client.get_container_client(
+            AZURE_STORAGE_CONTAINER
+        )
+    else:
+        raise ValueError("AZURE_STORAGE_CONTAINER_DOCS is not set")
 
     # Find out which document languages are present and which is the most common to set it later as
     # a default language in the environment
     facets_results = await cgsIndexColumnFacetDist(search_client, "doclang")
     os.environ["FACETS_RESULTS"] = str(facets_results)
-    print(facets_results)
+    applicationLog(facets_results, "info")
 
-    # Used by the OpenAI SDK
-    openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"
-    openai.api_version = "2023-05-15"
-    openai.api_type = "azure_ad"
-    openai_token = await azure_credential.get_token(
-        "https://cognitiveservices.azure.com/.default"
+    # OpenAI setup
+    token_provider = get_bearer_token_provider(
+        azure_credential, "https://cognitiveservices.azure.com/.default"
     )
-    openai.api_key = openai_token.token
+
+    openai_client = AsyncAzureOpenAI(
+        api_version="2023-07-01-preview",
+        azure_endpoint=f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com",
+        azure_ad_token_provider=token_provider,
+    )
 
     # Store on app.config for later use inside requests
-    current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
+    current_app.config[CONFIG_OPENAI_CLIENT] = openai_client
     current_app.config[CONFIG_CREDENTIAL] = azure_credential
     current_app.config[CONFIG_BLOB_CONTAINER_CLIENT] = blob_container_client
     current_app.config[CONFIG_SEARCH_CLIENT] = search_client
@@ -240,6 +245,7 @@ async def setup_clients():
     current_app.config[CONFIG_CHAT_APPROACHES] = {
         "rrr": ChatReadRetrieveReadApproach(
             search_client,
+            openai_client,
             AZURE_OPENAI_CHATGPT_DEPLOYMENT,
             AZURE_OPENAI_CHATGPT_MODEL,
             AZURE_OPENAI_EMB_DEPLOYMENT,
@@ -249,6 +255,12 @@ async def setup_clients():
             MAX_TOKENS_ANSWER,
         )
     }
+
+
+@bp.after_app_serving
+async def close_clients():
+    await current_app.config[CONFIG_SEARCH_CLIENT].close()
+    await current_app.config[CONFIG_BLOB_CONTAINER_CLIENT].close()
 
 
 def create_app():
