@@ -3,15 +3,12 @@ import mimetypes
 import os
 import json
 import time
-import jwt
 import platform
 from dataclasses import dataclass
 from typing import List, Optional
-
 import aiohttp
 import openai
 from azure.identity.aio import DefaultAzureCredential
-
 from azure.monitor.opentelemetry import configure_azure_monitor
 from azure.search.documents.aio import SearchClient
 from azure.storage.blob.aio import BlobServiceClient
@@ -32,7 +29,17 @@ from quart_schema import QuartSchema, Info, document_request, document_response
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
-from core.auth import decode_and_verify_jwt
+from core.auth import Auth
+from core.error import (
+    error_response,
+)
+from core.error import (
+    error_message_auth,
+    error_message_unknown_approach,
+    error_message_json,
+    error_message_ratelimit,
+    error_message_doc_not_found,
+)
 
 CONFIG_OPENAI_TOKEN = "openai_token"
 CONFIG_CREDENTIAL = "azure_credential"
@@ -41,41 +48,7 @@ CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
 CONFIG_SEARCH_CLIENT = "search_client"
 
-# initialize Allowed Role
-ALLOWED_ROLE = os.getenv("AZURE_AUTH_ROLE")
-AUTH_CLIENT = os.getenv("AZURE_AUTH_CLIENT")
-AUTH_CLIENT_TENANT = os.getenv("AZURE_AUTH_TENANT")
-
-if AUTH_CLIENT_TENANT is None:
-    AUTH_CLIENT_TENANT = "same"
-
-if ALLOWED_ROLE is None:
-    ALLOWED_ROLE = "all"
-
-
-# the authentication and validity of token is handled by Azure
-# therefore, this method to check the role is valid
-# no check with the respective AD is required in this way in case of "same tenant"
-# before request is not possible, as there the header is not readable
-async def checkAuthorization(request):
-    if ALLOWED_ROLE != "all":
-        auth_header = request.headers.get("Authorization")
-        parts = auth_header.split()
-        token = parts[1]
-        try:
-            if AUTH_CLIENT_TENANT != "same":
-                decoded_token = decode_and_verify_jwt(
-                    token=token, tenant_id=AUTH_CLIENT_TENANT, app_id=AUTH_CLIENT
-                )
-            else:
-                decoded_token = jwt.decode(
-                    jwt=token, algorithms=["RS256"], options={"verify_signature": False}
-                )
-        except jwt.exceptions.InvalidTokenError:
-            return 401
-        if ALLOWED_ROLE not in decoded_token["roles"]:
-            return 403
-
+auth = Auth()
 
 bp = Blueprint("routes", __name__)
 
@@ -155,14 +128,8 @@ class FeedbackResponseData:
 @document_response(ErrorResponseData, 403)
 async def categories():
     """Endpoint for receiving the available categories"""
-    authorization = await checkAuthorization(request)
-    if authorization == 403 or authorization == 401:
-        return (
-            jsonify(
-                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
-            ),
-            403,
-        )
+    if not auth.is_authorized(request):
+        return error_response(message=error_message_auth, code=403)
     try:
         search_client = current_app.config[CONFIG_SEARCH_CLIENT]
         search_res = await cgsIndexColumnFacetDist(search_client, "category")
@@ -170,8 +137,7 @@ async def categories():
         res = {"categories": values}
         return jsonify(res)
     except Exception as e:
-        res = {"error": e.args[0]}
-        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
+        return error_response(str(e))
 
 
 @bp.route("/chat", methods=["POST"])
@@ -184,28 +150,16 @@ async def categories():
 @document_response(ErrorResponseData, 500)
 async def chat():
     """Endpoint for chatting with the custom model"""
-    authorization = await checkAuthorization(request)
-    if authorization == 403 or authorization == 401:
-        return (
-            jsonify(
-                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
-            ),
-            403,
-        )
+    if not auth.is_authorized(request):
+        return error_response(message=error_message_auth, code=403)
     if not request.is_json:
-        return (
-            jsonify({"error": {"code": 415, "message": "request must be json"}}),
-            415,
-        )
+        return error_response(message=error_message_json, code=415)
     try:
         request_json = await request.get_json()
         approach = request_json["approach"]
         impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
         if not impl:
-            return (
-                jsonify({"error": {"code": 400, "message": "unknown approach"}}),
-                400,
-            )
+            return error_response(message=error_message_unknown_approach, code=400)
         # Workaround for: https://github.com/openai/openai-python/issues/371
         async with aiohttp.ClientSession() as s:
             openai.aiosession.set(s)
@@ -213,24 +167,14 @@ async def chat():
                 request_json["history"], request_json.get("overrides") or {}
             )
         if r["keywords"] == "error":
-            return (jsonify({"error": {"code": 500, "message": r["answer"]}}), 500)
+            return error_response(r["answer"], 500)
         elif r["keywords"] == "ratelimit":
-            return (
-                jsonify(
-                    {
-                        "error": {
-                            "code": 429,
-                            "message": "current ratelimit reached",
-                        }
-                    }
-                ),
-                429,
-            )
+            return error_response(message=error_message_ratelimit, code=429)
         # return answer if no error
         return jsonify(r)
     except Exception as e:
         applicationLog("Exception in /chat", "exc")
-        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
+        return error_response(str(e), 500)
 
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
@@ -241,41 +185,15 @@ async def chat():
 @document_response(ErrorResponseData, 404)
 async def content(path):
     """Endpoint for downloading pdfs from storage blob"""
-    authorization = await checkAuthorization(request)
-    if authorization == 403 or authorization == 401:
-        return (
-            jsonify(
-                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
-            ),
-            403,
-        )
+    if not auth.is_authorized(request):
+        return error_response(message=error_message_auth, code=403)
     blob_container_client = current_app.config[CONFIG_BLOB_CONTAINER_CLIENT]
     try:
         blob = await blob_container_client.get_blob_client(path).download_blob()
     except Exception:
-        return (
-            jsonify(
-                {
-                    "error": {
-                        "code": 404,
-                        "message": "document not found or not available",
-                    }
-                }
-            ),
-            404,
-        )
+        return error_response(message=error_message_doc_not_found, code=404)
     if not blob.properties or not blob.properties.has_key("content_settings"):
-        return (
-            jsonify(
-                {
-                    "error": {
-                        "code": 404,
-                        "message": "document not found or not available",
-                    }
-                }
-            ),
-            404,
-        )
+        return error_response(message=error_message_doc_not_found, code=404)
     mime_type = blob.properties["content_settings"]["content_type"]
     if mime_type == "application/octet-stream":
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -294,21 +212,15 @@ async def content(path):
 @document_response(ErrorResponseData, 403)
 async def feedback():
     """Endpoint for adding feedback to Application Insights for later evaluation"""
-    authorization = await checkAuthorization(request)
-    if authorization == 403 or authorization == 401:
-        return (
-            jsonify(
-                {"error": {"code": 403, "message": f"role {ALLOWED_ROLE} is missing"}}
-            ),
-            403,
-        )
+    if not auth.is_authorized(request):
+        return error_response(message=error_message_auth, code=403)
     try:
         request_json = await request.get_json()
         if len(request_json["history"]) > 0:
             applicationLog(json.dumps(request_json))
         return jsonify({"message": "feedback has been forwarded"})
     except Exception as e:
-        return (jsonify({"error": {"code": 500, "message": str(e)}}), 500)
+        return error_response(str(e), 500)
 
 
 @bp.before_request
