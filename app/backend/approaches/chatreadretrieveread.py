@@ -28,7 +28,7 @@ from core.abbrev import abbreviations
 DEBUG = False
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False")
 
-if DEBUG_MODE == "TRUE":
+if DEBUG_MODE == "True":
     DEBUG = True
 
 
@@ -85,12 +85,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             else None
         )
 
-        if DEBUG:
-            applicationLog(message="Debug Mode is on \n", level="info")
-
-            if category_filter:
-                debug_category = "DEBUG -> Category filter: " + category_filter + "\n"
-                applicationLog(message=debug_category, level="info")
+        if DEBUG and category_filter:
+            debug_category = "DEBUG -> Category filter: " + category_filter + "\n"
+            applicationLog(message=debug_category)
 
         # Define the most common language stored in the search index as default.
         lang_facets = json.loads((os.getenv("FACETS_RESULTS") or "").replace("'", '"'))
@@ -170,7 +167,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         if DEBUG:
             debug_filter = "DEBUG -> Final filter: " + filter + "\n"
-            applicationLog(message=debug_filter, level="info")
+            applicationLog(message=debug_filter)
 
         # handle abbreviations
         if len(abbreviations) > 0:
@@ -184,7 +181,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         if DEBUG:
             debug_user_q = "DEBUG -> " + user_q + "\n"
-            applicationLog(message=debug_user_q, level="info")
+            applicationLog(message=debug_user_q)
 
         # start logging full request time
         start_chat = time.perf_counter()
@@ -254,7 +251,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 debug_query = (
                     "DEBUG -> GPT-generated query for the search: " + query_text + "\n"
                 )
-                applicationLog(message=debug_query, level="info")
+                applicationLog(message=debug_query)
 
             addTokenCount(usedTokens, chat_completion)
 
@@ -358,7 +355,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     + json.dumps(messages, indent=4)
                     + "\n"
                 )
-                applicationLog(message=debug_chat_request, level="info")
+                applicationLog(message=debug_chat_request)
 
             chat_completion = await self.openai_client.chat.completions.create(
                 model=(
@@ -383,7 +380,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     + chat_content
                     + "\n"
                 )
-                applicationLog(message=debug_chat_content, level="info")
+                applicationLog(message=debug_chat_content)
 
             addTokenCount(usedTokens, chat_completion)
 

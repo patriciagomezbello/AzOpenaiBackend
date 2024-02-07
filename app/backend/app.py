@@ -34,14 +34,12 @@ from core.dataclasses import (
     FeedbackResponseData,
 )
 from core.error import (
-    error_response,
-)
-from core.error import (
     error_message_auth,
     error_message_unknown_approach,
     error_message_json,
     error_message_ratelimit,
     error_message_doc_not_found,
+    error_response,
 )
 from core.modelhelper import cgsIndexColumnFacetDist, applicationLog
 

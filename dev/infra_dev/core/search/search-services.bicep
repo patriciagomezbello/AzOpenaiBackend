@@ -28,7 +28,7 @@ resource search 'Microsoft.Search/searchServices@2022-09-01' = {
       ipRules: []
     }
     partitionCount: 1
-    publicNetworkAccess: 'disabled'
+    publicNetworkAccess: 'enabled'
     replicaCount: 1
 
   }
