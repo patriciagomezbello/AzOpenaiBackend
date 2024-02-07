@@ -86,14 +86,14 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         )
 
         if DEBUG:
-            applicationLog(message="Debug Mode is on", level="info")
+            applicationLog(message="Debug Mode is on \n", level="info")
 
             if category_filter:
-                debug_category = "DEBUG -> Category filter: " + category_filter
+                debug_category = "DEBUG -> Category filter: " + category_filter + "\n"
                 applicationLog(message=debug_category, level="info")
 
         # Define the most common language stored in the search index as default.
-        lang_facets = json.loads(os.getenv("FACETS_RESULTS").replace("'", '"'))
+        lang_facets = json.loads((os.getenv("FACETS_RESULTS") or "").replace("'", '"'))
         default_lang = (
             getLang(lang_facets[0]["value"])
             if lang_facets
@@ -159,9 +159,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         )
 
         # build final filter
-        print(f"lang filter: {lang_filter}")
         if lang_filter:
-            print("lang_filter is existing")
             filter = lang_filter + (
                 " and " + category_filter if category_filter else ""
             )
@@ -171,7 +169,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         ques = history[-1]["user"]
 
         if DEBUG:
-            debug_filter = "DEBUG -> Final filter: " + filter
+            debug_filter = "DEBUG -> Final filter: " + filter + "\n"
             applicationLog(message=debug_filter, level="info")
 
         # handle abbreviations
@@ -185,7 +183,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         user_q = "Generate search query for: " + ques
 
         if DEBUG:
-            debug_user_q = "DEBUG -> User query: " + user_q
+            debug_user_q = "DEBUG -> User query: " + user_q + "\n"
             applicationLog(message=debug_user_q, level="info")
 
         # start logging full request time
@@ -253,7 +251,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 ]  # Use the last user input if we failed to generate a better query
 
             if DEBUG:
-                debug_query = "DEBUG -> Generated query: " + query_text
+                debug_query = "DEBUG -> Generated query: " + query_text + "\n"
                 applicationLog(message=debug_query, level="info")
 
             addTokenCount(usedTokens, chat_completion)
@@ -331,7 +329,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             content = "\n".join(results)
 
             if DEBUG:
-                debug_results = "DEBUG -> Retrieved results from search: " + content
+                debug_results = (
+                    "DEBUG -> Retrieved results from search:\n" + content + "\n"
+                )
                 applicationLog(message=debug_results, level="info")
 
             # STEP 3: Generate a contextual and content specific answer using the search results and chat history
@@ -344,7 +344,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             )
 
             if DEBUG:
-                debug_system_message = "DEBUG -> System message: " + system_message
+                debug_system_message = (
+                    "DEBUG -> System message: " + system_message + "\n"
+                )
                 applicationLog(message=debug_system_message, level="info")
 
             main_llm_req_start = time.perf_counter()
@@ -378,7 +380,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 raise ValueError("No chat content generated")
 
             if DEBUG:
-                debug_chat_content = "DEBUG -> Generated chat content: " + chat_content
+                debug_chat_content = (
+                    "DEBUG -> Generated chat content: " + chat_content + "\n"
+                )
                 applicationLog(message=debug_chat_content, level="info")
 
             addTokenCount(usedTokens, chat_completion)
@@ -408,7 +412,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             applicationLog(json.dumps(log_values), "error")
 
             if DEBUG:
-                debug_error = "DEBUG -> Error message: " + errorMessage
+                debug_error = "DEBUG -> Error message: " + errorMessage + "\n"
                 applicationLog(message=debug_error, level="error")
 
             return error_res

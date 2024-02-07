@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import List
 
 import tiktoken
 import re
@@ -6,7 +7,7 @@ import pycountry
 from openai import AsyncOpenAI
 import logging
 from lingua import Language, LanguageDetectorBuilder
-from openai.types.chat import ChatCompletion
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 MODELS_2_TOKEN_LIMITS = {
@@ -239,7 +240,7 @@ def getLang(iso_country_code) -> dict:
 
 async def translateText(client: AsyncOpenAI, text, target_language, chatgpt_deployment):
     prompt = f"Translate the following text to {target_language}:\n\n{text}\n\n"
-    messages = [
+    messages: List[ChatCompletionMessageParam] = [
         {"role": "system", "content": "You are an AI assistant to translate text"},
         {"role": "user", "content": prompt},
     ]
