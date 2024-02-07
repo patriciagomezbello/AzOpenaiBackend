@@ -1,13 +1,19 @@
 import requests
 import jwt
 import json
-import logging
 import os
 from jwt.algorithms import RSAAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cachetools import TTLCache
 from threading import Lock
+from core.modelhelper import applicationLog
+
+# set debug mode
+DEBUG = False
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False")
+if DEBUG_MODE == "True":
+    DEBUG = True
 
 
 class Auth:
@@ -39,25 +45,30 @@ class Auth:
         # TODO: generic openid enpoint for other providers
         openid_url = f"https://login.microsoftonline.com/{self.AUTH_CLIENT_TENANT}/discovery/v2.0/keys"
         keys = requests.get(openid_url).json()["keys"]
-        logging.info("keys fetched from openid endpoint")
+        if DEBUG:
+            applicationLog("keys fetched from openid endpoint")
         return {key["kid"]: key for key in keys}
 
     def get_openid_keys(self, force_refresh=False):
         # Get OpenID keys from cache or fetch them if not present or force refresh is requested
         if "openid_keys" in self.cache and not force_refresh:
-            logging.info("keys fetched from cache")
+            if DEBUG:
+                applicationLog("keys fetched from cache")
             return self.cache["openid_keys"]
 
         with self.cache_lock:
             if "openid_keys" in self.cache and not force_refresh:
-                logging.info("keys fetched from cache after lock")
+                if DEBUG:
+                    applicationLog("keys fetched from cache after lock")
                 return self.cache["openid_keys"]
 
             if force_refresh:
-                logging.info("Forced refresh of keys")
+                if DEBUG:
+                    applicationLog("Forced refresh of keys")
 
             openid_keys = self.fetch_openid_keys()
-            logging.info("keys fetched and stored in cache")
+            if DEBUG:
+                applicationLog("keys fetched and stored in cache")
             self.cache["openid_keys"] = openid_keys
 
         return openid_keys
@@ -85,18 +96,22 @@ class Auth:
                 audience=self.AUTH_CLIENT,
                 issuer=f"https://sts.windows.net/{self.AUTH_CLIENT_TENANT}/",
             )
-            logging.info("token decoded and verified")
+            if DEBUG:
+                applicationLog("token decoded and verified")
             return payload
         except jwt.exceptions.InvalidTokenError:
             if retry:
-                logging.info("Invalid token error, retrying with refreshed keys...")
+                if DEBUG:
+                    applicationLog(
+                        "Invalid token error, retrying with refreshed keys..."
+                    )
                 self.get_openid_keys(force_refresh=True)
                 return self.decode_and_verify_jwt(token=token)
             else:
-                logging.exception("Invalid token error after retry")
+                applicationLog("Invalid token error after retry", "exc")
                 return "InvalidTokenError"
-        except Exception:
-            logging.exception("An error occurred")
+        except Exception as e:
+            applicationLog(str(e), "exc")
             return "Error"
 
     def decode_token(self, token):
@@ -111,14 +126,14 @@ class Auth:
                         algorithms=["RS256"],
                         options={"verify_signature": False},
                     )
-                    logging.info("token decoded")
+                    if DEBUG:
+                        applicationLog("token decoded")
                     return token_res
                 except jwt.exceptions.InvalidTokenError:
-                    logging.exception("Invalid token error")
+                    applicationLog("Invalid token error", "exc")
                     return "InvalidTokenError"
-        except Exception:
-            logging.exception("An error occurred")
-            return "Error"
+        except Exception as e:
+            applicationLog(str(e), "exc")
 
     def is_authorized(self, request):
         # Check if the request is authorized based on the token and allowed role
@@ -136,15 +151,12 @@ class Auth:
             or decoded_token == "Error"
             or decoded_token is None
         ):
-            logging.info("invalid Token, returning 403")
+            applicationLog("invalid Token, returning 403", "error")
             return False
 
         if (self.ALLOWED_ROLE != "all") and (
             self.ALLOWED_ROLE not in decoded_token["roles"]
         ):
-            logging.info(
-                f"unauthorized: missing role {self.ALLOWED_ROLE}, returning 403"
-            )
             return False
 
         return True

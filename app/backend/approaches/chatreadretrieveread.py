@@ -25,9 +25,9 @@ from text import nonewlines
 from core.context import system_message_chat_conversation, query_prompt_template
 from core.abbrev import abbreviations
 
+# set debug mode
 DEBUG = False
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False")
-
 if DEBUG_MODE == "True":
     DEBUG = True
 
