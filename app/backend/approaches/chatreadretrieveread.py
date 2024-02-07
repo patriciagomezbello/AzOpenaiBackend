@@ -428,7 +428,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         for key, value in usedTokens.items():
             log_values[key] = value
 
-        citationList = getCitationObject(chat_content) if chat_content else []
+        citationList = getCitationObject(chat_content)
 
         return {
             "data_points": citationList,
