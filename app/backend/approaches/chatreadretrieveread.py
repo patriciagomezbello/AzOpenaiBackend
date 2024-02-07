@@ -25,6 +25,12 @@ from text import nonewlines
 from core.context import system_message_chat_conversation, query_prompt_template
 from core.abbrev import abbreviations
 
+DEBUG = False
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False")
+
+if DEBUG_MODE == "TRUE":
+    DEBUG = True
+
 
 class ChatReadRetrieveReadApproach(ChatApproach):
     # Chat roles
@@ -64,14 +70,8 @@ class ChatReadRetrieveReadApproach(ChatApproach):
     async def run(
         self, history: list[dict[str, str]], overrides: dict[str, Any]
     ) -> Any:
-        # initialize overrides
-        has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
 
-        has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
-
-        use_semantic_captions = (
-            True if overrides.get("semantic_captions") and has_text else False
-        )
+        use_semantic_captions = True if overrides.get("semantic_captions") else False
 
         top = overrides.get("top") or 3
 
@@ -84,6 +84,13 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             if filter_category
             else None
         )
+
+        if DEBUG:
+            applicationLog(message="Debug Mode is on", level="info")
+
+            if category_filter:
+                debug_category = "DEBUG -> Category filter: " + category_filter
+                applicationLog(message=debug_category, level="info")
 
         # Define the most common language stored in the search index as default.
         lang_facets = json.loads(os.getenv("FACETS_RESULTS").replace("'", '"'))
@@ -163,9 +170,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         ques = history[-1]["user"]
 
-        # debug
-        print(f"Current Filter: {filter}")
-        ###
+        if DEBUG:
+            debug_filter = "DEBUG -> Final filter: " + filter
+            applicationLog(message=debug_filter, level="info")
 
         # handle abbreviations
         if len(abbreviations) > 0:
@@ -176,6 +183,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 ques = history[-1]["user"]
 
         user_q = "Generate search query for: " + ques
+
+        if DEBUG:
+            debug_user_q = "DEBUG -> User query: " + user_q
+            applicationLog(message=debug_user_q, level="info")
 
         # start logging full request time
         start_chat = time.perf_counter()
@@ -241,36 +252,30 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                     "user"
                 ]  # Use the last user input if we failed to generate a better query
 
+            if DEBUG:
+                debug_query = "DEBUG -> Generated query: " + query_text
+                applicationLog(message=debug_query, level="info")
+
             addTokenCount(usedTokens, chat_completion)
 
             # save time for completion request for keyword optimization and add token count to request token object
             keyword_request_time = round(time.perf_counter() - start_keyword, r_dec)
 
             # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
-            # If retrieval mode includes vectors, compute an embedding for the query
-            if has_vector:
-                start_embedding = time.perf_counter()
+            # retrieval mode is always hybrid
+            start_embedding = time.perf_counter()
 
-                # create embedding with text-ada002 model
-                query_vector_embedding: CreateEmbeddingResponse = (
-                    await self.openai_client.embeddings.create(
-                        model=self.embedding_deployment, input=query_text
-                    )
+            # create embedding with text-ada002 model
+            query_vector_embedding: CreateEmbeddingResponse = (
+                await self.openai_client.embeddings.create(
+                    model=self.embedding_deployment, input=query_text
                 )
-                query_vector = query_vector_embedding.data[0].embedding
+            )
+            query_vector = query_vector_embedding.data[0].embedding
 
-                addTokenCount(usedTokens, query_vector_embedding)
+            addTokenCount(usedTokens, query_vector_embedding)
 
-                embedding_request_time = round(
-                    time.perf_counter() - start_embedding, r_dec
-                )
-
-            else:
-                query_vector = None
-
-            # Only keep the text query if the retrieval mode uses text, otherwise drop it
-            if not has_text:
-                query_text = None
+            embedding_request_time = round(time.perf_counter() - start_embedding, r_dec)
 
             # cog search lexicon speller query language dict of supported languages
             # cgs_query_languages = {
@@ -285,25 +290,24 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
             # Perform cognitive search
 
-            if overrides.get("semantic_ranker") and has_text:
-                # semantic ranker -> turned on (default)
-                r = await self.search_client.search(
-                    query_text,
-                    filter=filter,
-                    query_type=QueryType.SEMANTIC,
-                    semantic_configuration_name="default",
-                    top=top,
-                    query_caption=(
-                        "extractive|highlight-false" if use_semantic_captions else None
-                    ),
-                    vector_queries=[
-                        {
-                            "kind": "vector",
-                            "fields": "embedding",
-                            "vector": query_vector,
-                        }
-                    ],  # type: ignore
-                )
+            # semantic ranker -> turned on (default)
+            r = await self.search_client.search(
+                query_text,
+                filter=filter,
+                query_type=QueryType.SEMANTIC,
+                semantic_configuration_name="default",
+                top=top,
+                query_caption=(
+                    "extractive|highlight-false" if use_semantic_captions else None
+                ),
+                vector_queries=[
+                    {
+                        "kind": "vector",
+                        "fields": "embedding",
+                        "vector": query_vector,
+                    }
+                ],  # type: ignore
+            )
 
             cog_search_request_time = round(
                 time.perf_counter() - start_cog_search, r_dec
@@ -326,6 +330,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 ]
             content = "\n".join(results)
 
+            if DEBUG:
+                debug_results = "DEBUG -> Retrieved results from search: " + content
+                applicationLog(message=debug_results, level="info")
+
             # STEP 3: Generate a contextual and content specific answer using the search results and chat history
 
             # define system message for final RAG approach
@@ -334,6 +342,10 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 promptlang=user_prompt_lang_name,
                 injected_prompt="",
             )
+
+            if DEBUG:
+                debug_system_message = "DEBUG -> System message: " + system_message
+                applicationLog(message=debug_system_message, level="info")
 
             main_llm_req_start = time.perf_counter()
 
@@ -361,7 +373,14 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             )
 
             chat_content = chat_completion.choices[0].message.content
-            print("chat_content: ", chat_content)
+
+            if chat_content is None:
+                raise ValueError("No chat content generated")
+
+            if DEBUG:
+                debug_chat_content = "DEBUG -> Generated chat content: " + chat_content
+                applicationLog(message=debug_chat_content, level="info")
+
             addTokenCount(usedTokens, chat_completion)
 
             main_llm_req_time = round(time.perf_counter() - main_llm_req_start, r_dec)
@@ -369,19 +388,17 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             chat_time = round(time.perf_counter() - start_chat, r_dec)
 
         # handle all errors except rate limit the same, as no difference is needed here
-        except RateLimitError as e:
-            errorMessage = e
-            error_res = {"answer": errorMessage, "keywords": "ratelimit"}
         except Exception as e:
-            print("Eeeeeeeee")
-            errorMessage = e.args[0]
-            error_res = {"answer": errorMessage, "keywords": "error"}
-        # using except for final error handling no matter what error happens
-        except:
+            if isinstance(e, RateLimitError):
+                errorMessage = str(e)
+                error_res = {"error": "rate limit exceeded", "code": 429}
+            else:
+                errorMessage = str(e.args[0])
+                error_res = {"error": errorMessage, "code": 500}
+
             log_values = {
                 "status": "error",
                 "error_message": errorMessage,
-                "search_type": overrides.get("retrieval_mode"),
                 "full_chat_time": chat_time,
                 "keyword_opt_time": keyword_request_time,
                 "embedding_time": embedding_request_time,
@@ -389,12 +406,16 @@ class ChatReadRetrieveReadApproach(ChatApproach):
                 "main_req_time": main_llm_req_time,
             }
             applicationLog(json.dumps(log_values), "error")
+
+            if DEBUG:
+                debug_error = "DEBUG -> Error message: " + errorMessage
+                applicationLog(message=debug_error, level="error")
+
             return error_res
 
         # define logs for applicationinsights
         log_values = {
             "status": "ok",
-            "search_type": overrides.get("retrieval_mode"),
             "full_chat_time": chat_time,
             "keyword_opt_time": keyword_request_time,
             "embedding_time": embedding_request_time,
@@ -408,14 +429,11 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         citationList = getCitationObject(chat_content) if chat_content else []
 
-        if chat_content is not None:
-            return {
-                "data_points": citationList,
-                "answer": chat_content,
-                "keywords": query_text,  # type: ignore
-            }
-        else:
-            return error_res
+        return {
+            "data_points": citationList,
+            "answer": chat_content,
+            "keywords": query_text,
+        }
 
     # function to extract the messages from the history and transform them into the correct format
     def get_messages_from_history(

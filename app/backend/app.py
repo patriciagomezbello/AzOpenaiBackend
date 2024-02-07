@@ -100,10 +100,11 @@ async def chat():
         if not impl:
             return error_response(message=error_message_unknown_approach, code=400)
         r = await impl.run(request_json["history"], request_json.get("overrides") or {})
-        if r["keywords"] == "error":
-            return error_response(r["answer"], 500)
-        elif r["keywords"] == "ratelimit":
-            return error_response(message=error_message_ratelimit, code=429)
+        if r.get("error"):
+            if r.get("code") == 429:
+                return error_response(message=error_message_ratelimit, code=429)
+            else:
+                return error_response(r.get("error"), 500)
         # return answer if no error
         return jsonify(r)
     except Exception as e:
