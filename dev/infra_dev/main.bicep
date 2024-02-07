@@ -9,9 +9,11 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-param authClient string
-
 param appServicePlanName string = ''
+
+@allowed([ 'B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P0v3', 'P1v3', 'P2v3', 'P3v3' ])
+param appServicePlanSku string = 'S1'
+
 param backendServiceName string = ''
 param resourceGroupName string = ''
 
@@ -21,19 +23,20 @@ param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
 param searchServiceResourceGroupLocation string = location
 
+@allowed([ 'basic', 'standard', 'standard2', 'standard3' ])
 param searchServiceSkuName string = 'standard'
+
 param searchIndexName string = 'gptkbindex'
 
 param storageAccountName string = ''
 param storageResourceGroupName string = ''
 param storageResourceGroupLocation string = location
-param storageContainerName string = 'content'
 param storageContainerNameDocs string = 'docs'
 
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 @description('Location for the OpenAI resource group')
-@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'canadaeast', 'eastus', 'uksouth' ])
+@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'polandcentral' ])
 @metadata({
   azd: {
     type: 'location'
@@ -49,16 +52,20 @@ param formRecognizerResourceGroupLocation string = location
 
 param formRecognizerSkuName string = 'S0'
 
-param chatGptDeploymentName string // Set in main.parameters.json
+param chatGptDeploymentName string
 param chatGptDeploymentCapacity int = 60
-param chatGptModelName string = 'gpt-35-turbo'
-param chatGptModelVersion string = '0613'
-param embeddingDeploymentName string = 'text-embedding-ada-002'
-param embeddingDeploymentCapacity int = 120
-param embeddingModelName string = 'text-embedding-ada-002'
 
-@description('Role that needs to be in auth token for authorisation')
-param authRole string
+@allowed([ 'gpt-35-turbo', 'gpt-35-turbo-16k', 'gpt-35-turbo-instruct', 'gpt-4', 'gpt-4-32k' ])
+param chatGptModelName string = 'gpt-35-turbo'
+
+@allowed([ '0613', '0914' ])
+param chatGptModelVersion string = '0613'
+
+param embeddingDeploymentName string = 'embedding'
+param embeddingDeploymentCapacity int = 120
+
+@allowed([ 'text-embedding-ada-002', ])
+param embeddingModelName string = 'text-embedding-ada-002'
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
@@ -66,38 +73,140 @@ param principalId string = ''
 @description('Use Application Insights for monitoring and performance tracing')
 param useApplicationInsights bool = false
 
+@description('Role that needs to be in auth token for authorisation')
+param authRole string
+
+@description('Tenant where the user is authenticated, must be specified if the UI and backend tenants differ')
+param authTenant string
+
+@description('Redeploy OpenAI (must be set to false after first deployment)')
+param redeployOpenAI bool = true
+
+@description('List of cors allowed addresses for the api')
+param allowed_cors string
+
+var allowed_cors_list = split(allowed_cors, ',')
+
+// param vnetName string
+// param subnetName string
+// param subnetName_AppService string
+
+// param vnetResourceGroupName string
+
+// param deployKey string = 'true'
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
 
+var subscriptionName = subscription().displayName
+
+var isContainsCN = contains(subscriptionName, 'cn')
+
+var resourceGroupLGAWS = isContainsCN ? 'cloud-native-infrastructure' : 'cloud-integrated-infrastructure'
+
+param authClient string
+param authClientSecretSetting string
+
+param oidcClientId string
+param oidcIssuerUrl string
+param oidcScopes string
+param oidcClientSecretSetting string
+
+var oidcScopesArray = split(oidcScopes, ',')
+
+resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
+  name: 'lgaws-${replace(subscriptionName, '_', '-')}'
+  scope: resourceGroup(resourceGroupLGAWS)
+}
+
 // Organize resources in a resource group
-resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource mainResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
   location: location
   tags: tags
 }
 
 resource openAiResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(openAiResourceGroupName)) {
-  name: !empty(openAiResourceGroupName) ? openAiResourceGroupName : resourceGroup.name
+  name: !empty(openAiResourceGroupName) ? openAiResourceGroupName : mainResourceGroup.name
 }
 
 resource formRecognizerResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(formRecognizerResourceGroupName)) {
-  name: !empty(formRecognizerResourceGroupName) ? formRecognizerResourceGroupName : resourceGroup.name
+  name: !empty(formRecognizerResourceGroupName) ? formRecognizerResourceGroupName : mainResourceGroup.name
 }
 
 resource searchServiceResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(searchServiceResourceGroupName)) {
-  name: !empty(searchServiceResourceGroupName) ? searchServiceResourceGroupName : resourceGroup.name
+  name: !empty(searchServiceResourceGroupName) ? searchServiceResourceGroupName : mainResourceGroup.name
 }
 
 resource storageResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(storageResourceGroupName)) {
-  name: !empty(storageResourceGroupName) ? storageResourceGroupName : resourceGroup.name
+  name: !empty(storageResourceGroupName) ? storageResourceGroupName : mainResourceGroup.name
 }
+
+// var resourceGroupVNET = resourceGroup(vnetResourceGroupName)
+
+// resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
+//   name: vnetName
+//   scope: resourceGroupVNET
+// }
+
+// resource subnet_default 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
+//   name: subnetName
+//   parent: vnet
+// }
+
+// resource subnet_AppService 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
+//   name: subnetName_AppService
+//   parent: vnet
+// }
+
+// module keyvault 'core/vault/keyvault.bicep' = {
+//   name: 'keyvault'
+//   dependsOn: [
+//     serviceEndpoints
+//   ]
+//   scope: mainResourceGroup
+//   params: {
+//     name: '${abbrs.keyVaultVaults}${resourceToken}'
+//     location: location
+//     virtualNetworkSubnetId: subnet_default.id
+//     userAssignedIdentityName: '${abbrs.managedIdentityUserAssignedIdentities}${resourceToken}'
+//     deployKey: deployKey
+//   }
+// }
+
+// // service Endpoints required for VNET Integration of services
+// module serviceEndpoints 'core/subnet/service-endpoints.bicep' = {
+//   name: 'serviceEndpoints'
+//   scope: resourceGroupVNET
+//   dependsOn: [
+//     subnet_default
+//     subnet_AppService
+//   ]
+//   params: {
+//     vnetName: vnet.name
+//     subnetDefaultName: subnet_default.name
+//     subnetDefaultAddressPrefix: subnet_default.properties.addressPrefix
+//     subnetAppServiceName: subnet_AppService.name
+//     subnetAppServiceAddressPrefix: subnet_AppService.properties.addressPrefix
+//   }
+// }
+
+// // service Endpoints required for VNET Integration of services
+// module searchDNSZone 'core/dns/dns-zones.bicep' = {
+//   name: 'searchDNSZone'
+//   scope: resourceGroupVNET
+// }
 
 // Monitor application with Azure Monitor
 module monitoring './core/monitor/monitoring.bicep' = if (useApplicationInsights) {
   name: 'monitoring'
-  scope: resourceGroup
+  scope: mainResourceGroup
+  // dependsOn: [
+  //   serviceEndpoints
+  // ]
   params: {
+    logAnalyticsId: logAnalyticWorkspace.id
     location: location
     tags: tags
     applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
@@ -107,13 +216,13 @@ module monitoring './core/monitor/monitoring.bicep' = if (useApplicationInsights
 // Create an App Service Plan to group applications under the same payment plan and SKU
 module appServicePlan 'core/host/appserviceplan.bicep' = {
   name: 'appserviceplan'
-  scope: resourceGroup
+  scope: mainResourceGroup
   params: {
     name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
     location: location
     tags: tags
     sku: {
-      name: 'B1'
+      name: appServicePlanSku
       capacity: 1
     }
     kind: 'linux'
@@ -123,7 +232,7 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
 // The application backend
 module backend 'core/host/appservice.bicep' = {
   name: 'web'
-  scope: resourceGroup
+  scope: mainResourceGroup
   params: {
     name: !empty(backendServiceName) ? backendServiceName : '${abbrs.webSitesAppService}backend-${resourceToken}'
     location: location
@@ -135,11 +244,20 @@ module backend 'core/host/appservice.bicep' = {
     scmDoBuildDuringDeployment: true
     managedIdentity: true
     clientId: authClient
+    clientSecretSetting: authClientSecretSetting
     tenantId: tenant().tenantId
+    authTenant: (!empty(authTenant)) ? authTenant : 'same'
+    oidcClientId: oidcClientId
+    oidcClientSecretSetting: oidcClientSecretSetting
+    oidcIssuerUrl: oidcIssuerUrl
+    oidcScopes: oidcScopesArray
+    allowedOrigins: allowed_cors_list
+    // virtualNetworkSubnetId_AppService: subnet_AppService.id
     appSettings: {
       AZURE_AUTH_ROLE: (!empty(authRole)) ? authRole : 'all'
+      AZURE_AUTH_CLIENT: authClient
+      AZURE_AUTH_TENANT: (!empty(authTenant)) ? authTenant : 'same'
       AZURE_STORAGE_ACCOUNT: storage.outputs.name
-      AZURE_STORAGE_CONTAINER: storageContainerName
       AZURE_STORAGE_CONTAINER_DOCS: storageContainerNameDocs
       AZURE_OPENAI_SERVICE: openAi.outputs.name
       AZURE_SEARCH_INDEX: searchIndexName
@@ -152,13 +270,18 @@ module backend 'core/host/appservice.bicep' = {
   }
 }
 
-module openAi 'core/ai/cognitiveservices.bicep' = {
+module openAi 'core/ai/cognitiveservices.bicep' = if (redeployOpenAI) {
   name: 'openai'
   scope: openAiResourceGroup
+  // dependsOn: [
+  //   serviceEndpoints
+  // ]
   params: {
     name: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
     location: openAiResourceGroupLocation
     tags: tags
+    // virtualNetworkSubnetId: subnet_default.id
+    // virtualNetworkSubnetId_AppService: subnet_AppService.id
     sku: {
       name: openAiSkuName
     }
@@ -191,11 +314,16 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
 module formRecognizer 'core/ai/cognitiveservices.bicep' = {
   name: 'formrecognizer'
   scope: formRecognizerResourceGroup
+  // dependsOn: [
+  //   serviceEndpoints
+  // ]
   params: {
     name: !empty(formRecognizerServiceName) ? formRecognizerServiceName : '${abbrs.cognitiveServicesFormRecognizer}${resourceToken}'
     kind: 'FormRecognizer'
     location: formRecognizerResourceGroupLocation
     tags: tags
+    // virtualNetworkSubnetId: subnet_default.id
+    // virtualNetworkSubnetId_AppService: subnet_AppService.id
     sku: {
       name: formRecognizerSkuName
     }
@@ -209,6 +337,8 @@ module searchService 'core/search/search-services.bicep' = {
     name: !empty(searchServiceName) ? searchServiceName : 'gptkb-${resourceToken}'
     location: searchServiceResourceGroupLocation
     tags: tags
+    // virtualNetworkSubnetId: subnet_default.id
+    // privateDNSZoneId: searchDNSZone.outputs.privateDNSZoneId
     authOptions: {
       aadOrApiKey: {
         aadAuthFailureMode: 'http401WithBearerChallenge'
@@ -217,18 +347,26 @@ module searchService 'core/search/search-services.bicep' = {
     sku: {
       name: searchServiceSkuName
     }
-    semanticSearch: 'free'
   }
 }
 
 module storage 'core/storage/storage-account.bicep' = {
   name: 'storage'
   scope: storageResourceGroup
+  // dependsOn: [
+  //   serviceEndpoints
+  //   keyvault
+  // ]
   params: {
     name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
     location: storageResourceGroupLocation
     tags: tags
     publicNetworkAccess: 'Enabled'
+    // virtualNetworkSubnetId: subnet_default.id
+    // virtualNetworkSubnetId_AppService: subnet_AppService.id
+    // keyVaultURI: keyvault.outputs.keyVaultURI
+    // keyName: keyvault.outputs.keyVaultKeyName
+    // userAssignedIdentityId: keyvault.outputs.userAssignedIdentityId
     sku: {
       name: 'Standard_ZRS'
     }
@@ -238,7 +376,7 @@ module storage 'core/storage/storage-account.bicep' = {
     }
     containers: [
       {
-        name: storageContainerName
+        name: storageContainerNameDocs
         publicAccess: 'None'
       }
     ]
@@ -349,7 +487,7 @@ module searchRoleBackend 'core/security/role.bicep' = {
 
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
-output AZURE_RESOURCE_GROUP string = resourceGroup.name
+output AZURE_RESOURCE_GROUP string = mainResourceGroup.name
 
 output AZURE_OPENAI_SERVICE string = openAi.outputs.name
 output AZURE_OPENAI_RESOURCE_GROUP string = openAiResourceGroup.name
@@ -365,8 +503,9 @@ output AZURE_SEARCH_SERVICE string = searchService.outputs.name
 output AZURE_SEARCH_SERVICE_RESOURCE_GROUP string = searchServiceResourceGroup.name
 
 output AZURE_STORAGE_ACCOUNT string = storage.outputs.name
-output AZURE_STORAGE_CONTAINER string = storageContainerName
 output AZURE_STORAGE_CONTAINER_DOCS string = storageContainerNameDocs
 output AZURE_STORAGE_RESOURCE_GROUP string = storageResourceGroup.name
+
+// output AZURE_KEYVAULT_NAME string = keyvault.outputs.name
 
 output BACKEND_URI string = backend.outputs.uri
