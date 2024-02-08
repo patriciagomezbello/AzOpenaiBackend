@@ -8,6 +8,18 @@ param appServicePlanId string
 param keyVaultName string = ''
 param managedIdentity bool = !empty(keyVaultName)
 
+// MSAL variables
+param authTenant string
+param clientSecretSetting string
+
+// OIDC variables
+param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
+param oidcClientId string
+param oidcIssuerUrl string
+@secure()
+param oidcClientSecretSetting string
+param oidcScopes array = []
+
 // Runtime Properties
 @allowed([
   'dotnet', 'dotnetcore', 'dotnet-isolated', 'node', 'python', 'java', 'powershell', 'custom'
@@ -16,11 +28,16 @@ param runtimeName string
 param runtimeNameAndVersion string = '${runtimeName}|${runtimeVersion}'
 param runtimeVersion string
 
+// param virtualNetworkSubnetId_AppService string
+
+// Documentation
+// https://learn.microsoft.com/en-gb/azure/templates/microsoft.web/sites?pivots=deployment-language-bicep
+
 // Microsoft.Web/sites Properties
 param kind string = 'app,linux'
 
 // Microsoft.Web/sites/config
-param allowedOrigins array = ['http://localhost:5173', 'https://green-coast-0e6ebe703.3.azurestaticapps.net']
+param allowedOrigins array
 param alwaysOn bool = true
 param appCommandLine string = ''
 param appSettings object = {}
@@ -37,7 +54,10 @@ param healthCheckPath string = ''
 param clientId string = ''
 param tenantId string = ''
 
-resource appService 'Microsoft.Web/sites@2022-03-01' = {
+var commonLogin = 'https://login.microsoftonline.com/common/v2.0'
+var tenantLogin = 'https://sts.windows.net/${tenantId}/v2.0'
+
+resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: name
   location: location
   tags: tags
@@ -56,11 +76,12 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       functionAppScaleLimit: functionAppScaleLimit != -1 ? functionAppScaleLimit : null
       healthCheckPath: healthCheckPath
       cors: {
-        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com'], allowedOrigins)
+        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com' ], allowedOrigins)
       }
     }
     clientAffinityEnabled: clientAffinityEnabled
     httpsOnly: true
+    // virtualNetworkSubnetId: virtualNetworkSubnetId_AppService
   }
 
   identity: { type: managedIdentity ? 'SystemAssigned' : 'None' }
@@ -69,26 +90,38 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
   resource authSettings 'config' = {
     name: 'authsettingsV2'
     properties: {
-      globalValidation:{
+      globalValidation: {
         requireAuthentication: true
         unauthenticatedClientAction: 'Return401'
-        excludedPaths: ['/docs','/redocs','/openapi.json']
+        excludedPaths: [ '/docs', '/redocs', '/openapi.json' ]
       }
-      identityProviders:{
-        azureActiveDirectory:{
+      identityProviders: (authProvider == 'microsoft') ? {
+        azureActiveDirectory: {
           enabled: true
-          registration:{
+          registration: {
             clientId: clientId
-            openIdIssuer: 'https://sts.windows.net/${tenantId}/v2.0'
+            clientSecret: clientSecretSetting
+            openIdIssuer: (authTenant == 'same') ? tenantLogin : commonLogin
+          }
+        }
+      } : {
+        openIdConnect: {
+          enabled: true
+          registration: {
+            clientId: oidcClientId
+            clientSecret: oidcClientSecretSetting
+            openIdIssuer: oidcIssuerUrl
+            responseType: 'code' // Typically "code" for server side flows
+            scopes: oidcScopes
           }
         }
       }
-      login:{
+      login: {
         tokenStore: {
           enabled: true
         }
       }
-      platform:{
+      platform: {
         enabled: true
       }
     }
@@ -101,7 +134,7 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
         SCM_DO_BUILD_DURING_DEPLOYMENT: string(scmDoBuildDuringDeployment)
         ENABLE_ORYX_BUILD: string(enableOryxBuild)
       },
-      runtimeName == 'python' ? { PYTHON_ENABLE_GUNICORN_MULTIWORKERS: 'true'} : {},
+      runtimeName == 'python' ? { PYTHON_ENABLE_GUNICORN_MULTIWORKERS: 'true' } : {},
       !empty(applicationInsightsName) ? { APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString } : {},
       !empty(keyVaultName) ? { AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri } : {})
   }
@@ -119,10 +152,9 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
     ]
   }
 
-  
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = if (!(empty(keyVaultName))) {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = if (!(empty(keyVaultName))) {
   name: keyVaultName
 }
 

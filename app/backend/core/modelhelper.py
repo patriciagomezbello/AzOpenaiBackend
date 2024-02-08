@@ -1,11 +1,14 @@
 from __future__ import annotations
+from typing import List
 
 import tiktoken
 import re
 import pycountry
-import openai
+from openai import AsyncOpenAI
 import logging
 from lingua import Language, LanguageDetectorBuilder
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
@@ -30,7 +33,7 @@ def eval(self, message, *args, **kws):
 
 
 # Add the method to logging.Logger
-logging.Logger.eval = eval
+logging.Logger.eval = eval  # type: ignore
 
 # Now you can use EVAL as an argument to logging functions:
 logger = logging.getLogger(__name__)
@@ -72,19 +75,36 @@ def get_oai_chatmodel_tiktok(aoaimodel: str) -> str:
     return AOAI_2_OAI.get(aoaimodel) or aoaimodel
 
 
-def addTokenCount(tokenDict: dict, res: dict) -> None:
+def addTokenCount(
+    tokenDict: dict, res: ChatCompletion | CreateEmbeddingResponse
+) -> None:
     """Adds the tokens of a OpenAI Response to a dict"""
-    if res.model in tokenDict:
-        tokenDict[res.model] += res.usage.total_tokens
+    if res.usage is not None:
+        if res.model in tokenDict:
+            tokenDict[res.model] += res.usage.total_tokens
+        else:
+            tokenDict[res.model] = res.usage.total_tokens
     else:
-        tokenDict[res.model] = res.usage.total_tokens
+        applicationLog("No token usage in response", "warning")
 
 
-# to extract the sources cited by the GPT answer according to the prompt instructions
+# Function to extract the sources cited by the GPT answer according to the prompt instructions
 def extractCitedSources(text: str) -> list:
+    # Define the pattern to match citations enclosed in square brackets
     pattern = r"\[(.*?)\]"
+
+    # Find all matches of the pattern in the text
     citationResults = re.findall(pattern, text)
-    return citationResults
+
+    # Filter the results to include only sources that end with '.pdf' or start with 'https://'
+    filteredResults = [
+        source
+        for source in citationResults
+        if source.endswith(".pdf") or source.startswith("https://")
+    ]
+
+    # Return the filtered list of cited sources
+    return filteredResults
 
 
 def filter_duplicates(list_of_dicts: list) -> list:
@@ -218,14 +238,14 @@ def getLang(iso_country_code) -> dict:
         return default_lang
 
 
-def translateText(text, target_language, chatgpt_deployment):
+async def translateText(client: AsyncOpenAI, text, target_language, chatgpt_deployment):
     prompt = f"Translate the following text to {target_language}:\n\n{text}\n\n"
-    messages = [
+    messages: List[ChatCompletionMessageParam] = [
         {"role": "system", "content": "You are an AI assistant to translate text"},
         {"role": "user", "content": prompt},
     ]
-    response = openai.ChatCompletion.create(
-        engine=chatgpt_deployment,
+    response = await client.chat.completions.create(
+        model=chatgpt_deployment,
         messages=messages,
         temperature=0.0,
         max_tokens=800,
@@ -234,6 +254,7 @@ def translateText(text, target_language, chatgpt_deployment):
         presence_penalty=0,
         stop=None,
     )
+    print(response)
     query_text = response.choices[0].message.content
     return query_text
 
@@ -262,9 +283,9 @@ def replace_abbreviations(string, abbreviations):
                 lower_parts[0] in lower_abbreviations
                 and lower_parts[1] in lower_abbreviations
             ):
-                words[
-                    i
-                ] = f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
+                words[i] = (
+                    f"{lower_abbreviations[lower_parts[0]]}-{lower_abbreviations[lower_parts[1]]}"
+                )
 
         # Handle special characters at the end of a word.
         elif re.search(r"\w[.,!?;]", word):
@@ -290,7 +311,7 @@ def replace_abbreviations(string, abbreviations):
 
 def applicationLog(message, level="eval"):
     if level == "eval":
-        logger.eval(message)
+        logger.eval(message)  # type: ignore
     elif level == "error":
         logger.error(message)
     elif level == "exc":

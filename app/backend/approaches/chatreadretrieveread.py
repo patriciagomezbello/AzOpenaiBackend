@@ -2,7 +2,10 @@ from typing import Any
 import time
 import json
 import os
-import openai
+from openai import AsyncOpenAI
+from openai import RateLimitError
+from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
 from approaches.approach import ChatApproach
@@ -22,6 +25,12 @@ from text import nonewlines
 from core.context import system_message_chat_conversation, query_prompt_template
 from core.abbrev import abbreviations
 
+# set debug mode
+DEBUG = False
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False")
+if DEBUG_MODE == "True":
+    DEBUG = True
+
 
 class ChatReadRetrieveReadApproach(ChatApproach):
     # Chat roles
@@ -36,6 +45,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
     def __init__(
         self,
         search_client: SearchClient,
+        openai_client: AsyncOpenAI,
         chatgpt_deployment: str,
         chatgpt_model: str,
         embedding_deployment: str,
@@ -45,6 +55,7 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         max_tokens_answer: int,
     ):
         self.search_client = search_client
+        self.openai_client = openai_client
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
         self.embedding_deployment = embedding_deployment
@@ -59,14 +70,8 @@ class ChatReadRetrieveReadApproach(ChatApproach):
     async def run(
         self, history: list[dict[str, str]], overrides: dict[str, Any]
     ) -> Any:
-        # initialize overrides
-        has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
 
-        has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
-
-        use_semantic_captions = (
-            True if overrides.get("semantic_captions") and has_text else False
-        )
+        use_semantic_captions = True if overrides.get("semantic_captions") else False
 
         top = overrides.get("top") or 3
 
@@ -80,8 +85,12 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             else None
         )
 
+        if DEBUG and category_filter:
+            debug_category = "DEBUG -> Category filter: " + category_filter + "\n"
+            applicationLog(message=debug_category)
+
         # Define the most common language stored in the search index as default.
-        lang_facets = json.loads(os.getenv("FACETS_RESULTS").replace("'", '"'))
+        lang_facets = json.loads((os.getenv("FACETS_RESULTS") or "").replace("'", '"'))
         default_lang = (
             getLang(lang_facets[0]["value"])
             if lang_facets
@@ -134,17 +143,20 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         system_message_noidea = (
             noidea_de_text
             if user_prompt_lang == "de"
-            else translateText(
-                noidea_de_text, user_prompt_lang_name, self.chatgpt_deployment
+            else (
+                await translateText(
+                    self.openai_client,
+                    noidea_de_text,
+                    user_prompt_lang_name,
+                    self.chatgpt_deployment,
+                )
+                if user_prompt_lang != "de"
+                else "Sorry, I don't know"
             )
-            if user_prompt_lang != "de"
-            else "Sorry, I don't know"
         )
 
         # build final filter
-        print(f"lang filter: {lang_filter}")
         if lang_filter:
-            print("lang_filter is existing")
             filter = lang_filter + (
                 " and " + category_filter if category_filter else ""
             )
@@ -153,9 +165,9 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         ques = history[-1]["user"]
 
-        # debug
-        print(f"Current Filter: {filter}")
-        ###
+        if DEBUG:
+            debug_filter = "DEBUG -> Final filter: " + filter + "\n"
+            applicationLog(message=debug_filter)
 
         # handle abbreviations
         if len(abbreviations) > 0:
@@ -167,11 +179,20 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
         user_q = "Generate search query for: " + ques
 
+        if DEBUG:
+            debug_user_q = "DEBUG -> " + user_q + "\n"
+            applicationLog(message=debug_user_q)
+
         # start logging full request time
         start_chat = time.perf_counter()
 
-        # variable for exception
-        exc = False
+        # variables for potential exception
+        error_res = None
+        errorMessage = None
+
+        # variable for response
+
+        chat_content = None
 
         # time logging decimals
         r_dec = 4
@@ -202,21 +223,35 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             start_keyword = time.perf_counter()
 
             # completion request to openAI to receive the keyword search query
-            chat_completion = await openai.ChatCompletion.acreate(
-                deployment_id=self.chatgpt_deployment,
-                model=self.chatgpt_model,
-                messages=messages,
-                temperature=0.0,
-                max_tokens=self.max_tokens_query,
-                n=1,
+            chat_completion: ChatCompletion = (
+                await self.openai_client.chat.completions.create(
+                    model=(
+                        self.chatgpt_deployment
+                        if self.chatgpt_deployment
+                        else self.chatgpt_model
+                    ),
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=self.max_tokens_query,
+                    n=1,
+                )
             )
 
             query_text = chat_completion.choices[0].message.content
+
+            if query_text is None:
+                raise ValueError("No query generated")
 
             if query_text.strip() == "0":
                 query_text = history[-1][
                     "user"
                 ]  # Use the last user input if we failed to generate a better query
+
+            if DEBUG:
+                debug_query = (
+                    "DEBUG -> GPT-generated query for the search: " + query_text + "\n"
+                )
+                applicationLog(message=debug_query)
 
             addTokenCount(usedTokens, chat_completion)
 
@@ -224,29 +259,20 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             keyword_request_time = round(time.perf_counter() - start_keyword, r_dec)
 
             # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
+            # retrieval mode is always hybrid
+            start_embedding = time.perf_counter()
 
-            # If retrieval mode includes vectors, compute an embedding for the query
-            if has_vector:
-                start_embedding = time.perf_counter()
-
-                # create embedding with text-ada002 model
-                query_vector_embedding = await openai.Embedding.acreate(
-                    engine=self.embedding_deployment, input=query_text
+            # create embedding with text-ada002 model
+            query_vector_embedding: CreateEmbeddingResponse = (
+                await self.openai_client.embeddings.create(
+                    model=self.embedding_deployment, input=query_text
                 )
-                query_vector = query_vector_embedding.data[0].embedding
+            )
+            query_vector = query_vector_embedding.data[0].embedding
 
-                addTokenCount(usedTokens, query_vector_embedding)
+            addTokenCount(usedTokens, query_vector_embedding)
 
-                embedding_request_time = round(
-                    time.perf_counter() - start_embedding, r_dec
-                )
-
-            else:
-                query_vector = None
-
-            # Only keep the text query if the retrieval mode uses text, otherwise drop it
-            if not has_text:
-                query_text = None
+            embedding_request_time = round(time.perf_counter() - start_embedding, r_dec)
 
             # cog search lexicon speller query language dict of supported languages
             # cgs_query_languages = {
@@ -261,35 +287,24 @@ class ChatReadRetrieveReadApproach(ChatApproach):
 
             # Perform cognitive search
 
-            if overrides.get("semantic_ranker") and has_text:
-                # semantic ranker -> turned on (default)
-                r = await self.search_client.search(
-                    query_text,
-                    filter=filter,
-                    query_type=QueryType.SEMANTIC,
-                    semantic_configuration_name="default",
-                    top=top,
-                    query_caption="extractive|highlight-false"
-                    if use_semantic_captions
-                    else None,
-                    vector_queries=[
-                        {
-                            "kind": "vector",
-                            "fields": "embedding",
-                            "vector": query_vector,
-                        }
-                    ],
-                )
-
-            else:
-                r = await self.search_client.search(
-                    query_text,
-                    filter=filter,
-                    top=top,
-                    vector=query_vector,
-                    top_k=50 if query_vector else None,
-                    vector_fields="embedding" if query_vector else None,
-                )
+            # semantic ranker -> turned on (default)
+            r = await self.search_client.search(
+                query_text,
+                filter=filter,
+                query_type=QueryType.SEMANTIC,
+                semantic_configuration_name="default",
+                top=top,
+                query_caption=(
+                    "extractive|highlight-false" if use_semantic_captions else None
+                ),
+                vector_queries=[
+                    {
+                        "kind": "vector",
+                        "fields": "embedding",
+                        "vector": query_vector,
+                    }
+                ],  # type: ignore
+            )
 
             cog_search_request_time = round(
                 time.perf_counter() - start_cog_search, r_dec
@@ -334,14 +349,38 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             # Model does not handle lengthy system messages well.
             # Moving sources to latest user conversation to solve follow up questions prompt.
 
-            chat_completion = await openai.ChatCompletion.acreate(
-                deployment_id=self.chatgpt_deployment,
-                model=self.chatgpt_model,
+            if DEBUG:  # log the chat request
+                debug_chat_request = (
+                    "DEBUG -> Chat Request with search-data: \n \n"
+                    + json.dumps(messages, indent=4)
+                    + "\n"
+                )
+                applicationLog(message=debug_chat_request)
+
+            chat_completion = await self.openai_client.chat.completions.create(
+                model=(
+                    self.chatgpt_deployment
+                    if self.chatgpt_deployment
+                    else self.chatgpt_model
+                ),
                 messages=messages,
                 temperature=overrides.get("temperature") or 0.7,
                 max_tokens=self.max_tokens_answer,
                 n=1,
             )
+
+            chat_content = chat_completion.choices[0].message.content
+
+            if chat_content is None:
+                raise ValueError("No chat content generated")
+
+            if DEBUG:
+                debug_chat_content = (
+                    "DEBUG -> GPT-generated chat result with search data: \n \n"
+                    + chat_content
+                    + "\n"
+                )
+                applicationLog(message=debug_chat_content)
 
             addTokenCount(usedTokens, chat_completion)
 
@@ -350,19 +389,34 @@ class ChatReadRetrieveReadApproach(ChatApproach):
             chat_time = round(time.perf_counter() - start_chat, r_dec)
 
         # handle all errors except rate limit the same, as no difference is needed here
-        except openai.error.RateLimitError as e:
-            exc = True
-            errorMessage = e
-            error_res = {"answer": errorMessage, "keywords": "ratelimit"}
         except Exception as e:
-            exc = True
-            errorMessage = e.args[0]
-            error_res = {"answer": errorMessage, "keywords": "error"}
+            if isinstance(e, RateLimitError):
+                errorMessage = str(e)
+                error_res = {"error": "rate limit exceeded", "code": 429}
+            else:
+                errorMessage = str(e.args[0])
+                error_res = {"error": errorMessage, "code": 500}
+
+            log_values = {
+                "status": "error",
+                "error_message": errorMessage,
+                "full_chat_time": chat_time,
+                "keyword_opt_time": keyword_request_time,
+                "embedding_time": embedding_request_time,
+                "search_time": cog_search_request_time,
+                "main_req_time": main_llm_req_time,
+            }
+            applicationLog(json.dumps(log_values), "error")
+
+            if DEBUG:
+                debug_error = "DEBUG -> Error message: \n" + errorMessage + "\n"
+                applicationLog(message=debug_error, level="error")
+
+            return error_res
 
         # define logs for applicationinsights
         log_values = {
             "status": "ok",
-            "search_type": overrides.get("retrieval_mode"),
             "full_chat_time": chat_time,
             "keyword_opt_time": keyword_request_time,
             "embedding_time": embedding_request_time,
@@ -373,17 +427,6 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         # add dynamically all used tokens
         for key, value in usedTokens.items():
             log_values[key] = value
-
-        # unbound warnings can be ignored, as they are ensured via the exc keyword
-        # maybe refactor in the future, but microsoft did it even more dirty
-
-        if exc:
-            log_values["status"] = "error"
-            log_values["errorMessage"] = errorMessage
-            applicationLog(json.dumps(log_values), "error")
-            return error_res
-
-        chat_content = chat_completion.choices[0].message.content
 
         citationList = getCitationObject(chat_content)
 
@@ -400,7 +443,6 @@ class ChatReadRetrieveReadApproach(ChatApproach):
         model_id: str,
         history: list[dict[str, str]],
         user_conv: str,
-        few_shots=[],
         max_tokens: int = 4096,
     ) -> list:
         message_builder = MessageBuilder(system_prompt, model_id)

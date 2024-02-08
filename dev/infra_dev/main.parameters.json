@@ -41,9 +41,6 @@
     "searchServiceResourceGroupName": {
       "value": "${AZURE_SEARCH_SERVICE_RESOURCE_GROUP}"
     },
-    "searchServiceSkuName": {
-      "value": "standard"
-    },
     "storageAccountName": {
       "value": "${AZURE_STORAGE_ACCOUNT}"
     },
@@ -53,14 +50,53 @@
     "chatGptDeploymentName": {
       "value": "${AZURE_OPENAI_CHATGPT_DEPLOYMENT=chat}"
     },
-    "authRole": {
-      "value": "${AZURE_AUTH_ROLE}"
+    "chatGptModelName": {
+      "value": "${AZURE_OPENAI_CHATGPT_MODEL_NAME=gpt-35-turbo}"
+    },
+    "chatGptModelVersion": {
+      "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=0613}"
     },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
     },
+    "authRole": {
+      "value": "${AZURE_AUTH_ROLE}"
+    },
+    "authTenant": {
+      "value": "${AZURE_AUTH_TENANT}"
+    },
+    "redeployOpenAI": {
+      "value": "${AZURE_REDEPLOY_OPENAI=true}"
+    },
+    "allowed_cors": {
+      "value": "${AZURE_ALLOWED_CORS}"
+    },
     "authClient": {
       "value": "${AZURE_AUTH_ClIENT}"
+    },
+    "authProvider": {
+      "value": "${AZURE_AUTH_PROVIDER='microsoft'}"
+    },
+    "authClientSecretSetting": {
+      "value": "${AZURE_AUTH_ClIENT_SECRET_SETTING='MICROSOFT_PROVIDER_AUTHENTICATION_SECRET'}"
+    },
+    "appServicePlanSku": {
+      "value": "${AZURE_APPSERVICE_SKU=B1}"
+    },
+    "searchServiceSkuName": {
+      "value": "${AZURE_SEARCH_SERVICE_SKU=standard}"
+    },
+    "oidcClientId": {
+      "value": "${AZURE_AUTH_OIDC_CLIENT}"
+    },
+    "oidcClientSecretSetting": {
+      "value": "${AZURE_AUTH_OIDC_CLIENT_SECRET_SETTING='OIDC_PROVIDER_AUTHENTICATION_SECRET'}"
+    },
+    "oidcIssuerUrl": {
+      "value": "${AZURE_AUTH_OIDC_ISSUER_URL}"
+    },
+    "oidcScopes": {
+      "value": "${AZURE_AUTH_OIDC_SCOPES}"
     }
   }
 }

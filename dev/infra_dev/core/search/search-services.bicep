@@ -7,9 +7,10 @@ param sku object = {
 }
 
 param authOptions object = {}
-param semanticSearch string = 'disabled'
 
-resource search 'Microsoft.Search/searchServices@2021-04-01-preview' = {
+// param virtualNetworkSubnetId string
+
+resource search 'Microsoft.Search/searchServices@2022-09-01' = {
   name: name
   location: location
   tags: tags
@@ -19,19 +20,17 @@ resource search 'Microsoft.Search/searchServices@2021-04-01-preview' = {
   properties: {
     authOptions: authOptions
     disableLocalAuth: false
-    disabledDataExfiltrationOptions: []
     encryptionWithCmk: {
       enforcement: 'Unspecified'
     }
     hostingMode: 'default'
     networkRuleSet: {
-      bypass: 'None'
       ipRules: []
     }
     partitionCount: 1
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'enabled'
     replicaCount: 1
-    semanticSearch: semanticSearch
+
   }
   sku: sku
 }
