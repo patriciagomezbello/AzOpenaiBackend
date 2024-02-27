@@ -329,12 +329,12 @@ async def cgsIndexColumnFacetDist(searchservice, index_name, search_creds, facet
             top=0,
             skip=0,
             query_type="simple",
-            select="",
+            select="",  # type: ignore
             search_text="*",
             search_fields=[],
             filter="",
             facets=[facet],
-            order_by="",
+            order_by="",  # type: ignore
             include_total_count=True,
         )
         res = await facets_search.get_facets()

@@ -5,7 +5,11 @@ from azure.identity import AzureDeveloperCliCredential
 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 from azure.core.credentials import AzureKeyCredential
 from openai import AsyncAzureOpenAI
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import (
+    BlobServiceClient,
+    generate_container_sas,
+    ContainerSasPermissions,
+)
 from datetime import datetime, timedelta
 from core.aisearch import (
     cleanup_lc_sections_from_index,
@@ -26,7 +30,7 @@ from core.helper import (
     name_from_path,
     url_to_id,
 )
-from core.document import get_document_text, split_text
+from core.document import get_document_text, get_document_text_from_blob, split_text
 from core.convert import convert_files
 from core.blob import (
     blob_name_from_file_page,
@@ -81,7 +85,7 @@ detector: LanguageDetector = LanguageDetectorBuilder.from_languages(
 ).build()
 
 
-def create_document_sections(file_path, page_map, accessKeys, category=None):
+async def create_document_sections(file_path, page_map, accessKeys, category=None):
     file_id = file_path_to_id(file_path)
     # Loop through the text and page numbers created by split_text function
 
@@ -98,7 +102,7 @@ def create_document_sections(file_path, page_map, accessKeys, category=None):
         )
     ):
         # Attempt to create an OpenAI Embedding for the input text section
-        emb = create_embedding(
+        emb = await create_embedding(
             client=openai_client, engine=args.openaideployment, input=section
         )
 
@@ -106,7 +110,7 @@ def create_document_sections(file_path, page_map, accessKeys, category=None):
         yield {
             "id": f"{file_id}-page-{i}",
             "content": section,
-            "embedding": emb["data"][0]["embedding"],
+            "embedding": emb.data[0].embedding,
             "doclang": detectLang(text=section, detector=detector),
             "category": category,
             "accesskeys": accessKeys,
@@ -117,7 +121,7 @@ def create_document_sections(file_path, page_map, accessKeys, category=None):
         }
 
 
-def create_langchain_sections(
+async def create_langchain_sections(
     document_map, accessKeys, splitter="standard", category=None
 ):
     # define dictionary with source as key and number (counter) as value
@@ -142,7 +146,7 @@ def create_langchain_sections(
         id = url_to_id(source, counter_dict)
 
         # Attempt to create an OpenAI Embedding for the input text section
-        emb = create_embedding(
+        emb = await create_embedding(
             client=openai_client, engine=args.openaideployment, input=section
         )
 
@@ -150,7 +154,7 @@ def create_langchain_sections(
         yield {
             "id": id,
             "content": section,
-            "embedding": emb["data"][0]["embedding"],
+            "embedding": emb.data[0].embedding,
             "doclang": detectLang(text=section, detector=detector),
             "category": category,
             "accesskeys": accessKeys,
@@ -592,19 +596,25 @@ if __name__ == "__main__":
             if not container.exists():
                 container.create_container()
 
-                # Generate a SAS token for the blob
+            blobs = container_data.list_blobs()
+
+            # Calculate the number of blobs
+            num_blobs = len(list(blobs))
+
+            # Calculate the number of 20-document batches
+            num_batches = num_blobs // 20
+
+            # Calculate the additional timedelta for each batch
+            additional_timedelta = timedelta(minutes=30)
+
+            # Generate a SAS token for the blob
             sas_token = generate_container_sas(
                 account_name=args.storageaccount,
                 container_name=args.containerdocs,
-                account_key=storage_creds,
-                permission=BlobSasPermissions(read=True),
-                expiry=datetime.utcnow() + timedelta(hours=1),
+                storage_creds=storage_creds,
+                permission=ContainerSasPermissions(read=True),
+                expiry=datetime.utcnow() + (num_batches * additional_timedelta),
             )
-
-            # Form the blob URL with the SAS token
-            blob_sas_url = f"{blob_url}?{sas_token}"
-
-            blobs = container_data.list_blobs()
 
             for blob in blobs:
                 blob_name = blob.name
@@ -645,23 +655,23 @@ if __name__ == "__main__":
                         continue
 
                 copied_blob.start_copy_from_url(blob_url)
-                page_map = get_document_text(
-                    file_path=file_path_local,
+                page_map = get_document_text_from_blob(
+                    sas_token=sas_token,
+                    blob_url=blob_url,
                     formrecognizer_creds=formrecognizer_creds,
                     formrecognizerservice=args.formrecognizerservice,
-                    localpdf=args.localpdfparser,
                     verbose=args.verbose,
                 )
 
                 sections = create_document_sections(
-                    file_path_local, page_map, ["All"], local_category
+                    new_blob_name, page_map, ["All"], local_category
                 )
 
                 index_sections(
                     index_name=args.index,
                     searchservice=args.searchservice,
                     search_creds=search_creds,
-                    file=file,
+                    file=blob_url,
                     sections=sections,
                 )
 

@@ -3,11 +3,45 @@ from pypdf import PdfReader
 from .helper import table_to_html
 
 
+def process_page(page, form_recognizer_results):
+    tables_on_page = []
+    if form_recognizer_results.tables is not None:
+        tables_on_page = [
+            table
+            for table in form_recognizer_results.tables
+            if table.bounding_regions is not None
+            and table.bounding_regions[0].page_number == page.page_number
+        ]
+
+    page_offset = page.spans[0].offset
+    page_length = page.spans[0].length
+    table_chars = [-1] * page_length
+    for table_id, table in enumerate(tables_on_page):
+        for span in table.spans:
+            for i in range(span.length):
+                idx = span.offset - page_offset + i
+                if idx >= 0 and idx < page_length:
+                    table_chars[idx] = table_id
+
+    page_text = ""
+    added_tables = set()
+    for idx, table_id in enumerate(table_chars):
+        if table_id == -1:
+            page_text += form_recognizer_results.content[page_offset + idx]
+        elif table_id not in added_tables:
+            page_text += table_to_html(tables_on_page[table_id])
+            added_tables.add(table_id)
+
+    page_text += " "
+    return page_text
+
+
 def get_document_text(
     file_path, formrecognizer_creds, formrecognizerservice, localpdf, verbose=False
 ):
     offset = 0
     page_map = []
+
     if localpdf:
         reader = PdfReader(file_path)
         pages = reader.pages
@@ -30,96 +64,37 @@ def get_document_text(
         form_recognizer_results = poller.result()
 
         for page_num, page in enumerate(form_recognizer_results.pages):
-            tables_on_page = [
-                table
-                for table in form_recognizer_results.tables
-                if table.bounding_regions[0].page_number == page_num + 1
-            ]
-
-            # mark all positions of the table spans in the page
-            page_offset = page.spans[0].offset
-            page_length = page.spans[0].length
-            table_chars = [-1] * page_length
-            for table_id, table in enumerate(tables_on_page):
-                for span in table.spans:
-                    # replace all table spans with "table_id" in table_chars array
-                    for i in range(span.length):
-                        idx = span.offset - page_offset + i
-                        if idx >= 0 and idx < page_length:
-                            table_chars[idx] = table_id
-
-            # build page text by replacing charcters in table spans with table html
-            page_text = ""
-            added_tables = set()
-            for idx, table_id in enumerate(table_chars):
-                if table_id == -1:
-                    page_text += form_recognizer_results.content[page_offset + idx]
-                elif table_id not in added_tables:
-                    page_text += table_to_html(tables_on_page[table_id])
-                    added_tables.add(table_id)
-
-            page_text += " "
+            page_text = process_page(page, form_recognizer_results)
             page_map.append((page_num, offset, page_text))
             offset += len(page_text)
+
     return page_map
 
 
 def get_document_text_from_blob(
-    blob_sas_url,
-    blob_name,
-    formrecognizer_creds,
-    formrecognizerservice,
-    verbose=False,
+    sas_token, blob_url, formrecognizer_creds, formrecognizerservice, verbose=False
 ):
     offset = 0
     page_map = []
 
     if verbose:
-        print(f"Extracting text from '{blob_name}' using Azure Form Recognizer")
+        print(f"Extracting text from '{blob_url}' using Azure Form Recognizer")
 
     form_recognizer_client = DocumentAnalysisClient(
         endpoint=f"https://{formrecognizerservice}.cognitiveservices.azure.com/",
         credential=formrecognizer_creds,
         headers={"x-ms-useragent": "azure-search-chat/1.0.0"},
     )
+
+    blob_sas_url = f"{blob_url}?{sas_token}"
+
     poller = form_recognizer_client.begin_analyze_document(
         "prebuilt-layout", document=bytes(blob_sas_url, "utf-8")
     )
     form_recognizer_results = poller.result()
 
     for page_num, page in enumerate(form_recognizer_results.pages):
-        tables_on_page = []
-        if form_recognizer_results.tables is not None:
-            tables_on_page = [
-                table
-                for table in form_recognizer_results.tables
-                if table.bounding_regions is not None
-                and table.bounding_regions[0].page_number == page_num + 1
-            ]
-
-        # mark all positions of the table spans in the page
-        page_offset = page.spans[0].offset
-        page_length = page.spans[0].length
-        table_chars = [-1] * page_length
-        for table_id, table in enumerate(tables_on_page):
-            for span in table.spans:
-                # replace all table spans with "table_id" in table_chars array
-                for i in range(span.length):
-                    idx = span.offset - page_offset + i
-                    if idx >= 0 and idx < page_length:
-                        table_chars[idx] = table_id
-
-        # build page text by replacing characters in table spans with table html
-        page_text = ""
-        added_tables = set()
-        for idx, table_id in enumerate(table_chars):
-            if table_id == -1:
-                page_text += form_recognizer_results.content[page_offset + idx]
-            elif table_id not in added_tables:
-                page_text += table_to_html(tables_on_page[table_id])
-                added_tables.add(table_id)
-
-        page_text += " "
+        page_text = process_page(page, form_recognizer_results)
         page_map.append((page_num, offset, page_text))
         offset += len(page_text)
 
