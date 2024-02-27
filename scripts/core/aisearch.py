@@ -125,7 +125,7 @@ def create_index(indexName):
     )
 
 
-def index_sections(
+async def index_sections(
     index_name, searchservice, search_creds, file, sections, verbose=False
 ):
 
@@ -137,7 +137,7 @@ def index_sections(
     )
     i = 0
     batch = []
-    for s in sections:
+    async for s in sections:
         batch.append(s)
         i += 1
         if i % 1000 == 0:
@@ -294,9 +294,9 @@ def update_search_value(index_name, search_creds, searchservice, file, key, valu
     search_client.upload_documents(documents=updated_docs)
 
 
-def create_embedding(client: AsyncAzureOpenAI, engine, input):
+async def create_embedding(client: AsyncAzureOpenAI, engine, input):
     try:
-        emb = client.embeddings.create(model=engine, input=input)
+        emb = await client.embeddings.create(model=engine, input=input)
     except RateLimitError as e:
         print(e)
         # Extract any number from the error message
@@ -308,13 +308,13 @@ def create_embedding(client: AsyncAzureOpenAI, engine, input):
         # Wait for the specified time before trying again
         time.sleep(secondsToWait)
         # Retry creating the OpenAI Embedding for the input section
-        emb = create_embedding(client=client, engine=engine, input=input)
+        emb = await create_embedding(client=client, engine=engine, input=input)
     except APIConnectionError as e:
         print(e)
         print("Waiting now for 60 seconds")
         time.sleep(60)
         # Retry creating the OpenAI Embedding for the input section
-        emb = create_embedding(client=client, engine=engine, input=input)
+        emb = await create_embedding(client=client, engine=engine, input=input)
     return emb
 
 

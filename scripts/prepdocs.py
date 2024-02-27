@@ -34,6 +34,7 @@ from core.helper import (
 from core.document import get_document_text, get_document_text_from_blob, split_text
 from core.convert import convert_files
 from core.blob import (
+    blob_name_from_blob_page,
     blob_name_from_file_page,
     remove_all_blobs_from_container,
     upload_blobs_docs,
@@ -118,6 +119,38 @@ async def create_document_sections(file_path, page_map, accessKeys, category=Non
             "sourcepage": blob_name_from_file_page(
                 file_path=file_path, files_directory=args.files, page=pagenum
             ),
+            "sourcefile": file,
+        }
+
+
+async def create_document_blob_sections(blob_name, page_map, accessKeys, category=None):
+    blob_id = file_path_to_id(blob_name)
+    # Loop through the text and page numbers created by split_text function
+
+    for i, (section, pagenum) in enumerate(
+        split_text(
+            page_map=page_map,
+            file_path=blob_name,
+            max_section_length=MAX_SECTION_LENGTH,
+            section_overlap=SECTION_OVERLAP,
+            sentence_search_limit=SENTENCE_SEARCH_LIMIT,
+            verbose=args.verbose,
+        )
+    ):
+        # Attempt to create an OpenAI Embedding for the input text section
+        emb = await create_embedding(
+            client=openai_client, engine=args.openaideployment, input=section
+        )
+
+        # Return a dictionary with the processed section details, like id, content, embedding, etc.
+        yield {
+            "id": f"{blob_id}-page-{i}",
+            "content": section,
+            "embedding": emb.data[0].embedding,
+            "doclang": detectLang(text=section, detector=detector),
+            "category": category,
+            "accesskeys": accessKeys,
+            "sourcepage": blob_name_from_blob_page(blob_name, page=pagenum),
             "sourcefile": file,
         }
 
@@ -335,7 +368,7 @@ if __name__ == "__main__":
                         category=item.get("category"),
                     )
                     print("indexing sections...")
-                    index_sections(
+                    res = index_sections(
                         index_name=args.index,
                         searchservice=args.searchservice,
                         search_creds=search_creds,
@@ -467,7 +500,7 @@ if __name__ == "__main__":
                                 file_path_local, page_map, ["All"], local_category
                             )
 
-                            index_sections(
+                            res = index_sections(
                                 index_name=args.index,
                                 searchservice=args.searchservice,
                                 search_creds=search_creds,
@@ -524,7 +557,7 @@ if __name__ == "__main__":
                             file_path_local, page_map, ["All"], local_category
                         )
 
-                        index_sections(
+                        res = index_sections(
                             file=file,
                             index_name=args.index,
                             search_creds=search_creds,
@@ -674,8 +707,7 @@ if __name__ == "__main__":
             for blob in blobs:
 
                 blob_name = blob.name
-                # try:
-                if True:
+                try:
                     if check_time(start_time):
                         print("Refreshing credentials")
                         (
@@ -739,11 +771,11 @@ if __name__ == "__main__":
                         verbose=args.verbose,
                     )
                     print("page_map received")
-                    sections = create_document_sections(
+                    sections = create_document_blob_sections(
                         new_blob_name, page_map, ["All"], local_category
                     )
                     print("sections created")
-                    index_sections(
+                    res = index_sections(
                         index_name=args.index,
                         searchservice=args.searchservice,
                         search_creds=search_creds,
@@ -751,31 +783,31 @@ if __name__ == "__main__":
                         sections=sections,
                     )
                     print("sections indexed")
-                    if existing_blob_md5 is not None:
+                    if copied_blob.exists():
                         overview[0] += 1
                     else:
                         overview[1] += 1
-                # except Exception as e:
-                #     print("something went wrong during indexing, clearing up state now")
-                #     print(e)
-                #     remove_blobs_docs(
-                #         file_path=blob_name,
-                #         files_directory=args.files,
-                #         containerdocs=args.containerdocs,
-                #         storageaccount=args.storageaccount,
-                #         storage_creds=storage_creds,
-                #         isPath=False,
-                #         verbose=args.verbose,
-                #     )
-                #     remove_file_from_index(
-                #         file_path=blob_name,
-                #         index_name=args.index,
-                #         isPath=False,
-                #         search_creds=search_creds,
-                #         searchservice=args.searchservice,
-                #         file_directory=args.files,
-                #     )
-                #     break
+                except Exception as e:
+                    print("something went wrong during indexing, clearing up state now")
+                    print(e)
+                    remove_blobs_docs(
+                        file_path=blob_name,
+                        files_directory=args.files,
+                        containerdocs=args.containerdocs,
+                        storageaccount=args.storageaccount,
+                        storage_creds=storage_creds,
+                        isPath=False,
+                        verbose=args.verbose,
+                    )
+                    remove_file_from_index(
+                        file_path=blob_name,
+                        index_name=args.index,
+                        isPath=False,
+                        search_creds=search_creds,
+                        searchservice=args.searchservice,
+                        file_directory=args.files,
+                    )
+                    break
         print(
             f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
 files were added, {str(overview[2])} files were deleted"
