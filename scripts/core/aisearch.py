@@ -16,9 +16,13 @@ from azure.search.documents.indexes.models import (
 from azure.search.documents import SearchClient
 from azure.core.exceptions import ResourceNotFoundError
 from azure.search.documents.indexes import SearchIndexClient
+from openai import (
+    AsyncAzureOpenAI,
+    RateLimitError,
+    APIConnectionError,
+)
 from .helper import name_from_path, url_to_id_cleanup
 import re
-import openai
 import time
 
 
@@ -290,10 +294,10 @@ def update_search_value(index_name, search_creds, searchservice, file, key, valu
     search_client.upload_documents(documents=updated_docs)
 
 
-def create_embedding(engine, input):
+def create_embedding(client: AsyncAzureOpenAI, engine, input):
     try:
-        emb = openai.Embedding.create(engine=engine, input=input)
-    except openai.error.RateLimitError as e:
+        emb = client.embeddings.create(model=engine, input=input)
+    except RateLimitError as e:
         print(e)
         # Extract any number from the error message
         number = re.search(r"\d+", str(e))
@@ -304,19 +308,13 @@ def create_embedding(engine, input):
         # Wait for the specified time before trying again
         time.sleep(secondsToWait)
         # Retry creating the OpenAI Embedding for the input section
-        emb = create_embedding(engine=engine, input=input)
-    except openai.error.APIConnectionError as e:
-        print(e)
-        print("Waiting now for 5 seconds")
-        time.sleep(5)
-        # Retry creating the OpenAI Embedding for the input section
-        emb = create_embedding(engine=engine, input=input)
-    except openai.error.ServiceUnavailableError as e:
+        emb = create_embedding(client=client, engine=engine, input=input)
+    except APIConnectionError as e:
         print(e)
         print("Waiting now for 60 seconds")
         time.sleep(60)
         # Retry creating the OpenAI Embedding for the input section
-        emb = create_embedding(engine=engine, input=input)
+        emb = create_embedding(client=client, engine=engine, input=input)
     return emb
 
 

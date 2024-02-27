@@ -1,10 +1,12 @@
 import os
 import time
-import openai
 from lingua import Language, LanguageDetector, LanguageDetectorBuilder
 from azure.identity import AzureDeveloperCliCredential
+from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 from azure.core.credentials import AzureKeyCredential
-from azure.storage.blob import BlobServiceClient
+from openai import AsyncAzureOpenAI
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from datetime import datetime, timedelta
 from core.aisearch import (
     cleanup_lc_sections_from_index,
     create_search_index,
@@ -96,7 +98,9 @@ def create_document_sections(file_path, page_map, accessKeys, category=None):
         )
     ):
         # Attempt to create an OpenAI Embedding for the input text section
-        emb = create_embedding(engine=args.openaideployment, input=section)
+        emb = create_embedding(
+            client=openai_client, engine=args.openaideployment, input=section
+        )
 
         # Return a dictionary with the processed section details, like id, content, embedding, etc.
         yield {
@@ -138,7 +142,9 @@ def create_langchain_sections(
         id = url_to_id(source, counter_dict)
 
         # Attempt to create an OpenAI Embedding for the input text section
-        emb = create_embedding(engine=args.openaideployment, input=section)
+        emb = create_embedding(
+            client=openai_client, engine=args.openaideployment, input=section
+        )
 
         # Return a dictionary with the processed section details, like id, content, embedding, etc.
         yield {
@@ -166,6 +172,21 @@ def create_langchain_sections(
 if __name__ == "__main__":
     args = parser.parse_args()
 
+    azure_credential = DefaultAzureCredential(
+        exclude_shared_token_cache_credential=True
+    )
+
+    # OpenAI setup
+    token_provider = get_bearer_token_provider(
+        azure_credential, "https://cognitiveservices.azure.com/.default"
+    )
+
+    openai_client = AsyncAzureOpenAI(
+        api_version="2023-07-01-preview",
+        azure_endpoint=f"https://{args.openaiservice}.openai.azure.com",
+        azure_ad_token_provider=token_provider,
+    )
+
     def get_credentials(
         searchkey=args.searchkey,
         storagekey=args.storagekey,
@@ -173,8 +194,6 @@ if __name__ == "__main__":
         localpdfparser=args.localpdfparser,
         formrecognizerservice=args.formrecognizerservice,
         formrecognizerkey=args.formrecognizerkey,
-        openaiservice=args.openaiservice,
-        openaikey=args.openaikey,
     ):
         # Use the current user identity to connect to Azure services unless a key is explicitly set for any of them
         azd_credential = (
@@ -203,26 +222,12 @@ if __name__ == "__main__":
                 else AzureKeyCredential(formrecognizerkey)
             )
 
-        if openaikey is None:
-            openai.api_key = azd_credential.get_token(
-                "https://cognitiveservices.azure.com/.default"
-            ).token
-            openai.api_type = "azure_ad"
-        else:
-            openai.api_type = "azure"
-            openai.api_key = openaikey
-        openai.api_base = f"https://{openaiservice}.openai.azure.com"
-        openai.api_version = "2022-12-01"
         return (
             search_creds,
             storage_creds,
             default_creds,
             azd_credential,
             formrecognizer_creds,
-            openai.api_type,
-            openai.api_key,
-            openai.api_base,
-            openai.api_version,
         )
 
     # Take the start time
@@ -234,10 +239,6 @@ if __name__ == "__main__":
         default_creds,
         azd_credential,
         formrecognizer_creds,
-        openai.api_type,
-        openai.api_key,
-        openai.api_base,
-        openai.api_version,
     ) = get_credentials()
 
     # INDEX HANDLING BEGINS
@@ -310,10 +311,6 @@ if __name__ == "__main__":
                             default_creds,
                             azd_credential,
                             formrecognizer_creds,
-                            openai.api_type,
-                            openai.api_key,
-                            openai.api_base,
-                            openai.api_version,
                         ) = get_credentials()
                         start_time = time.time()
                     document_map = handle_lc_config_item(item)
@@ -386,66 +383,121 @@ if __name__ == "__main__":
 
         print("---> file indexing")
 
-        for root, dirs, files in os.walk(args.files):
-            for file in files:
-                file_path = os.path.join(root, file)
-                sp_path = file_path.split("/")
-                category = sp_path[1] if (sp_path[1] != file) else None
+        if args.file_mode == "git":
 
-                local_hashmap[
-                    name_from_path(file_path=file_path, files_directory=args.files)
-                ] = [
-                    file_path,
-                    get_md5_hash(file_path),
-                    category,
-                ]
-                if invalidFileName(file):
-                    raise Exception(
-                        f"The filename {file} is invalid, as it is not allowed to end with -012.pdf etc."
-                    )
+            for root, dirs, files in os.walk(args.files):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    sp_path = file_path.split("/")
+                    category = sp_path[1] if (sp_path[1] != file) else None
 
-        # creation of the blob hashmap with the blob.name (file_name) and the md5hash as value
-        for blob in blob_list:
-            if blob.content_settings.content_md5 is not None:
-                blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
-            else:
-                blob_hashmap[blob.name] = bytes()
-                print(f"no hash for blob found for {blob.name}")
+                    local_hashmap[
+                        name_from_path(file_path=file_path, files_directory=args.files)
+                    ] = [
+                        file_path,
+                        get_md5_hash(file_path),
+                        category,
+                    ]
+                    if invalidFileName(file):
+                        raise Exception(
+                            f"The filename {file} is invalid, as it is not allowed to end with -012.pdf etc."
+                        )
 
-        # loop through local files
-        print("checking local files...")
+            # creation of the blob hashmap with the blob.name (file_name) and the md5hash as value
+            for blob in blob_list:
+                if blob.content_settings.content_md5 is not None:
+                    blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+                else:
+                    blob_hashmap[blob.name] = bytes()
+                    print(f"no hash for blob found for {blob.name}")
 
-        # every local file of the hashmap will be processed, local_data is the array of values of the hashmap
-        for file, local_data in local_hashmap.items():
-            if check_time(start_time):
-                print("Refreshing credentials")
-                (
-                    search_creds,
-                    storage_creds,
-                    default_creds,
-                    azd_credential,
-                    formrecognizer_creds,
-                    openai.api_type,
-                    openai.api_key,
-                    openai.api_base,
-                    openai.api_version,
-                ) = get_credentials()
-                start_time = time.time()
-            # get category and file_path
-            local_category = local_data[2]
-            file_path_local = local_data[0]
+            # loop through local files
+            print("checking local files...")
 
-            # check if the file is in the blob
-            if file in blob_hashmap:
-                # if true, get the hash and category for comparison
-                remote_hash = blob_hashmap[file]
-                # remote_category = get_search_value(file=file,key="category")
+            # every local file of the hashmap will be processed, local_data is the array of values of the hashmap
+            for file, local_data in local_hashmap.items():
+                if check_time(start_time):
+                    print("Refreshing credentials")
+                    (
+                        search_creds,
+                        storage_creds,
+                        default_creds,
+                        azd_credential,
+                        formrecognizer_creds,
+                    ) = get_credentials()
+                    start_time = time.time()
+                # get category and file_path
+                local_category = local_data[2]
+                file_path_local = local_data[0]
 
-                # check if the hashes are the same, if not, file will be upserted, no else case, only elif for
-                # category
-                if local_data[1] != remote_hash:
+                # check if the file is in the blob
+                if file in blob_hashmap:
+                    # if true, get the hash and category for comparison
+                    remote_hash = blob_hashmap[file]
+                    # remote_category = get_search_value(file=file,key="category")
+
+                    # check if the hashes are the same, if not, file will be upserted, no else case, only elif for
+                    # category
+                    if local_data[1] != remote_hash:
+                        try:
+                            print(f"{file} changed, will be processed again")
+                            upload_blobs_docs(
+                                file_path=file_path_local,
+                                files_directory=args.files,
+                                storageaccount=args.storageaccount,
+                                storage_creds=storage_creds,
+                                containerdocs=args.containerdocs,
+                            )
+
+                            page_map = get_document_text(
+                                file_path=file_path_local,
+                                formrecognizer_creds=formrecognizer_creds,
+                                formrecognizerservice=args.formrecognizerservice,
+                                localpdf=args.localpdfparser,
+                                verbose=args.verbose,
+                            )
+
+                            sections = create_document_sections(
+                                file_path_local, page_map, ["All"], local_category
+                            )
+
+                            index_sections(
+                                index_name=args.index,
+                                searchservice=args.searchservice,
+                                search_creds=search_creds,
+                                file=file,
+                                sections=sections,
+                            )
+
+                            overview[0] += 1
+                        except Exception as e:
+                            print("something went wrong, clearing up state now")
+                            print("Error:", e)
+                            remove_blobs_docs(
+                                file_path=file_path_local,
+                                files_directory=args.files,
+                                containerdocs=args.containerdocs,
+                                storageaccount=args.storageaccount,
+                                storage_creds=storage_creds,
+                                verbose=args.verbose,
+                            )
+                            remove_file_from_index(
+                                file_path=file_path_local,
+                                index_name=args.index,
+                                search_creds=search_creds,
+                                searchservice=args.searchservice,
+                                file_directory=args.files,
+                            )
+                            break
+                    # if the categories are not similar, exchange the category value in index
+                    # elif local_category != remote_category:
+                    #    update_search_value(file=file, key="category",value=local_category)
+
+                # this happens when file is not in blob
+                else:
                     try:
-                        print(f"{file} changed, will be processed again")
+                        # only in local, upload file
+                        print(f"{file} only local, will be processed")
                         upload_blobs_docs(
                             file_path=file_path_local,
                             files_directory=args.files,
@@ -467,14 +519,14 @@ if __name__ == "__main__":
                         )
 
                         index_sections(
-                            index_name=args.index,
-                            searchservice=args.searchservice,
-                            search_creds=search_creds,
                             file=file,
+                            index_name=args.index,
+                            search_creds=search_creds,
+                            searchservice=args.searchservice,
                             sections=sections,
                         )
 
-                        overview[0] += 1
+                        overview[1] += 1
                     except Exception as e:
                         print("something went wrong, clearing up state now")
                         print("Error:", e)
@@ -494,98 +546,124 @@ if __name__ == "__main__":
                             file_directory=args.files,
                         )
                         break
-                # if the categories are not similar, exchange the category value in index
-                # elif local_category != remote_category:
-                #    update_search_value(file=file, key="category",value=local_category)
 
-            # this happens when file is not in blob
-            else:
-                try:
-                    # only in local, upload file
-                    print(f"{file} only local, will be processed")
-                    upload_blobs_docs(
-                        file_path=file_path_local,
-                        files_directory=args.files,
-                        storageaccount=args.storageaccount,
-                        storage_creds=storage_creds,
-                        containerdocs=args.containerdocs,
-                    )
+            # loop through blob files
+            print("checking remote files...")
+            for file in blob_hashmap:
+                if file not in local_hashmap:
+                    # only in remote, remove file
+                    try:
+                        print(
+                            f"{file} only remote, will be removed from blob and index"
+                        )
+                        remove_blobs_docs(
+                            file_path=file,
+                            files_directory=args.files,
+                            containerdocs=args.containerdocs,
+                            storageaccount=args.storageaccount,
+                            storage_creds=storage_creds,
+                            verbose=args.verbose,
+                            isPath=False,
+                        )
+                        remove_file_from_index(
+                            file_path=file,
+                            isPath=False,
+                            index_name=args.index,
+                            search_creds=search_creds,
+                            searchservice=args.searchservice,
+                            file_directory=args.files,
+                        )
+                        overview[2] += 1
+                    except Exception as e:
+                        print(
+                            "something went wrong with the deletion of files, please contact the Azure Team"
+                        )
+                        print("Error:", e)
+                        break
+            print(
+                f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
+    files were added, {str(overview[2])} files were deleted"
+            )
+        # -------- FILE MODE BLOB -------- #
+        elif args.file_mode == "blob":
+            container_data = docs_service.get_container_client(args.containerdata)
+            container = docs_service.get_container_client(args.containerdocs)
 
-                    page_map = get_document_text(
-                        file_path=file_path_local,
-                        formrecognizer_creds=formrecognizer_creds,
-                        formrecognizerservice=args.formrecognizerservice,
-                        localpdf=args.localpdfparser,
-                        verbose=args.verbose,
-                    )
+            if not container.exists():
+                container.create_container()
 
-                    sections = create_document_sections(
-                        file_path_local, page_map, ["All"], local_category
-                    )
+                # Generate a SAS token for the blob
+            sas_token = generate_container_sas(
+                account_name=args.storageaccount,
+                container_name=args.containerdocs,
+                account_key=storage_creds,
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.utcnow() + timedelta(hours=1),
+            )
 
-                    index_sections(
-                        file=file,
-                        index_name=args.index,
-                        search_creds=search_creds,
-                        searchservice=args.searchservice,
-                        sections=sections,
-                    )
+            # Form the blob URL with the SAS token
+            blob_sas_url = f"{blob_url}?{sas_token}"
 
-                    overview[1] += 1
-                except Exception as e:
-                    print("something went wrong, clearing up state now")
-                    print("Error:", e)
-                    remove_blobs_docs(
-                        file_path=file_path_local,
-                        files_directory=args.files,
-                        containerdocs=args.containerdocs,
-                        storageaccount=args.storageaccount,
-                        storage_creds=storage_creds,
-                        verbose=args.verbose,
-                    )
-                    remove_file_from_index(
-                        file_path=file_path_local,
-                        index_name=args.index,
-                        search_creds=search_creds,
-                        searchservice=args.searchservice,
-                        file_directory=args.files,
-                    )
-                    break
+            blobs = container_data.list_blobs()
 
-        # loop through blob files
-        print("checking remote files...")
-        for file in blob_hashmap:
-            if file not in local_hashmap:
-                # only in remote, remove file
-                try:
-                    print(f"{file} only remote, will be removed from blob and index")
-                    remove_blobs_docs(
-                        file_path=file,
-                        files_directory=args.files,
-                        containerdocs=args.containerdocs,
-                        storageaccount=args.storageaccount,
-                        storage_creds=storage_creds,
-                        verbose=args.verbose,
-                        isPath=False,
-                    )
-                    remove_file_from_index(
-                        file_path=file,
-                        isPath=False,
-                        index_name=args.index,
-                        search_creds=search_creds,
-                        searchservice=args.searchservice,
-                        file_directory=args.files,
-                    )
-                    overview[2] += 1
-                except Exception as e:
+            for blob in blobs:
+                blob_name = blob.name
+                blob_url = f"https://{args.storageaccount}.blob.core.windows.net/{args.containerdata}/{blob_name}"
+
+                # Check if the blob is in a level 2 subfolder or deeper
+                if blob_name.count("/") > 1:
                     print(
-                        "something went wrong with the deletion of files, please contact the Azure Team"
+                        f"Copying blob '{blob_name}' is not allowed because it is in a level 2 subfolder or deeper."
                     )
-                    print("Error:", e)
-                    break
-        print(
-            f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
-files were added, {str(overview[2])} files were deleted"
-        )
+                    continue
+
+                local_category = (
+                    blob_name.split("/")[0] if blob_name.count("/") > 0 else None
+                )
+
+                # Modify the blob name to include the subfolder name
+                new_blob_name = blob_name.replace("/", "_")
+                copied_blob = container.get_blob_client(new_blob_name)
+
+                if copied_blob.exists():
+                    existing_blob_data = container.download_blob(new_blob_name)
+                    existing_blob_md5 = (
+                        existing_blob_data.properties.content_settings.content_md5
+                        if existing_blob_data.properties
+                        else None
+                    )
+
+                    source_blob_data = container_data.download_blob(blob_name)
+                    source_blob_md5 = (
+                        source_blob_data.properties.content_settings.content_md5
+                        if source_blob_data.properties
+                        else None
+                    )
+
+                    if source_blob_md5 == existing_blob_md5:
+                        print(f"{new_blob_name} is similar")
+                        continue
+
+                copied_blob.start_copy_from_url(blob_url)
+                page_map = get_document_text(
+                    file_path=file_path_local,
+                    formrecognizer_creds=formrecognizer_creds,
+                    formrecognizerservice=args.formrecognizerservice,
+                    localpdf=args.localpdfparser,
+                    verbose=args.verbose,
+                )
+
+                sections = create_document_sections(
+                    file_path_local, page_map, ["All"], local_category
+                )
+
+                index_sections(
+                    index_name=args.index,
+                    searchservice=args.searchservice,
+                    search_creds=search_creds,
+                    file=file,
+                    sections=sections,
+                )
+
     else:
         print("---> no file data deletion, updating or indexing was requested")
