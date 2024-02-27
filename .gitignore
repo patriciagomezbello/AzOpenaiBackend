@@ -12,6 +12,8 @@ deploy/local.sh
 
 langchain_config.json
 scripts/test/*
+scripts/prepdocs_local.sh
+scripts/prepdocs_dev.sh
 
 .DS_Store
 *.DS_Store

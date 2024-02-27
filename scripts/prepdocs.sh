@@ -20,7 +20,9 @@ python ./scripts/prepdocs.py  \
 --openaiservice "$AZURE_OPENAI_SERVICE" \
 --openaideployment "$AZURE_OPENAI_EMB_DEPLOYMENT" \
 --storageaccount "$AZURE_STORAGE_ACCOUNT" \
+--storagekey "$STORAGE_KEY" \
 --containerdocs "$AZURE_STORAGE_CONTAINER_DOCS" \
+--containerdata "data" \
 --searchservice "$AZURE_SEARCH_SERVICE" \
 --index "$AZURE_SEARCH_INDEX" \
 --formrecognizerservice "$AZURE_FORMRECOGNIZER_SERVICE" \

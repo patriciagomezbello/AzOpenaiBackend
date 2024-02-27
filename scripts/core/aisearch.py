@@ -128,8 +128,8 @@ def create_index(indexName):
 def index_sections(
     index_name, searchservice, search_creds, file, sections, verbose=False
 ):
-    if verbose:
-        print(f"Indexing sections from '{file}' into search index '{index_name}'")
+
+    print(f"Indexing sections from '{file}' into search index '{index_name}'")
     search_client = SearchClient(
         endpoint=f"https://{searchservice}.search.windows.net/",
         index_name=index_name,

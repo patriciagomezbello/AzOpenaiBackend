@@ -5,6 +5,7 @@ from azure.identity import AzureDeveloperCliCredential
 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 from azure.core.credentials import AzureKeyCredential
 from openai import AsyncAzureOpenAI
+from urllib.parse import quote
 from azure.storage.blob import (
     BlobServiceClient,
     generate_container_sas,
@@ -388,6 +389,9 @@ if __name__ == "__main__":
         print("---> file indexing")
 
         if args.file_mode == "git":
+            print(
+                "---> file mode is git, local/git files will be used as source for indexing"
+            )
 
             for root, dirs, files in os.walk(args.files):
                 for file in files:
@@ -430,6 +434,7 @@ if __name__ == "__main__":
                         formrecognizer_creds,
                     ) = get_credentials()
                     start_time = time.time()
+
                 # get category and file_path
                 local_category = local_data[2]
                 file_path_local = local_data[0]
@@ -438,10 +443,7 @@ if __name__ == "__main__":
                 if file in blob_hashmap:
                     # if true, get the hash and category for comparison
                     remote_hash = blob_hashmap[file]
-                    # remote_category = get_search_value(file=file,key="category")
 
-                    # check if the hashes are the same, if not, file will be upserted, no else case, only elif for
-                    # category
                     if local_data[1] != remote_hash:
                         try:
                             print(f"{file} changed, will be processed again")
@@ -584,96 +586,200 @@ if __name__ == "__main__":
                         )
                         print("Error:", e)
                         break
-            print(
-                f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
-    files were added, {str(overview[2])} files were deleted"
-            )
         # -------- FILE MODE BLOB -------- #
         elif args.file_mode == "blob":
+            print("---> file mode is blob, blob will be used as source for indexing")
             container_data = docs_service.get_container_client(args.containerdata)
             container = docs_service.get_container_client(args.containerdocs)
 
             if not container.exists():
                 container.create_container()
 
-            blobs = container_data.list_blobs()
+            blobs = list(container_data.list_blobs())
+
+            indexed_blobs = list(container.list_blobs())
 
             # Calculate the number of blobs
-            num_blobs = len(list(blobs))
+            num_blobs = len(blobs)
 
             # Calculate the number of 20-document batches
             num_batches = num_blobs // 20
 
             # Calculate the additional timedelta for each batch
-            additional_timedelta = timedelta(minutes=30)
+            additional_timedelta = timedelta(hours=12)
 
             # Generate a SAS token for the blob
             sas_token = generate_container_sas(
                 account_name=args.storageaccount,
-                container_name=args.containerdocs,
-                storage_creds=storage_creds,
-                permission=ContainerSasPermissions(read=True),
-                expiry=datetime.utcnow() + (num_batches * additional_timedelta),
+                container_name=args.containerdata,
+                account_key=args.storagekey,
+                permission=ContainerSasPermissions(read=True, list=True),
+                expiry=datetime.utcnow() + (additional_timedelta),
+                start=datetime.utcnow(),
             )
 
-            for blob in blobs:
+            # check regarding deletion of files
+            print("checking remote indexed files...")
+            for blob in indexed_blobs:
                 blob_name = blob.name
-                blob_url = f"https://{args.storageaccount}.blob.core.windows.net/{args.containerdata}/{blob_name}"
-
-                # Check if the blob is in a level 2 subfolder or deeper
-                if blob_name.count("/") > 1:
+                try:
+                    if check_time(start_time):
+                        print("Refreshing credentials")
+                        (
+                            search_creds,
+                            storage_creds,
+                            default_creds,
+                            azd_credential,
+                            formrecognizer_creds,
+                        ) = get_credentials()
+                        start_time = time.time()
+                    if blob.name not in [
+                        data_blob.name.replace("_", "/", 1) for data_blob in blobs
+                    ] or blob.name not in [data_blob.name for data_blob in blobs]:
+                        print(
+                            f"{blob_name} only indexed, will be removed from blob and index"
+                        )
+                        remove_blobs_docs(
+                            file_path=blob_name,
+                            files_directory=args.containerdata,
+                            containerdocs=args.containerdocs,
+                            storageaccount=args.storageaccount,
+                            storage_creds=storage_creds,
+                            verbose=args.verbose,
+                            isPath=False,
+                        )
+                        remove_file_from_index(
+                            file_path=blob_name,
+                            isPath=False,
+                            index_name=args.index,
+                            search_creds=search_creds,
+                            searchservice=args.searchservice,
+                            file_directory=args.containerdata,
+                        )
+                        overview[2] += 1
+                except Exception as e:
                     print(
-                        f"Copying blob '{blob_name}' is not allowed because it is in a level 2 subfolder or deeper."
+                        "something went wrong with the deletion of files, please contact the Azure Team"
                     )
-                    continue
+                    print("Error:", e)
+                    break
 
-                local_category = (
-                    blob_name.split("/")[0] if blob_name.count("/") > 0 else None
-                )
-
-                # Modify the blob name to include the subfolder name
-                new_blob_name = blob_name.replace("/", "_")
-                copied_blob = container.get_blob_client(new_blob_name)
-
-                if copied_blob.exists():
-                    existing_blob_data = container.download_blob(new_blob_name)
-                    existing_blob_md5 = (
-                        existing_blob_data.properties.content_settings.content_md5
-                        if existing_blob_data.properties
-                        else None
+            # check regarding updating/adding files
+            print("checking data blob files...")
+            for blob in blobs:
+                if invalidFileName(blob.name):
+                    raise Exception(
+                        f"The filename {blob.name} is invalid, as it is not allowed to end with -012.pdf etc."
                     )
+            for blob in blobs:
 
-                    source_blob_data = container_data.download_blob(blob_name)
-                    source_blob_md5 = (
-                        source_blob_data.properties.content_settings.content_md5
-                        if source_blob_data.properties
-                        else None
-                    )
+                blob_name = blob.name
+                # try:
+                if True:
+                    if check_time(start_time):
+                        print("Refreshing credentials")
+                        (
+                            search_creds,
+                            storage_creds,
+                            default_creds,
+                            azd_credential,
+                            formrecognizer_creds,
+                        ) = get_credentials()
+                        start_time = time.time()
+                    blob_url = f"https://{args.storageaccount}.blob.core.windows.net/{args.containerdata}/{quote(blob_name)}"
 
-                    if source_blob_md5 == existing_blob_md5:
-                        print(f"{new_blob_name} is similar")
+                    # Check if the blob is in a level 2 subfolder or deeper
+                    if blob_name.count("/") > 1:
+                        print(
+                            f"Copying blob '{blob_name}' is not allowed because it is in a level 2 subfolder or deeper."
+                        )
                         continue
 
-                copied_blob.start_copy_from_url(blob_url)
-                page_map = get_document_text_from_blob(
-                    sas_token=sas_token,
-                    blob_url=blob_url,
-                    formrecognizer_creds=formrecognizer_creds,
-                    formrecognizerservice=args.formrecognizerservice,
-                    verbose=args.verbose,
-                )
+                    if "_" in blob_name.split("/")[0] and blob_name.count("/") > 0:
+                        print(
+                            f" Underscore in folder '{blob_name}' is not allowed because it is in a level 1 subfolder."
+                        )
+                        continue
 
-                sections = create_document_sections(
-                    new_blob_name, page_map, ["All"], local_category
-                )
+                    local_category = (
+                        blob_name.split("/")[0] if blob_name.count("/") > 0 else None
+                    )
 
-                index_sections(
-                    index_name=args.index,
-                    searchservice=args.searchservice,
-                    search_creds=search_creds,
-                    file=blob_url,
-                    sections=sections,
-                )
+                    # Modify the blob name to include the subfolder name
+                    new_blob_name = blob_name.replace("/", "_")
+                    copied_blob = container.get_blob_client(new_blob_name)
+
+                    if copied_blob.exists():
+                        existing_blob_data = container.download_blob(new_blob_name)
+                        existing_blob_md5 = (
+                            existing_blob_data.properties.content_settings.content_md5
+                            if existing_blob_data.properties
+                            else None
+                        )
+
+                        source_blob_data = container_data.download_blob(blob_name)
+                        source_blob_md5 = (
+                            source_blob_data.properties.content_settings.content_md5
+                            if source_blob_data.properties
+                            else None
+                        )
+
+                        if source_blob_md5 == existing_blob_md5:
+                            print(
+                                f"{new_blob_name} is similar, indexing will be skipped"
+                            )
+                            continue
+
+                    copied_blob.start_copy_from_url(blob_url)
+                    page_map = get_document_text_from_blob(
+                        sas_token=sas_token,
+                        blob_url=blob_url,
+                        formrecognizer_creds=formrecognizer_creds,
+                        formrecognizerservice=args.formrecognizerservice,
+                        verbose=args.verbose,
+                    )
+                    print("page_map received")
+                    sections = create_document_sections(
+                        new_blob_name, page_map, ["All"], local_category
+                    )
+                    print("sections created")
+                    index_sections(
+                        index_name=args.index,
+                        searchservice=args.searchservice,
+                        search_creds=search_creds,
+                        file=blob_url,
+                        sections=sections,
+                    )
+                    print("sections indexed")
+                    if existing_blob_md5 is not None:
+                        overview[0] += 1
+                    else:
+                        overview[1] += 1
+                # except Exception as e:
+                #     print("something went wrong during indexing, clearing up state now")
+                #     print(e)
+                #     remove_blobs_docs(
+                #         file_path=blob_name,
+                #         files_directory=args.files,
+                #         containerdocs=args.containerdocs,
+                #         storageaccount=args.storageaccount,
+                #         storage_creds=storage_creds,
+                #         isPath=False,
+                #         verbose=args.verbose,
+                #     )
+                #     remove_file_from_index(
+                #         file_path=blob_name,
+                #         index_name=args.index,
+                #         isPath=False,
+                #         search_creds=search_creds,
+                #         searchservice=args.searchservice,
+                #         file_directory=args.files,
+                #     )
+                #     break
+        print(
+            f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
+files were added, {str(overview[2])} files were deleted"
+        )
 
     else:
         print("---> no file data deletion, updating or indexing was requested")
