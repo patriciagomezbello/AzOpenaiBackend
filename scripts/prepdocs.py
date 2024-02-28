@@ -87,7 +87,9 @@ detector: LanguageDetector = LanguageDetectorBuilder.from_languages(
 ).build()
 
 
-async def create_document_sections(file_path, page_map, accessKeys, category=None):
+async def create_document_sections(
+    openai_client: AsyncAzureOpenAI, file_path, page_map, accessKeys, category=None
+):
     file_id = file_path_to_id(file_path)
     # Loop through the text and page numbers created by split_text function
 
@@ -123,7 +125,9 @@ async def create_document_sections(file_path, page_map, accessKeys, category=Non
         }
 
 
-async def create_document_blob_sections(blob_name, page_map, accessKeys, category=None):
+async def create_document_blob_sections(
+    openai_client: AsyncAzureOpenAI, blob_name, page_map, accessKeys, category=None
+):
     blob_id = file_path_to_id(blob_name)
     # Loop through the text and page numbers created by split_text function
 
@@ -151,12 +155,17 @@ async def create_document_blob_sections(blob_name, page_map, accessKeys, categor
             "category": category,
             "accesskeys": accessKeys,
             "sourcepage": blob_name_from_blob_page(blob_name, page=pagenum),
-            "sourcefile": file,
+            "sourcefile": blob_name,
         }
 
 
 async def create_langchain_sections(
-    document_map, accessKeys, splitter="standard", category=None
+    openai_client: AsyncAzureOpenAI,
+    document_map,
+    search_creds,
+    accessKeys,
+    splitter="standard",
+    category=None,
 ):
     # define dictionary with source as key and number (counter) as value
     counter_dict: dict[str, int] = {}
@@ -206,9 +215,10 @@ async def create_langchain_sections(
 
 
 # SCRIPT EXECUTION BEGINS
+args = parser.parse_args()
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+
+async def main():
 
     azure_credential = DefaultAzureCredential(
         exclude_shared_token_cache_credential=True
@@ -362,13 +372,15 @@ if __name__ == "__main__":
                     )
                     print("creating sections ...")
                     lc_sections = create_langchain_sections(
+                        openai_client,
                         document_map=document_map,
+                        search_creds=search_creds,
                         accessKeys=["All"],
                         splitter=splitter,
                         category=item.get("category"),
                     )
                     print("indexing sections...")
-                    res = index_sections(
+                    await index_sections(
                         index_name=args.index,
                         searchservice=args.searchservice,
                         search_creds=search_creds,
@@ -395,8 +407,6 @@ if __name__ == "__main__":
 
         # FILE CONVERTION BEGINS
 
-        pdfkit_options = {"encoding": "UTF-8"}
-
         if args.data_conversion == "true":
             convert_files(folder=args.files2convert)
 
@@ -408,7 +418,6 @@ if __name__ == "__main__":
         docs_container = docs_service.get_container_client(args.containerdocs)
         if not docs_container.exists():
             docs_container.create_container()
-
         local_hashmap = {}
         blob_hashmap = {}
         blob_list = docs_container.list_blobs()
@@ -500,7 +509,7 @@ if __name__ == "__main__":
                                 file_path_local, page_map, ["All"], local_category
                             )
 
-                            res = index_sections(
+                            await index_sections(
                                 index_name=args.index,
                                 searchservice=args.searchservice,
                                 search_creds=search_creds,
@@ -557,7 +566,7 @@ if __name__ == "__main__":
                             file_path_local, page_map, ["All"], local_category
                         )
 
-                        res = index_sections(
+                        await index_sections(
                             file=file,
                             index_name=args.index,
                             search_creds=search_creds,
@@ -633,10 +642,10 @@ if __name__ == "__main__":
             indexed_blobs = list(container.list_blobs())
 
             # Calculate the number of blobs
-            num_blobs = len(blobs)
+            # num_blobs = len(blobs)
 
             # Calculate the number of 20-document batches
-            num_batches = num_blobs // 20
+            # num_batches = num_blobs // 20
 
             # Calculate the additional timedelta for each batch
             additional_timedelta = timedelta(hours=12)
@@ -772,10 +781,10 @@ if __name__ == "__main__":
                     )
                     print("page_map received")
                     sections = create_document_blob_sections(
-                        new_blob_name, page_map, ["All"], local_category
+                        openai_client, new_blob_name, page_map, ["All"], local_category
                     )
                     print("sections created")
-                    res = index_sections(
+                    await index_sections(
                         index_name=args.index,
                         searchservice=args.searchservice,
                         search_creds=search_creds,
@@ -812,6 +821,15 @@ if __name__ == "__main__":
             f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
 files were added, {str(overview[2])} files were deleted"
         )
-
+        docs_service.close()
     else:
         print("---> no file data deletion, updating or indexing was requested")
+    print("closing openai client session")
+    await openai_client.close()
+    print("session closed")
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
