@@ -1,4 +1,5 @@
 import os
+import asyncio
 import time
 from lingua import Language, LanguageDetector, LanguageDetectorBuilder
 from azure.identity import AzureDeveloperCliCredential
@@ -110,19 +111,23 @@ async def create_document_sections(
             client=openai_client, engine=args.openaideployment, input=section
         )
 
-        # Return a dictionary with the processed section details, like id, content, embedding, etc.
-        yield {
-            "id": f"{file_id}-page-{i}",
-            "content": section,
-            "embedding": emb.data[0].embedding,
-            "doclang": detectLang(text=section, detector=detector),
-            "category": category,
-            "accesskeys": accessKeys,
-            "sourcepage": blob_name_from_file_page(
-                file_path=file_path, files_directory=args.files, page=pagenum
-            ),
-            "sourcefile": file,
-        }
+        if emb is not None:
+
+            # Return a dictionary with the processed section details, like id, content, embedding, etc.
+            yield {
+                "id": f"{file_id}-page-{i}",
+                "content": section,
+                "embedding": emb.data[0].embedding,
+                "doclang": detectLang(text=section, detector=detector),
+                "category": category,
+                "accesskeys": accessKeys,
+                "sourcepage": blob_name_from_file_page(
+                    file_path=file_path, files_directory=args.files, page=pagenum
+                ),
+                "sourcefile": file,
+            }
+        else:
+            raise ValueError("No embedding was created")
 
 
 async def create_document_blob_sections(
@@ -145,18 +150,20 @@ async def create_document_blob_sections(
         emb = await create_embedding(
             client=openai_client, engine=args.openaideployment, input=section
         )
-
-        # Return a dictionary with the processed section details, like id, content, embedding, etc.
-        yield {
-            "id": f"{blob_id}-page-{i}",
-            "content": section,
-            "embedding": emb.data[0].embedding,
-            "doclang": detectLang(text=section, detector=detector),
-            "category": category,
-            "accesskeys": accessKeys,
-            "sourcepage": blob_name_from_blob_page(blob_name, page=pagenum),
-            "sourcefile": blob_name,
-        }
+        if emb is not None:
+            # Return a dictionary with the processed section details, like id, content, embedding, etc.
+            yield {
+                "id": f"{blob_id}-page-{i}",
+                "content": section,
+                "embedding": emb.data[0].embedding,
+                "doclang": detectLang(text=section, detector=detector),
+                "category": category,
+                "accesskeys": accessKeys,
+                "sourcepage": blob_name_from_blob_page(blob_name, page=pagenum),
+                "sourcefile": blob_name,
+            }
+        else:
+            raise ValueError("No embedding was created")
 
 
 async def create_langchain_sections(
@@ -192,18 +199,20 @@ async def create_langchain_sections(
         emb = await create_embedding(
             client=openai_client, engine=args.openaideployment, input=section
         )
-
-        # Return a dictionary with the processed section details, like id, content, embedding, etc.
-        yield {
-            "id": id,
-            "content": section,
-            "embedding": emb.data[0].embedding,
-            "doclang": detectLang(text=section, detector=detector),
-            "category": category,
-            "accesskeys": accessKeys,
-            "sourcepage": source,
-            "sourcefile": base,
-        }
+        if emb is not None:
+            # Return a dictionary with the processed section details, like id, content, embedding, etc.
+            yield {
+                "id": id,
+                "content": section,
+                "embedding": emb.data[0].embedding,
+                "doclang": detectLang(text=section, detector=detector),
+                "category": category,
+                "accesskeys": accessKeys,
+                "sourcepage": source,
+                "sourcefile": base,
+            }
+        else:
+            raise ValueError("No embedding was created")
 
     # call recursive cleanup function with filled counter_dict
     cleanup_lc_sections_from_index(
@@ -506,7 +515,11 @@ async def main():
                             )
 
                             sections = create_document_sections(
-                                file_path_local, page_map, ["All"], local_category
+                                openai_client,
+                                file_path_local,
+                                page_map,
+                                ["All"],
+                                local_category,
                             )
 
                             await index_sections(
@@ -543,7 +556,8 @@ async def main():
 
                 # this happens when file is not in blob
                 else:
-                    try:
+                    # try:
+                    if True:
                         # only in local, upload file
                         print(f"{file} only local, will be processed")
                         upload_blobs_docs(
@@ -563,7 +577,11 @@ async def main():
                         )
 
                         sections = create_document_sections(
-                            file_path_local, page_map, ["All"], local_category
+                            openai_client,
+                            file_path_local,
+                            page_map,
+                            ["All"],
+                            local_category,
                         )
 
                         await index_sections(
@@ -575,25 +593,25 @@ async def main():
                         )
 
                         overview[1] += 1
-                    except Exception as e:
-                        print("something went wrong, clearing up state now")
-                        print("Error:", e)
-                        remove_blobs_docs(
-                            file_path=file_path_local,
-                            files_directory=args.files,
-                            containerdocs=args.containerdocs,
-                            storageaccount=args.storageaccount,
-                            storage_creds=storage_creds,
-                            verbose=args.verbose,
-                        )
-                        remove_file_from_index(
-                            file_path=file_path_local,
-                            index_name=args.index,
-                            search_creds=search_creds,
-                            searchservice=args.searchservice,
-                            file_directory=args.files,
-                        )
-                        break
+                    # except Exception as e:
+                    #     print("something went wrong, clearing up state now")
+                    #     print("Error:", e)
+                    #     remove_blobs_docs(
+                    #         file_path=file_path_local,
+                    #         files_directory=args.files,
+                    #         containerdocs=args.containerdocs,
+                    #         storageaccount=args.storageaccount,
+                    #         storage_creds=storage_creds,
+                    #         verbose=args.verbose,
+                    #     )
+                    #     remove_file_from_index(
+                    #         file_path=file_path_local,
+                    #         index_name=args.index,
+                    #         search_creds=search_creds,
+                    #         searchservice=args.searchservice,
+                    #         file_directory=args.files,
+                    #     )
+                    #     break
 
             # loop through blob files
             print("checking remote files...")
@@ -632,14 +650,10 @@ async def main():
         elif args.file_mode == "blob":
             print("---> file mode is blob, blob will be used as source for indexing")
             container_data = docs_service.get_container_client(args.containerdata)
-            container = docs_service.get_container_client(args.containerdocs)
-
-            if not container.exists():
-                container.create_container()
 
             blobs = list(container_data.list_blobs())
 
-            indexed_blobs = list(container.list_blobs())
+            indexed_blobs = list(docs_container.list_blobs())
 
             # Calculate the number of blobs
             # num_blobs = len(blobs)
@@ -661,7 +675,7 @@ async def main():
             )
 
             # check regarding deletion of files
-            print("checking remote indexed files...")
+            print("---> checking remote indexed files...")
             for blob in indexed_blobs:
                 blob_name = blob.name
                 try:
@@ -675,11 +689,15 @@ async def main():
                             formrecognizer_creds,
                         ) = get_credentials()
                         start_time = time.time()
-                    if blob.name not in [
-                        data_blob.name.replace("_", "/", 1) for data_blob in blobs
-                    ] or blob.name not in [data_blob.name for data_blob in blobs]:
+
+                    if (blob_name not in [data_blob.name for data_blob in blobs]) and (
+                        blob_name
+                        not in [
+                            data_blob.name.replace("_", "/", 1) for data_blob in blobs
+                        ]
+                    ):
                         print(
-                            f"{blob_name} only indexed, will be removed from blob and index"
+                            f"-----> {blob_name} only indexed and not in data, will be removed from blob and index"
                         )
                         remove_blobs_docs(
                             file_path=blob_name,
@@ -701,17 +719,17 @@ async def main():
                         overview[2] += 1
                 except Exception as e:
                     print(
-                        "something went wrong with the deletion of files, please contact the Azure Team"
+                        "!!! something went wrong with the deletion of files, please contact the Azure Team"
                     )
                     print("Error:", e)
                     break
 
             # check regarding updating/adding files
-            print("checking data blob files...")
+            print("---> checking data blob files...")
             for blob in blobs:
                 if invalidFileName(blob.name):
                     raise Exception(
-                        f"The filename {blob.name} is invalid, as it is not allowed to end with -012.pdf etc."
+                        f"!!! The filename {blob.name} is invalid, as it is not allowed to end with -012.pdf etc."
                     )
             for blob in blobs:
 
@@ -732,13 +750,13 @@ async def main():
                     # Check if the blob is in a level 2 subfolder or deeper
                     if blob_name.count("/") > 1:
                         print(
-                            f"Copying blob '{blob_name}' is not allowed because it is in a level 2 subfolder or deeper."
+                            f"!! Copying blob '{blob_name}' is not allowed because it is in a level 2 subfolder or deeper."
                         )
                         continue
 
                     if "_" in blob_name.split("/")[0] and blob_name.count("/") > 0:
                         print(
-                            f" Underscore in folder '{blob_name}' is not allowed because it is in a level 1 subfolder."
+                            f"!! Underscore in folder '{blob_name}' is not allowed because it is in a level 1 subfolder."
                         )
                         continue
 
@@ -748,10 +766,10 @@ async def main():
 
                     # Modify the blob name to include the subfolder name
                     new_blob_name = blob_name.replace("/", "_")
-                    copied_blob = container.get_blob_client(new_blob_name)
-
+                    copied_blob = docs_container.get_blob_client(new_blob_name)
+                    existed = True
                     if copied_blob.exists():
-                        existing_blob_data = container.download_blob(new_blob_name)
+                        existing_blob_data = docs_container.download_blob(new_blob_name)
                         existing_blob_md5 = (
                             existing_blob_data.properties.content_settings.content_md5
                             if existing_blob_data.properties
@@ -767,9 +785,15 @@ async def main():
 
                         if source_blob_md5 == existing_blob_md5:
                             print(
-                                f"{new_blob_name} is similar, indexing will be skipped"
+                                f"-----> {new_blob_name} is similar to indexed one, indexing will be skipped"
                             )
                             continue
+                        else:
+                            print(
+                                f"-----> {new_blob_name} is not similar to indexed one"
+                            )
+                    else:
+                        existed = False
 
                     copied_blob.start_copy_from_url(blob_url)
                     page_map = get_document_text_from_blob(
@@ -779,11 +803,9 @@ async def main():
                         formrecognizerservice=args.formrecognizerservice,
                         verbose=args.verbose,
                     )
-                    print("page_map received")
                     sections = create_document_blob_sections(
                         openai_client, new_blob_name, page_map, ["All"], local_category
                     )
-                    print("sections created")
                     await index_sections(
                         index_name=args.index,
                         searchservice=args.searchservice,
@@ -791,13 +813,16 @@ async def main():
                         file=blob_url,
                         sections=sections,
                     )
-                    print("sections indexed")
-                    if copied_blob.exists():
+                    print("-----> sections indexed")
+                    if existed:
                         overview[0] += 1
                     else:
                         overview[1] += 1
+                    copied_blob.close()
                 except Exception as e:
-                    print("something went wrong during indexing, clearing up state now")
+                    print(
+                        "!!! something went wrong during indexing, clearing up state now"
+                    )
                     print(e)
                     remove_blobs_docs(
                         file_path=blob_name,
@@ -821,15 +846,12 @@ async def main():
             f"---> file indexing sucessfully {str(overview[0])} files were changed, {str(overview[1])} \
 files were added, {str(overview[2])} files were deleted"
         )
-        docs_service.close()
     else:
         print("---> no file data deletion, updating or indexing was requested")
-    print("closing openai client session")
+
     await openai_client.close()
-    print("session closed")
+    await azure_credential.close()
 
 
 if __name__ == "__main__":
-    import asyncio
-
     asyncio.run(main())

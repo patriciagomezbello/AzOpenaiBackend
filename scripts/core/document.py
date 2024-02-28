@@ -88,8 +88,6 @@ def get_document_text_from_blob(
 
     blob_sas_url = f"{blob_url}?{sas_token}"
 
-    print(blob_sas_url)
-
     poller = form_recognizer_client.begin_analyze_document_from_url(
         "prebuilt-layout", document_url=blob_sas_url
     )
