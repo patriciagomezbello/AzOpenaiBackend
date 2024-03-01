@@ -731,8 +731,9 @@ async def main():
                     raise Exception(
                         f"!!! The filename {blob.name} is invalid, as it is not allowed to end with -012.pdf etc."
                     )
-            for blob in blobs:
-
+                if not blob.name.endswith(".pdf"):
+                    print(f"-----> {blob.name} is not a pdf file, will be skipped")
+                    continue
                 blob_name = blob.name
                 try:
                     if check_time(start_time):
