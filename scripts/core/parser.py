@@ -5,10 +5,6 @@ parser.add_argument("--files", help="Files to be processed pdfs")
 parser.add_argument("--files2convert", help="Files to be converted to pdfs)")
 parser.add_argument("--storageaccount", help="Azure Blob Storage account name")
 parser.add_argument("--containerdocs", help="Azure Blob Storage container for docs")
-parser.add_argument(
-    "--containerdata",
-    help="Azure Blob Storage container for data, will be synced with docs container",
-)
 parser.add_argument("--storagekey", required=False)
 parser.add_argument("--tenantid", required=False, help="Optional")
 parser.add_argument("--searchservice", help="Name of Azure AI Search service")

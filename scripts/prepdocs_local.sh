@@ -26,7 +26,7 @@ fi
 
 if [ -z "$FILE_MODE" ]; then
   # Variable is empty or does not exist, possible values: "git", "blob"
-  FILE_MODE="blob" 
+  FILE_MODE="git" 
 fi
 
 if [ -z "$LC_MODE" ]; then
@@ -36,7 +36,7 @@ fi
 
 if [ -z "$RESET_INDEX" ]; then
   # Variable is empty or does not exist, possible values: "false", "true"
-  RESET_INDEX="true"
+  RESET_INDEX="false"
 fi
 
 echo 'Creating python virtual environment "scripts/.venv"'
@@ -53,8 +53,6 @@ echo 'Running "prepdocs.py"'
 --openaideployment "$AZURE_OPENAI_EMB_DEPLOYMENT" \
 --storageaccount "$AZURE_STORAGE_ACCOUNT" \
 --containerdocs "$AZURE_STORAGE_CONTAINER_DOCS" \
---containerdata "data" \
---storagekey "$STORAGE_KEY" \
 --searchservice "$AZURE_SEARCH_SERVICE" \
 --index "$AZURE_SEARCH_INDEX" \
 --formrecognizerservice "$AZURE_FORMRECOGNIZER_SERVICE" \
