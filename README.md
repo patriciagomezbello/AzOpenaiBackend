@@ -8,9 +8,8 @@
 - When you are going to use this software for production, please reach out for the group workers council (KBR). For preparation reach out first for Jerome Chvaillier (Jerome.Chevaillier@telekom.de)
 
 # **Roadmap**
-
-- [ ] Direct File Blob Data Integration (January 2024)
-- [ ] Standardised OpenID Connect Auth (January 2024)
+- [x] Direct File Blob Data Integration (Feburary 2024)
+- [x] Standardised OpenID Connect Auth (February 2024)
 - [x] Langchain Data Integration (January 2024)
 - [x] Feedback and Application Insights (November 2023)
 - [x] Language Support (October 2023)
@@ -20,6 +19,7 @@
 | ------------------------------------------------------------------------------ |
 | **1** How to deploy                                                            |
 | - **1.1** Information & What needs to be done **before** deployment            |
+| - **1.1.1** Known Issues during and when deploying                             |
 | - **1.2** What needs to be done **after** deployment                           |
 | - **1.3** Environment CI/CD Variables                                          |
 | - **1.4** File CI/CD Variables                                                 |
@@ -55,6 +55,12 @@
   - for this you should already create two subnets in your existing virtual network (must be vnet_dtit_cix0000 of your subscription)
   - one with /27 prefix (e.g. sn-mate) and onefor the web app service with at least /28 prefix (e.g. sn-mate-appservice)
   - the further configuration of those subnets will be done by the pipeline of the backend automatically
+
+#### 1.1.1 Known Issues
+
+- When the model is not working after deployment, try accessing model_url/docs, if nothing is shown, try restarting or bumping the app service tier
+- When the frontend is returning unexspected error, go to the network tab and check the real error
+- When the search is returning an error, set one setting in the semantic ranker, this is a bug in microsofts deployment
 
 #### 1.2 What needs to be done **after** deployment
 
@@ -231,9 +237,28 @@ if set true, data from the data2convert folder (see 2.2) will be converted and p
 
 #### 2.2 File Integration (PDFs and convertible files)
 
-In order to connect your file data (pdfs, mds etc.) to your backend, a second repository is required, that needs to have all pdf files in a folder named **data** and all other supported file formats in a folder named **data2convert**
+ -> FILE_MODE Variable, will allow to not use git, but also Azure Storage Blobs directly for data integration
 
-**COMING IN JANUARY 2024** -> FILE_MODE Variable, will allow to not use git, but also Azure Storage Blobs directly for data integration
+ - FILE_MODE -> git or blob (default: git)
+
+BLOB
+
+In order to connect your data from another folder in your storage account, you will need a policy exemption on your storage account. You can create a [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906) for that. The exemption will allow you to put your IP Address into the storage account networking, to be able to connect and upload data in the private setup.
+
+Required steps:
+
+- Exemption
+- IP Address under Networking
+- create container "data"
+- upload your files
+
+Rules: folders in the container max one level. mydata/file.pdf -> fine, mydata/mydata/file.pdf -> not fine.
+Rules: folder are not allowed to have underscore "_" in name
+
+
+GIT 
+
+In order to connect your file data (pdfs, mds etc.) to your backend, a second repository is required, that needs to have all pdf files in a folder named **data** 
 
 To enable a permanent connection between those repositories, a connection needs to be established. The Data repository must allow the project repository to access its data with the CI_JOB_TOKEN -> This is done like this:
 
