@@ -1,5 +1,3 @@
-import asyncio
-import aiohttp
 from azure.search.documents.indexes.models import (
     HnswParameters,
     SemanticPrioritizedFields,
@@ -18,13 +16,9 @@ from azure.search.documents.indexes.models import (
 from azure.search.documents import SearchClient
 from azure.core.exceptions import ResourceNotFoundError
 from azure.search.documents.indexes import SearchIndexClient
-from openai import (
-    AsyncAzureOpenAI,
-    RateLimitError,
-    APIConnectionError,
-)
 from .helper import name_from_path, url_to_id_cleanup
 import re
+import openai
 import time
 
 
@@ -127,11 +121,11 @@ def create_index(indexName):
     )
 
 
-async def index_sections(
+def index_sections(
     index_name, searchservice, search_creds, file, sections, verbose=False
 ):
-
-    print(f"Indexing sections from '{file}' into search index '{index_name}'")
+    if verbose:
+        print(f"Indexing sections from '{file}' into search index '{index_name}'")
     search_client = SearchClient(
         endpoint=f"https://{searchservice}.search.windows.net/",
         index_name=index_name,
@@ -139,7 +133,7 @@ async def index_sections(
     )
     i = 0
     batch = []
-    async for s in sections:
+    for s in sections:
         batch.append(s)
         i += 1
         if i % 1000 == 0:
@@ -296,38 +290,34 @@ def update_search_value(index_name, search_creds, searchservice, file, key, valu
     search_client.upload_documents(documents=updated_docs)
 
 
-async def create_embedding(client: AsyncAzureOpenAI, engine, input, retry=0):
-
-    async with aiohttp.ClientSession() as session:
-        if retry < 10:
-            try:
-                emb = await client.embeddings.create(model=engine, input=input)
-            except RateLimitError as e:
-                print(e)
-                # Extract any number from the error message
-                number = re.search(r"\d+", str(e))
-                # Convert the number to integer, if not found, default to 10 seconds
-                secondsToWait = int(number.group()) if number else 10
-                # Print the wait time
-                print(f"Waiting now for {secondsToWait} seconds")
-                # Wait for the specified time before trying again
-                await asyncio.sleep(secondsToWait)
-                # Retry creating the OpenAI Embedding for the input section
-                emb = await create_embedding(client=client, engine=engine, input=input)
-            except APIConnectionError as e:
-                print(e)
-                print("Waiting now for 60 seconds")
-                await asyncio.sleep(60)
-                # Retry creating the OpenAI Embedding for the input section
-                emb = await create_embedding(
-                    client=client, engine=engine, input=input, retry=retry + 1
-                )
-            finally:
-                await session.close()
-            return emb
-        else:
-            await session.close()
-            return None
+def create_embedding(engine, input):
+    try:
+        emb = openai.Embedding.create(engine=engine, input=input)
+    except openai.error.RateLimitError as e:
+        print(e)
+        # Extract any number from the error message
+        number = re.search(r"\d+", str(e))
+        # Convert the number to integer, if not found, default to 10 seconds
+        secondsToWait = int(number.group()) if number else 10
+        # Print the wait time
+        print(f"Waiting now for {secondsToWait} seconds")
+        # Wait for the specified time before trying again
+        time.sleep(secondsToWait)
+        # Retry creating the OpenAI Embedding for the input section
+        emb = create_embedding(engine=engine, input=input)
+    except openai.error.APIConnectionError as e:
+        print(e)
+        print("Waiting now for 5 seconds")
+        time.sleep(5)
+        # Retry creating the OpenAI Embedding for the input section
+        emb = create_embedding(engine=engine, input=input)
+    except openai.error.ServiceUnavailableError as e:
+        print(e)
+        print("Waiting now for 60 seconds")
+        time.sleep(60)
+        # Retry creating the OpenAI Embedding for the input section
+        emb = create_embedding(engine=engine, input=input)
+    return emb
 
 
 async def cgsIndexColumnFacetDist(searchservice, index_name, search_creds, facet):
@@ -341,12 +331,12 @@ async def cgsIndexColumnFacetDist(searchservice, index_name, search_creds, facet
             top=0,
             skip=0,
             query_type="simple",
-            select="",  # type: ignore
+            select="",
             search_text="*",
             search_fields=[],
             filter="",
             facets=[facet],
-            order_by="",  # type: ignore
+            order_by="",
             include_total_count=True,
         )
         res = await facets_search.get_facets()

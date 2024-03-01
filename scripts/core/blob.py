@@ -15,16 +15,6 @@ def blob_name_from_file_page(file_path, files_directory, page=0):
         return os.path.basename(file_name)
 
 
-def blob_name_from_blob_page(blob_name, page=0):
-
-    name, extension = blob_name.rsplit(".", 1)
-
-    if extension == "pdf":
-        return name + f"-{page}." + extension
-    else:
-        return blob_name
-
-
 def upload_blobs_docs(
     file_path, files_directory, storageaccount, storage_creds, containerdocs
 ):
