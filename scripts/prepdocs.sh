@@ -21,6 +21,7 @@ python ./scripts/prepdocs.py  \
 --openaideployment "$AZURE_OPENAI_EMB_DEPLOYMENT" \
 --storageaccount "$AZURE_STORAGE_ACCOUNT" \
 --containerdocs "$AZURE_STORAGE_CONTAINER_DOCS" \
+--containerdata "data" \
 --searchservice "$AZURE_SEARCH_SERVICE" \
 --index "$AZURE_SEARCH_INDEX" \
 --formrecognizerservice "$AZURE_FORMRECOGNIZER_SERVICE" \

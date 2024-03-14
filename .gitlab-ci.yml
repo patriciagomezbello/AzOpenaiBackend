@@ -132,7 +132,7 @@ app_task:
 
 data_task:
   stage: data
-  image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy
+  image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy-v2
   needs:
     - data_start
   <<: *auth

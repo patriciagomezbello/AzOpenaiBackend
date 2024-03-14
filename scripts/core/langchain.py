@@ -1,4 +1,4 @@
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     ConfluenceLoader,
     DocusaurusLoader,
     RecursiveUrlLoader,
@@ -19,6 +19,7 @@ def lc_load_url_docs(url, max_depth=2):
 
 
 def lc_load_docusaurus_docs(url):
+
     loader = DocusaurusLoader(
         url,
         # filter_urls=[filter_url],
