@@ -559,8 +559,7 @@ async def main():
 
                 # this happens when file is not in blob
                 else:
-                    # try:
-                    if True:
+                    try:
                         # only in local, upload file
                         print(f"{file} only local, will be processed")
                         upload_blobs_docs(
@@ -596,25 +595,25 @@ async def main():
                         )
 
                         overview[1] += 1
-                    # except Exception as e:
-                    #     print("something went wrong, clearing up state now")
-                    #     print("Error:", e)
-                    #     remove_blobs_docs(
-                    #         file_path=file_path_local,
-                    #         files_directory=args.files,
-                    #         containerdocs=args.containerdocs,
-                    #         storageaccount=args.storageaccount,
-                    #         storage_creds=storage_creds,
-                    #         verbose=args.verbose,
-                    #     )
-                    #     remove_file_from_index(
-                    #         file_path=file_path_local,
-                    #         index_name=args.index,
-                    #         search_creds=search_creds,
-                    #         searchservice=args.searchservice,
-                    #         file_directory=args.files,
-                    #     )
-                    #     break
+                    except Exception as e:
+                        print("something went wrong, clearing up state now")
+                        print("Error:", e)
+                        remove_blobs_docs(
+                            file_path=file_path_local,
+                            files_directory=args.files,
+                            containerdocs=args.containerdocs,
+                            storageaccount=args.storageaccount,
+                            storage_creds=storage_creds,
+                            verbose=args.verbose,
+                        )
+                        remove_file_from_index(
+                            file_path=file_path_local,
+                            index_name=args.index,
+                            search_creds=search_creds,
+                            searchservice=args.searchservice,
+                            file_directory=args.files,
+                        )
+                        break
 
             # loop through blob files
             print("checking remote files...")
