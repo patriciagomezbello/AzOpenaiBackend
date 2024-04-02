@@ -49,6 +49,11 @@ CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CONTAINER_CLIENT = "blob_container_client"
 CONFIG_SEARCH_CLIENT = "search_client"
 
+API_BASE_PATH = os.getenv("API_BASE_PATH", "/")
+
+if API_BASE_PATH != "/":
+    API_BASE_PATH = os.path.join(API_BASE_PATH, "v1")
+
 auth = Auth()
 
 bp = Blueprint("routes", __name__)
@@ -268,6 +273,7 @@ def create_app():
         AioHttpClientInstrumentor().instrument()
         LoggingInstrumentor().instrument()
     app = Quart(__name__)
+    bp.url_prefix = API_BASE_PATH
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
     QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="v1.0.0"))
