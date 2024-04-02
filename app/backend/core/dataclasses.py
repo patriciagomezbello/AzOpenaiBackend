@@ -15,6 +15,7 @@ class Overrides:
     semantic_captions: bool
     top: int
     temperature: float
+    category_filter: List[str]
 
 
 @dataclass
