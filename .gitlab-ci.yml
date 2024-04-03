@@ -5,6 +5,7 @@ stages:
   - all
   - app
   - data
+  - jiraTicketBot
   - auto_stop
 
 ### declare image to use in all stages, using mtr azd-deploy from azure team
@@ -97,8 +98,20 @@ data_start:
   allow_failure: false
   rules:
     - if: '$CI_PIPELINE_SOURCE == "trigger"'
+    - if : $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "DataLoad"
     - if: '$CI_PIPELINE_SOURCE != "trigger"'
       when: manual
+
+jiraTicketBot_start:
+  stage: auto_start
+  <<: *runner_start
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "JiraTicketBot" && $JIRA_SERVER
+      allow_failure: false
+    - if: $CI_PIPELINE_SOURCE != "schedule" && $JIRA_SERVER
+      allow_failure: false
+      when: manual
+
 
 ### execution of the tasks in their own stage to be able to extend it in case needed
 ### they each will only run after specified start job in automatic_start
@@ -142,6 +155,24 @@ data_task:
   tags:
     - $RUNNER_TAG
 
+jiraTicketBot_task:
+  stage: jiraTicketBot
+  image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy
+  needs:
+    - jiraTicketBot_start
+  <<: *auth
+  script:
+    - pip install --no-cache-dir -r app/backend/requirements.txt
+    - bash ./deploy/setup_env.sh
+    - . $ENVIRONMENT
+    - cd jiraTicketBot
+    - python3 ticketBot.py
+  tags:
+    - $RUNNER_TAG
+  rules:
+    - if: $JIRA_SERVER
+
+
 ### all stop jobs in automatic_stop stage, that will trigger after each relevant stage and stop the runner vm
 
 all_terminate:
@@ -164,3 +195,12 @@ data_terminate:
   needs:
     - data_start
     - data_task
+
+jiraTicketBot_terminate:
+  stage: jiraTicketBot
+  <<: *runner_stop
+  needs:
+    - jiraTicketBot_start
+    - jiraTicketBot_task
+  rules:
+    - if: $JIRA_SERVER
