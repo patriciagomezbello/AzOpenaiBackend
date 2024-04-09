@@ -77,7 +77,16 @@ include:
           for i in ${LAST_PIPELINE_IDS}; do 
             PROJECT_ID=$(echo "${i}"|awk -F '-' '{print $1}');
             PIPELINE_ID=$(echo "${i}"|awk -F '-' '{print $2}');
-            PIPELINE=$(curl --request GET --header "PRIVATE-TOKEN: ${ACCESS_TOKEN}" "https://gitlab.devops.telekom.de/api/v4/projects/${PROJECT_ID}/pipelines/${PIPELINE_ID}");           
+            PIPELINE=$(curl --request GET --header "PRIVATE-TOKEN: ${ACCESS_TOKEN}" "https://gitlab.devops.telekom.de/api/v4/projects/${PROJECT_ID}/pipelines/${PIPELINE_ID}" -w "%{http_code}")
+
+            HTTP_STATUS=$(echo "${PIPELINE}" | tail -n 1)
+            PIPELINE=$(echo "${PIPELINE}" | sed '$d')
+
+            if [ "${HTTP_STATUS}" = "401" ] || [ "${HTTP_STATUS}" = "403" ]; then
+              echo "Invalid access token, please check ACCESS_TOKEN variable and set it to project scope so all the runner pipelines can be accessed. "
+              exit 1
+            fi
+
             STATUS=$(echo "${PIPELINE}"| jq ".status");
             echo "--->${STATUS}";
             if [ "${STATUS}" = "\"failed\"" ] || [ "${STATUS}" = "\"success\"" ] || [ "${STATUS}" = "null" ]; then
