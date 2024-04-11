@@ -11,7 +11,7 @@ param location string
 
 param appServicePlanName string = ''
 
-@allowed([ 'B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P0v3', 'P1v3', 'P2v3', 'P3v3' ])
+@allowed(['B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P0v3', 'P1v3', 'P2v3', 'P3v3'])
 param appServicePlanSku string = 'S1'
 
 param backendServiceName string = ''
@@ -23,7 +23,7 @@ param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
 param searchServiceResourceGroupLocation string = location
 
-@allowed([ 'basic', 'standard', 'standard2', 'standard3' ])
+@allowed(['basic', 'standard', 'standard2', 'standard3'])
 param searchServiceSkuName string = 'standard'
 
 param searchIndexName string = 'gptkbindex'
@@ -36,7 +36,7 @@ param storageContainerNameDocs string = 'docs'
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 @description('Location for the OpenAI resource group')
-@allowed([ 'westeurope', 'francecentral', 'swedencentral', 'polandcentral' ])
+@allowed(['westeurope', 'francecentral', 'swedencentral', 'polandcentral'])
 @metadata({
   azd: {
     type: 'location'
@@ -55,16 +55,16 @@ param formRecognizerSkuName string = 'S0'
 param chatGptDeploymentName string
 param chatGptDeploymentCapacity int = 60
 
-@allowed([ 'gpt-35-turbo', 'gpt-35-turbo-16k', 'gpt-35-turbo-instruct', 'gpt-4', 'gpt-4-32k' ])
+@allowed(['gpt-35-turbo', 'gpt-35-turbo-16k', 'gpt-35-turbo-instruct', 'gpt-4', 'gpt-4-32k'])
 param chatGptModelName string = 'gpt-35-turbo'
 
-@allowed([ '0613', '0914' ])
+@allowed(['0613', '0914'])
 param chatGptModelVersion string = '0613'
 
 param embeddingDeploymentName string = 'embedding'
 param embeddingDeploymentCapacity int = 120
 
-@allowed([ 'text-embedding-ada-002', ])
+@allowed(['text-embedding-ada-002'])
 param embeddingModelName string = 'text-embedding-ada-002'
 
 @description('Id of the user or app to assign application roles')
@@ -106,14 +106,11 @@ var isContainsCN = contains(subscriptionName, 'cn')
 var resourceGroupLGAWS = isContainsCN ? 'cloud-native-infrastructure' : 'cloud-integrated-infrastructure'
 
 param authClient string
-param authClientSecretSetting string
 
 param oidcClientId string
 param oidcIssuerUrl string
-param oidcScopes string
-param oidcClientSecretSetting string
 
-var oidcScopesArray = split(oidcScopes, ',')
+param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
 
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'
@@ -127,21 +124,25 @@ resource mainResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-resource openAiResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(openAiResourceGroupName)) {
-  name: !empty(openAiResourceGroupName) ? openAiResourceGroupName : mainResourceGroup.name
-}
+resource openAiResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing =
+  if (!empty(openAiResourceGroupName)) {
+    name: !empty(openAiResourceGroupName) ? openAiResourceGroupName : mainResourceGroup.name
+  }
 
-resource formRecognizerResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(formRecognizerResourceGroupName)) {
-  name: !empty(formRecognizerResourceGroupName) ? formRecognizerResourceGroupName : mainResourceGroup.name
-}
+resource formRecognizerResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing =
+  if (!empty(formRecognizerResourceGroupName)) {
+    name: !empty(formRecognizerResourceGroupName) ? formRecognizerResourceGroupName : mainResourceGroup.name
+  }
 
-resource searchServiceResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(searchServiceResourceGroupName)) {
-  name: !empty(searchServiceResourceGroupName) ? searchServiceResourceGroupName : mainResourceGroup.name
-}
+resource searchServiceResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing =
+  if (!empty(searchServiceResourceGroupName)) {
+    name: !empty(searchServiceResourceGroupName) ? searchServiceResourceGroupName : mainResourceGroup.name
+  }
 
-resource storageResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(storageResourceGroupName)) {
-  name: !empty(storageResourceGroupName) ? storageResourceGroupName : mainResourceGroup.name
-}
+resource storageResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing =
+  if (!empty(storageResourceGroupName)) {
+    name: !empty(storageResourceGroupName) ? storageResourceGroupName : mainResourceGroup.name
+  }
 
 var resourceGroupVNET = resourceGroup(vnetResourceGroupName)
 
@@ -199,19 +200,22 @@ module searchDNSZone 'core/dns/dns-zones.bicep' = {
 }
 
 // Monitor application with Azure Monitor
-module monitoring './core/monitor/monitoring.bicep' = if (useApplicationInsights) {
-  name: 'monitoring'
-  scope: mainResourceGroup
-  dependsOn: [
-    serviceEndpoints
-  ]
-  params: {
-    logAnalyticsId: logAnalyticWorkspace.id
-    location: location
-    tags: tags
-    applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
+module monitoring './core/monitor/monitoring.bicep' =
+  if (useApplicationInsights) {
+    name: 'monitoring'
+    scope: mainResourceGroup
+    dependsOn: [
+      serviceEndpoints
+    ]
+    params: {
+      logAnalyticsId: logAnalyticWorkspace.id
+      location: location
+      tags: tags
+      applicationInsightsName: !empty(applicationInsightsName)
+        ? applicationInsightsName
+        : '${abbrs.insightsComponents}${resourceToken}'
+    }
   }
-}
 
 // Create an App Service Plan to group applications under the same payment plan and SKU
 module appServicePlan 'core/host/appserviceplan.bicep' = {
@@ -244,13 +248,11 @@ module backend 'core/host/appservice.bicep' = {
     scmDoBuildDuringDeployment: true
     managedIdentity: true
     clientId: authClient
-    clientSecretSetting: authClientSecretSetting
+    authProvider: authProvider
     tenantId: tenant().tenantId
     authTenant: (!empty(authTenant)) ? authTenant : 'same'
     oidcClientId: oidcClientId
-    oidcClientSecretSetting: oidcClientSecretSetting
     oidcIssuerUrl: oidcIssuerUrl
-    oidcScopes: oidcScopesArray
     allowedOrigins: allowed_cors_list
     virtualNetworkSubnetId_AppService: subnet_AppService.id
     appSettings: {
@@ -265,51 +267,54 @@ module backend 'core/host/appservice.bicep' = {
       AZURE_OPENAI_CHATGPT_DEPLOYMENT: chatGptDeploymentName
       AZURE_OPENAI_CHATGPT_MODEL: chatGptModelName
       AZURE_OPENAI_EMB_DEPLOYMENT: embeddingDeploymentName
-      APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights ? monitoring.outputs.applicationInsightsConnectionString : ''
+      APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights
+        ? monitoring.outputs.applicationInsightsConnectionString
+        : ''
     }
   }
 }
 
-module openAi 'core/ai/cognitiveservices.bicep' = if (redeployOpenAI) {
-  name: 'openai'
-  scope: openAiResourceGroup
-  dependsOn: [
-    serviceEndpoints
-  ]
-  params: {
-    name: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
-    location: openAiResourceGroupLocation
-    tags: tags
-    virtualNetworkSubnetId: subnet_default.id
-    virtualNetworkSubnetId_AppService: subnet_AppService.id
-    sku: {
-      name: openAiSkuName
-    }
-    deployments: [
-      {
-        name: chatGptDeploymentName
-        model: {
-          format: 'OpenAI'
-          name: chatGptModelName
-          version: chatGptModelVersion
-        }
-        sku: {
-          name: 'Standard'
-          capacity: chatGptDeploymentCapacity
-        }
-      }
-      {
-        name: embeddingDeploymentName
-        model: {
-          format: 'OpenAI'
-          name: embeddingModelName
-          version: '2'
-        }
-        capacity: embeddingDeploymentCapacity
-      }
+module openAi 'core/ai/cognitiveservices.bicep' =
+  if (redeployOpenAI) {
+    name: 'openai'
+    scope: openAiResourceGroup
+    dependsOn: [
+      serviceEndpoints
     ]
+    params: {
+      name: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+      location: openAiResourceGroupLocation
+      tags: tags
+      virtualNetworkSubnetId: subnet_default.id
+      virtualNetworkSubnetId_AppService: subnet_AppService.id
+      sku: {
+        name: openAiSkuName
+      }
+      deployments: [
+        {
+          name: chatGptDeploymentName
+          model: {
+            format: 'OpenAI'
+            name: chatGptModelName
+            version: chatGptModelVersion
+          }
+          sku: {
+            name: 'Standard'
+            capacity: chatGptDeploymentCapacity
+          }
+        }
+        {
+          name: embeddingDeploymentName
+          model: {
+            format: 'OpenAI'
+            name: embeddingModelName
+            version: '2'
+          }
+          capacity: embeddingDeploymentCapacity
+        }
+      ]
+    }
   }
-}
 
 module formRecognizer 'core/ai/cognitiveservices.bicep' = {
   name: 'formrecognizer'
@@ -318,7 +323,9 @@ module formRecognizer 'core/ai/cognitiveservices.bicep' = {
     serviceEndpoints
   ]
   params: {
-    name: !empty(formRecognizerServiceName) ? formRecognizerServiceName : '${abbrs.cognitiveServicesFormRecognizer}${resourceToken}'
+    name: !empty(formRecognizerServiceName)
+      ? formRecognizerServiceName
+      : '${abbrs.cognitiveServicesFormRecognizer}${resourceToken}'
     kind: 'FormRecognizer'
     location: formRecognizerResourceGroupLocation
     tags: tags

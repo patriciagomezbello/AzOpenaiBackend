@@ -10,15 +10,11 @@ param managedIdentity bool = !empty(keyVaultName)
 
 // MSAL variables
 param authTenant string
-param clientSecretSetting string
 
 // OIDC variables
 param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
 param oidcClientId string
 param oidcIssuerUrl string
-@secure()
-param oidcClientSecretSetting string
-param oidcScopes array = []
 
 // Runtime Properties
 @allowed([
