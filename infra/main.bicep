@@ -259,6 +259,8 @@ module backend 'core/host/appservice.bicep' = {
       AZURE_AUTH_ROLE: (!empty(authRole)) ? authRole : 'all'
       AZURE_AUTH_CLIENT: authClient
       AZURE_AUTH_TENANT: (!empty(authTenant)) ? authTenant : 'same'
+      AZURE_AUTH_OIDC_CLIENT: oidcClientId
+      AZURE_AUTH_OIDC_ISSUER_URL: oidcIssuerUrl
       AZURE_STORAGE_ACCOUNT: storage.outputs.name
       AZURE_STORAGE_CONTAINER_DOCS: storageContainerNameDocs
       AZURE_OPENAI_SERVICE: openAi.outputs.name
