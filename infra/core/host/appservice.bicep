@@ -108,20 +108,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
               }
             }
           }
-        : {
-            customOpenIdConnectProviders: {
-              keycloak: {
-                enabled: true
-                registration: {
-                  clientId: oidcClientId
-                  openIdConnectConfiguration: {
-                    issuer: oidcIssuerUrl
-                    wellKnownOpenIdConfiguration: '${oidcIssuerUrl}/.well-known/openid-configuration'
-                  }
-                }
-              }
-            }
-          }
+        : {}
       login: {
         tokenStore: {
           enabled: true
