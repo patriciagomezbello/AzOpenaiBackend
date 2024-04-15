@@ -197,6 +197,10 @@ module serviceEndpoints 'core/subnet/service-endpoints.bicep' = {
 module searchDNSZone 'core/dns/dns-zones.bicep' = {
   name: 'searchDNSZone'
   scope: resourceGroupVNET
+  params: {
+    isCn: isContainsCN
+    virtualNetworkId: vnet.id
+  }
 }
 
 // Monitor application with Azure Monitor
