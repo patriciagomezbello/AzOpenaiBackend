@@ -13,8 +13,6 @@ param authTenant string
 
 // OIDC variables
 param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
-param oidcClientId string
-param oidcIssuerUrl string
 
 // Runtime Properties
 @allowed([
