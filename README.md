@@ -8,6 +8,7 @@
 - When you are going to use this software for production, please reach out for the group workers council (KBR). For preparation reach out first for Jerome Chvaillier (Jerome.Chevaillier@telekom.de)
 
 # **Roadmap**
+- [x] Runner costsaving waiting on running jobs, multiple mate per group support (April 2024)
 - [x] Direct File Blob Data Integration (Feburary 2024)
 - [x] Standardised OpenID Connect Auth (February 2024)
 - [x] Langchain Data Integration (January 2024)
@@ -52,6 +53,7 @@
 - currently only Enterprise Subscriptions are supported (dtit_cid0000, dtit_cip0000)
 - Service Principal for deployment needs _Contributor_ rights (the respective SP_dtit_cix0000 Service Principal is fine for usage)
 - A private gitlab runner is required -> a package that automatically installs one is available [in this repository](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
+  - the private runner should be created on group level, if there are multiple instances of Mate in a subscription, the ACCESS_TOKEN must also be on group level, then a clean lifecycle of the private runner is ensured.
   - for this you should already create two subnets in your existing virtual network (must be vnet_dtit_cix0000 of your subscription)
   - one with /27 prefix (e.g. sn-mate) and onefor the web app service with at least /28 prefix (e.g. sn-mate-appservice)
   - the further configuration of those subnets will be done by the pipeline of the backend automatically
@@ -189,6 +191,7 @@ LLM, Large Language Model
 ---
 
 Add an ACCESS_TOKEN to your project to enable automatic infrastructure update.
+!IMPORTANT! If you have or are planning more than one instance per subscription (using only one runner), the ACCESS_TOKEN needs to be on group level and the instances need to be in the same group in Gitlab.
 This is not required, but strongly recommended as it fully autmates the deployment (otherwise you have to copy paste the artifact to the Environment Variables)
 
 - **Step 1**: go to settings in your gitlab project, then go on Access Tokens

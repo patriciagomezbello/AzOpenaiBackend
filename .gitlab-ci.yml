@@ -58,12 +58,13 @@ include:
         echo "skip vm startup"
       else
         echo "start private runner"
-        az vm start -g $RUNNER_RG -n $RUNNER_NAME
-        az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --set tags.gitlab_pipeline_${CI_PROJECT_ID}-${CI_PIPELINE_ID}=$(date +%s)
+        az vm start -g $RUNNER_RG -n $RUNNER_NAME > /dev/null
+        az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --set tags.gitlab_pipeline_${CI_PROJECT_ID}-${CI_PIPELINE_ID}=$(date +%s) > /dev/null
       fi
   allow_failure: false
   tags:
     - $DEFAULT_RUNNER
+
 
 .runner_stop_template: &runner_stop
   <<: *auth_az
@@ -73,35 +74,41 @@ include:
       if [ "$DEV_ENV" == "true" ] | [ "$NO_RUNNER_STOP" == "true" ]; then
           echo "skip vm stop"
       else
+          echo "deallocate private runner"
           LAST_PIPELINE_IDS=$(az vm show -n ${RUNNER_NAME} -g ${RUNNER_RG} --query "tags.keys(@)[?starts_with(@,'gitlab_pipeline_')]" --output tsv|awk -F '_' '{print $3}')
           for i in ${LAST_PIPELINE_IDS}; do 
             PROJECT_ID=$(echo "${i}"|awk -F '-' '{print $1}');
             PIPELINE_ID=$(echo "${i}"|awk -F '-' '{print $2}');
-            PIPELINE=$(curl --request GET --header "PRIVATE-TOKEN: ${ACCESS_TOKEN}" "https://gitlab.devops.telekom.de/api/v4/projects/${PROJECT_ID}/pipelines/${PIPELINE_ID}" -w "%{http_code}")
-
-            HTTP_STATUS=$(echo "${PIPELINE}" | tail -n 1)
-            PIPELINE=$(echo "${PIPELINE}" | sed '$d')
-
-            if [ "${HTTP_STATUS}" = "401" ] || [ "${HTTP_STATUS}" = "403" ]; then
-              echo "Invalid access token, please check ACCESS_TOKEN variable and set it to project scope so all the runner pipelines can be accessed. "
-              exit 1
-            fi
-
-            STATUS=$(echo "${PIPELINE}"| jq ".status");
-            echo "--->${STATUS}";
-            if [ "${STATUS}" = "\"failed\"" ] || [ "${STATUS}" = "\"success\"" ] || [ "${STATUS}" = "null" ]; then
-              echo "Removing Tag from Runner";
-              az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags.gitlab_pipeline_${i};
-            elif [ "${PIPELINE_ID}" = "${CI_PIPELINE_ID}" ]; then
+            echo "ProjectID: ${PROJECT_ID}";
+            echo "PipelineID from tag: ${PIPELINE_ID}";
+            echo "PipelineID from env: ${CI_PIPELINE_ID}";
+            if [ "${PIPELINE_ID}" = "${CI_PIPELINE_ID}" ]; then
               echo "Removing Tag for current pipeline from runner";
-              az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags.gitlab_pipeline_${i};
+              az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags.gitlab_pipeline_${i} > /dev/null;
+            else
+              status_code=$(curl --write-out %{http_code} --output /dev/null --header "PRIVATE-TOKEN: ${ACCESS_TOKEN}" "https://gitlab.devops.telekom.de/api/v4/projects/${PROJECT_ID}/pipelines/${PIPELINE_ID}");
+              echo "Status Code is: ${status_code}";
+              if [ "${status_code}" = 200 ]; then
+                PIPELINE=$(curl --header "PRIVATE-TOKEN: ${ACCESS_TOKEN}" "https://gitlab.devops.telekom.de/api/v4/projects/${PROJECT_ID}/pipelines/${PIPELINE_ID}");
+                #echo "Curl result: ${PIPELINE}";
+                STATUS=$(echo "${PIPELINE}"| jq ".status");
+                echo "Pipeline status: ${STATUS}";
+                if [ "${STATUS}" = "\"failed\"" ] || [ "${STATUS}" = "\"success\"" ] || [ "${STATUS}" = "null" ] || [ "${STATUS}" = "\"canceled\"" ]; then
+                  echo "Removing Tag from Runner";
+                  az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags.gitlab_pipeline_${i} > /dev/null;
+                fi
+              elif [ "${status_code}" = 401 ]; then
+                echo "Unauthorized: Please check token variable and/or access token.";
+              elif [ "${status_code}" = 404 ]; then
+                echo "No access: Please check if token has access to project with id ${PROJECT_ID}.";
+              fi
             fi
           done
           echo "Checking for existing pipelines requests.";
           RUNNING_REQUEST_COUNT=$(az vm show -g ${RUNNER_RG} -n ${RUNNER_NAME} --query "tags.keys(@)[?starts_with(@,'gitlab_pipeline_')]" --output tsv | wc -l);
           echo "Current pipeline(s) running: ${RUNNING_REQUEST_COUNT}";
           if [ ${RUNNING_REQUEST_COUNT} = 0 ]; then
-            az vm deallocate -g ${RUNNER_RG} -n ${RUNNER_NAME};
+            az vm deallocate -g ${RUNNER_RG} -n ${RUNNER_NAME} > /dev/null;
           fi
       fi
   tags:
