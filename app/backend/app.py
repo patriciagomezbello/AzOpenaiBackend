@@ -276,6 +276,12 @@ def create_app():
     bp.url_prefix = API_BASE_PATH
     app.register_blueprint(bp)
     app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
-    QuartSchema(app, info=Info(title="Telekom LLM & CompanyData API", version="v1.0.0"))
+    QuartSchema(
+        app,
+        info=Info(title="Telekom LLM & CompanyData API", version="v1.0.0"),
+        openapi_path=os.path.join(API_BASE_PATH, "openapi.json"),
+        swagger_ui_path=os.path.join(API_BASE_PATH, "docs"),
+        redoc_ui_path=os.path.join(API_BASE_PATH, "redocs"),
+    )
 
     return app
