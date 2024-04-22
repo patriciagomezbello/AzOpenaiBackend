@@ -96,17 +96,15 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
         unauthenticatedClientAction: 'Return401'
         excludedPaths: ['/docs', '/redocs', '/openapi.json']
       }
-      identityProviders: (authProvider == 'microsoft')
-        ? {
-            azureActiveDirectory: {
-              enabled: true
-              registration: {
-                clientId: clientId
-                openIdIssuer: (authTenant == 'same') ? tenantLogin : commonLogin
-              }
-            }
+      identityProviders: {
+        azureActiveDirectory: {
+          enabled: true
+          registration: {
+            clientId: clientId
+            openIdIssuer: (authTenant == 'same') ? tenantLogin : commonLogin
           }
-        : {}
+        }
+      }
       login: {
         tokenStore: {
           enabled: true
