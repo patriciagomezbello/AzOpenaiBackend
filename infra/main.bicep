@@ -110,8 +110,6 @@ param authClient string
 param oidcClientId string
 param oidcIssuerUrl string
 
-param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
-
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'
   scope: resourceGroup(resourceGroupLGAWS)
@@ -252,7 +250,6 @@ module backend 'core/host/appservice.bicep' = {
     scmDoBuildDuringDeployment: true
     managedIdentity: true
     clientId: authClient
-    authProvider: authProvider
     tenantId: tenant().tenantId
     authTenant: (!empty(authTenant)) ? authTenant : 'same'
     allowedOrigins: allowed_cors_list
