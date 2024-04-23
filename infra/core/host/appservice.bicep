@@ -12,7 +12,7 @@ param managedIdentity bool = !empty(keyVaultName)
 param authTenant string
 
 // OIDC variables
-param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
+// param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
 
 // Runtime Properties
 @allowed([
@@ -55,6 +55,7 @@ param healthCheckPath string = ''
 param clientId string = ''
 param tenantId string = ''
 
+#disable-next-line no-hardcoded-env-urls
 var commonLogin = 'https://login.microsoftonline.com/common/v2.0'
 var tenantLogin = 'https://sts.windows.net/${tenantId}/v2.0'
 
