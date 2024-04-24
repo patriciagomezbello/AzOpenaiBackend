@@ -34,14 +34,32 @@ def lc_load_docusaurus_docs(url):
 def lc_load_confluence_docs(
     url, username, token_ref, space_key, include_att=False, limit=50, max_pages=50
 ):
+    if include_att:
+        include_att = False
+
     token = os.getenv(token_ref)
-    loader = ConfluenceLoader(url=url, username=username, api_key=token)
-    documents = loader.load(
-        space_key=space_key,
-        include_attachments=include_att,
-        limit=limit,
-        max_pages=max_pages,
-    )
+    if username.lower() == "token":
+        print("using token only")
+        loader = ConfluenceLoader(
+            url=url,
+            token=token,
+            space_key=space_key,
+            include_attachments=include_att,
+            limit=limit,
+            max_pages=max_pages,
+        )
+    else:
+        print("using username and api_token")
+        loader = ConfluenceLoader(
+            url=url,
+            username=username,
+            api_key=token,
+            space_key=space_key,
+            include_attachments=include_att,
+            limit=limit,
+            max_pages=max_pages,
+        )
+    documents = loader.load()
     return documents
 
 
