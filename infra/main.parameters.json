@@ -106,6 +106,9 @@
     },
     "oidcIssuerUrl": {
       "value": "${AZURE_AUTH_OIDC_ISSUER_URL}"
+    },
+    "apiBasePath": {
+      "value": "${API_BASE_PATH}"
     }
   }
 }

@@ -110,6 +110,8 @@ param authClient string
 param oidcClientId string
 param oidcIssuerUrl string
 
+param apiBasePath string
+
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'
   scope: resourceGroup(resourceGroupLGAWS)
@@ -268,6 +270,7 @@ module backend 'core/host/appservice.bicep' = {
       AZURE_OPENAI_CHATGPT_DEPLOYMENT: chatGptDeploymentName
       AZURE_OPENAI_CHATGPT_MODEL: chatGptModelName
       AZURE_OPENAI_EMB_DEPLOYMENT: embeddingDeploymentName
+      API_BASE_PATH: !empty(apiBasePath) ? apiBasePath : '/'
       APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights
         ? monitoring.outputs.applicationInsightsConnectionString
         : ''
