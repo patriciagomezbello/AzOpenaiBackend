@@ -53,16 +53,18 @@ param formRecognizerResourceGroupLocation string = location
 param formRecognizerSkuName string = 'S0'
 
 param chatGptDeploymentName string
-param chatGptDeploymentCapacity int = 60
 
-@allowed(['gpt-35-turbo', 'gpt-35-turbo-16k', 'gpt-35-turbo-instruct', 'gpt-4', 'gpt-4-32k'])
+param gptCapacity string = '60'
+param chatGptDeploymentCapacity int = int(gptCapacity)
+
 param chatGptModelName string = 'gpt-35-turbo'
 
-@allowed(['0613', '0914'])
 param chatGptModelVersion string = '0613'
 
 param embeddingDeploymentName string = 'embedding'
-param embeddingDeploymentCapacity int = 120
+
+param embCapacity string = '100'
+param embeddingDeploymentCapacity int = int(embCapacity)
 
 @allowed(['text-embedding-ada-002'])
 param embeddingModelName string = 'text-embedding-ada-002'
@@ -291,6 +293,7 @@ module openAi 'core/ai/cognitiveservices.bicep' =
       tags: tags
       virtualNetworkSubnetId: subnet_default.id
       virtualNetworkSubnetId_AppService: subnet_AppService.id
+      embedding_capacity: embeddingDeploymentCapacity
       sku: {
         name: openAiSkuName
       }
@@ -314,7 +317,10 @@ module openAi 'core/ai/cognitiveservices.bicep' =
             name: embeddingModelName
             version: '2'
           }
-          capacity: embeddingDeploymentCapacity
+          sku: {
+            name: 'Standard'
+            capacity: embeddingDeploymentCapacity
+          }
         }
       ]
     }

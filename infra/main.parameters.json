@@ -56,6 +56,12 @@
     "chatGptModelVersion": {
       "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=0613}"
     },
+    "embCapacity": {
+      "value": "${AZURE_OPENAI_EMBEDDING_CAPACITY=100}"
+    },
+    "gptCapacity": {
+      "value": "${AZURE_OPENAI_GPT_CAPACITY=60}"
+    },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
     },
