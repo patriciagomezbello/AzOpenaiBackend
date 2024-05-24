@@ -22,9 +22,10 @@ class FacetCategoryService(CategoryService):
     @timer()
     async def get_categories(self, roles: Optional[List[str]]) -> List[str]:
         """get_categories returns a list of categories."""
-        filter = ""
-        if roles:
-            filter = f"""roles/any(r:search.in(r, '{", ".join(roles)}'))"""
+        filter = "roles/any(r:search.in(r, 'public'))"
+        if roles and len(roles) > 0:
+            filter = f"""roles/any(r:search.in(r, 'public, {", ".join(roles)}'))"""
+            logger.debug(f"Filtering categories by roles: {roles}")
 
         facets = await self._search_facets(["category"], filter=filter)
         return [str(cat["value"]) for cat in facets["category"]]
