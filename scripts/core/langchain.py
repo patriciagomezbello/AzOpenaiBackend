@@ -1,19 +1,16 @@
-from langchain_community.document_loaders import (
-    ConfluenceLoader,
-    DocusaurusLoader,
-    RecursiveUrlLoader,
-    GitLoader,
-)
-from bs4 import BeautifulSoup as Soup
 import os
+
+from bs4 import BeautifulSoup as Soup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import ConfluenceLoader
+from langchain_community.document_loaders import DocusaurusLoader
+from langchain_community.document_loaders import GitLoader
+from langchain_community.document_loaders import RecursiveUrlLoader
 
 
 def lc_load_url_docs(url, max_depth=2):
     url = url
-    loader = RecursiveUrlLoader(
-        url=url, max_depth=max_depth, extractor=lambda x: Soup(x, "html.parser").text
-    )
+    loader = RecursiveUrlLoader(url=url, max_depth=max_depth, extractor=lambda x: Soup(x, "html.parser").text)
     documents = loader.load()
     return documents
 
@@ -31,9 +28,7 @@ def lc_load_docusaurus_docs(url):
     return documents
 
 
-def lc_load_confluence_docs(
-    url, username, token_ref, space_key, include_att=False, limit=50, max_pages=50
-):
+def lc_load_confluence_docs(url, username, token_ref, space_key, include_att=False, limit=50, max_pages=50):
     if include_att:
         include_att = False
 
@@ -118,9 +113,7 @@ def get_langchain_map(documents, base):
     return document_map
 
 
-def split_langchain_text_recursive(
-    document_map, section_overlap=100, max_section_length=1100
-):
+def split_langchain_text_recursive(document_map, section_overlap=100, max_section_length=1100):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=max_section_length,
         chunk_overlap=section_overlap,
@@ -164,11 +157,7 @@ def split_langchain_text(
                     if all_text[end] in WORDS_BREAKS:
                         last_word = end
                     end += 1
-                if (
-                    end < length
-                    and all_text[end] not in SENTENCE_ENDINGS
-                    and last_word > 0
-                ):
+                if end < length and all_text[end] not in SENTENCE_ENDINGS and last_word > 0:
                     end = last_word  # Fall back to at least keeping a whole word
             if end < length:
                 end += 1
@@ -192,10 +181,7 @@ def split_langchain_text(
             yield (p[0], p[1], section_text)
 
             last_table_start = section_text.rfind("<table")
-            if (
-                last_table_start > 2 * sentence_search_limit
-                and last_table_start > section_text.rfind("</table")
-            ):
+            if last_table_start > 2 * sentence_search_limit and last_table_start > section_text.rfind("</table"):
                 # If the section ends with an unclosed table, we need to start the next section with the table.
                 # If table starts inside sentence_search_limit, we ignore it,
                 # as that will cause an infinite loop for tables longer than max_section_length

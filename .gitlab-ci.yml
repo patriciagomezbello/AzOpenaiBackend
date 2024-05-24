@@ -5,7 +5,7 @@ stages:
   - all
   - app
   - data
-  - jiraTicketBot
+  - ticket_bot
   - auto_stop
 
 ### declare image to use in all stages, using mtr azd-deploy from azure team
@@ -64,7 +64,6 @@ include:
   allow_failure: false
   tags:
     - $DEFAULT_RUNNER
-
 
 .runner_stop_template: &runner_stop
   <<: *auth_az
@@ -134,20 +133,19 @@ data_start:
   allow_failure: false
   rules:
     - if: '$CI_PIPELINE_SOURCE == "trigger"'
-    - if : $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "DataLoad"
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "DataLoad"
     - if: '$CI_PIPELINE_SOURCE != "trigger"'
       when: manual
 
-jiraTicketBot_start:
+ticket_bot_start:
   stage: auto_start
   <<: *runner_start
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "JiraTicketBot" && $JIRA_SERVER
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "ticket_bot" && $JIRA_SERVER
       allow_failure: false
     - if: $CI_PIPELINE_SOURCE != "schedule" && $JIRA_SERVER
       allow_failure: false
       when: manual
-
 
 ### execution of the tasks in their own stage to be able to extend it in case needed
 ### they each will only run after specified start job in automatic_start
@@ -191,23 +189,22 @@ data_task:
   tags:
     - $RUNNER_TAG
 
-jiraTicketBot_task:
-  stage: jiraTicketBot
+ticket_bot_task:
+  stage: ticket_bot
   image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy
   needs:
-    - jiraTicketBot_start
+    - ticket_bot_start
   <<: *auth
   script:
-    - pip install --no-cache-dir -r app/backend/requirements.txt
+    - make DIR=app/ticket-bot restore-packages
     - bash ./deploy/setup_env.sh
     - . $ENVIRONMENT
-    - cd jiraTicketBot
-    - python3 ticketBot.py
+    - cd app/ticket-bot
+    - python3 main.py
   tags:
     - $RUNNER_TAG
   rules:
     - if: $JIRA_SERVER
-
 
 ### all stop jobs in automatic_stop stage, that will trigger after each relevant stage and stop the runner vm
 
@@ -232,11 +229,11 @@ data_terminate:
     - data_start
     - data_task
 
-jiraTicketBot_terminate:
-  stage: jiraTicketBot
+ticket_bot_terminate:
+  stage: ticket_bot
   <<: *runner_stop
   needs:
-    - jiraTicketBot_start
-    - jiraTicketBot_task
+    - ticket_bot_start
+    - ticket_bot_task
   rules:
     - if: $JIRA_SERVER

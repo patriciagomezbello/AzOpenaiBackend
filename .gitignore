@@ -1,3 +1,18 @@
+# IDE directories
+.vscode/
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+
+# Environment files
+.env
+*.env
+!.env.dist
+!.env.example
+
+# Temporary directory
+.tmp/
+
 # Azure azd ignore
 
 # ignore .azure folder
@@ -11,6 +26,8 @@ backup/
 deploy/local.sh
 
 langchain_config.json
+role_config.json
+
 scripts/test/*
 scripts/prepdocs_local.sh
 scripts/prepdocs_dev.sh

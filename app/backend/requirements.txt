@@ -16,10 +16,5 @@ PyJWT==2.8.0
 quart==0.19.3
 quart-cors==0.7.0 
 quart-schema==0.18.0
-tiktoken==0.5.1
+tiktoken==0.7.0
 uvicorn[standard]==0.23.2
-
-
-
-
-

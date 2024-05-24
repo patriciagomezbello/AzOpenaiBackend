@@ -1,6 +1,7 @@
 from azure.ai.formrecognizer import DocumentAnalysisClient
 from azure.storage.blob import BlobClient
 from pypdf import PdfReader
+
 from .helper import table_to_html
 
 
@@ -10,8 +11,7 @@ def process_page(page, form_recognizer_results):
         tables_on_page = [
             table
             for table in form_recognizer_results.tables
-            if table.bounding_regions is not None
-            and table.bounding_regions[0].page_number == page.page_number
+            if table.bounding_regions is not None and table.bounding_regions[0].page_number == page.page_number
         ]
 
     page_offset = page.spans[0].offset
@@ -37,9 +37,7 @@ def process_page(page, form_recognizer_results):
     return page_text
 
 
-def get_document_text(
-    file_path, formrecognizer_creds, formrecognizerservice, localpdf, verbose=False
-):
+def get_document_text(file_path, formrecognizer_creds, formrecognizerservice, localpdf, verbose=False):
     offset = 0
     page_map = []
 
@@ -59,9 +57,7 @@ def get_document_text(
             headers={"x-ms-useragent": "azure-search-chat/1.0.0"},
         )
         with open(file_path, "rb") as f:
-            poller = form_recognizer_client.begin_analyze_document(
-                "prebuilt-layout", document=f
-            )
+            poller = form_recognizer_client.begin_analyze_document("prebuilt-layout", document=f)
         form_recognizer_results = poller.result()
 
         for page_num, page in enumerate(form_recognizer_results.pages):
@@ -89,9 +85,7 @@ def get_document_text_from_blob(
     )
     blob_stream = blob_client.download_blob().readall()
 
-    poller = form_recognizer_client.begin_analyze_document(
-        "prebuilt-layout", document=blob_stream
-    )
+    poller = form_recognizer_client.begin_analyze_document("prebuilt-layout", document=blob_stream)
     form_recognizer_results = poller.result()
 
     for page_num, page in enumerate(form_recognizer_results.pages):
@@ -145,11 +139,7 @@ def split_text(
                     if all_text[end] in WORDS_BREAKS:
                         last_word = end
                     end += 1
-                if (
-                    end < length
-                    and all_text[end] not in SENTENCE_ENDINGS
-                    and last_word > 0
-                ):
+                if end < length and all_text[end] not in SENTENCE_ENDINGS and last_word > 0:
                     end = last_word  # Fall back to at least keeping a whole word
             if end < length:
                 end += 1
@@ -173,10 +163,7 @@ def split_text(
             yield (section_text, p[0])
 
             last_table_start = section_text.rfind("<table")
-            if (
-                last_table_start > 2 * sentence_search_limit
-                and last_table_start > section_text.rfind("</table")
-            ):
+            if last_table_start > 2 * sentence_search_limit and last_table_start > section_text.rfind("</table"):
                 # If the section ends with an unclosed table, we need to start the next section with the table.
                 # If table starts inside sentence_search_limit, we ignore it,
                 # as that will cause an infinite loop for tables longer than max_section_length

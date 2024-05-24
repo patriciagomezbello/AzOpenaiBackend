@@ -1,7 +1,8 @@
 import os
 
-from .helper import name_from_path
 from azure.storage.blob import BlobServiceClient
+
+from .helper import name_from_path
 
 
 def blob_name_from_file_page(file_path, files_directory, page=0):
@@ -25,9 +26,7 @@ def blob_name_from_blob_page(blob_name, page=0):
         return blob_name
 
 
-def upload_blobs_docs(
-    file_path, files_directory, storageaccount, storage_creds, containerdocs
-):
+def upload_blobs_docs(file_path, files_directory, storageaccount, storage_creds, containerdocs):
     blob_service = BlobServiceClient(
         account_url=f"https://{storageaccount}.blob.core.windows.net",
         credential=storage_creds,
@@ -62,9 +61,7 @@ def remove_blobs_docs(
     if blob_container.exists():
         try:
             if isPath:
-                blob_container.delete_blob(
-                    name_from_path(file_path=file_path, files_directory=files_directory)
-                )
+                blob_container.delete_blob(name_from_path(file_path=file_path, files_directory=files_directory))
             else:
                 blob_container.delete_blob(file_path)
         except Exception:

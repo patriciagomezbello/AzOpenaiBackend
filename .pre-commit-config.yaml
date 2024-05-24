@@ -1,0 +1,42 @@
+repos:
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ["--config", ".flake8"]
+
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        args: ["--config", "pyproject.toml"]
+
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.12.0
+    hooks:
+      - id: reorder-python-imports
+        args: [--application-directories, ".:app.backend", --py38-plus]
+
+  - repo: local
+    hooks:
+      - id: mate-pytest
+        name: Run tests for the mate app
+        entry: make mate-test
+        language: system
+        types: [python]
+        pass_filenames: true
+        always_run: true
+        # TODO: Remove the stages key when the tests are passing
+        stages: [manual]
+
+  - repo: local
+    hooks:
+      - id: scripts-pytest
+        name: Run tests for the scripts
+        entry: make scripts-test
+        language: system
+        types: [python]
+        pass_filenames: true
+        always_run: true
+        # TODO: Remove the stages key when the tests are passing
+        stages: [manual]

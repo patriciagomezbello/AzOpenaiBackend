@@ -1,31 +1,31 @@
 import asyncio
-import aiohttp
-from azure.search.documents.indexes.models import (
-    HnswParameters,
-    SemanticPrioritizedFields,
-    SearchableField,
-    SearchField,
-    SearchFieldDataType,
-    SearchIndex,
-    SemanticConfiguration,
-    SemanticField,
-    SemanticSearch,
-    SimpleField,
-    VectorSearch,
-    HnswAlgorithmConfiguration,
-    VectorSearchProfile,
-)
-from azure.search.documents import SearchClient
-from azure.core.exceptions import ResourceNotFoundError
-from azure.search.documents.indexes import SearchIndexClient
-from openai import (
-    AsyncAzureOpenAI,
-    RateLimitError,
-    APIConnectionError,
-)
-from .helper import name_from_path, url_to_id_cleanup
 import re
 import time
+from typing import Optional
+
+import aiohttp
+from azure.core.exceptions import ResourceNotFoundError
+from azure.search.documents import SearchClient
+from azure.search.documents.indexes import SearchIndexClient
+from azure.search.documents.indexes.models import HnswAlgorithmConfiguration
+from azure.search.documents.indexes.models import HnswParameters
+from azure.search.documents.indexes.models import SearchableField
+from azure.search.documents.indexes.models import SearchField
+from azure.search.documents.indexes.models import SearchFieldDataType
+from azure.search.documents.indexes.models import SearchIndex
+from azure.search.documents.indexes.models import SemanticConfiguration
+from azure.search.documents.indexes.models import SemanticField
+from azure.search.documents.indexes.models import SemanticPrioritizedFields
+from azure.search.documents.indexes.models import SemanticSearch
+from azure.search.documents.indexes.models import SimpleField
+from azure.search.documents.indexes.models import VectorSearch
+from azure.search.documents.indexes.models import VectorSearchProfile
+from openai import APIConnectionError
+from openai import AsyncAzureOpenAI
+from openai import RateLimitError
+
+from .helper import name_from_path
+from .helper import url_to_id_cleanup
 
 
 def create_search_index(index_name, search_creds, searchservice, verbose=False):
@@ -40,9 +40,19 @@ def create_search_index(index_name, search_creds, searchservice, verbose=False):
         if verbose:
             print(f"Creating {index_name} search index")
         index_client.create_index(index)
+        print(f"Search index {index_name} created or updated")
     else:
         if verbose:
             print(f"Search index {index_name} already exists")
+        index_fields: list[SearchField] = index_client.get_index(index_name).fields
+        fields_dict = {field.name: field for field in index_fields}
+        accesskeys_field = fields_dict.get("accesskeys")
+        roles_field = fields_dict.get("roles")
+        if not accesskeys_field and roles_field:
+            return
+        index = create_index(index_name, deprecated=True)
+        index_client.create_or_update_index(index)
+        print("added roles field into deprecated index")
 
 
 def delete_search_index(index_name, search_creds, searchservice, verbose=False):
@@ -54,51 +64,57 @@ def delete_search_index(index_name, search_creds, searchservice, verbose=False):
     index_client.delete_index(index=index_name)
 
 
-def create_index(indexName):
-    return SearchIndex(
-        name=indexName,
-        fields=[
-            SimpleField(name="id", type="Edm.String", key=True),
-            SearchableField(
-                name="content", type="Edm.String", analyzer_name="en.microsoft"
-            ),
-            SearchField(
-                name="embedding",
-                type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
-                hidden=False,
-                searchable=True,
-                filterable=False,
-                sortable=False,
-                facetable=False,
-                vector_search_dimensions=1536,
-                vector_search_profile_name="default_vector",
-            ),
-            SimpleField(
-                name="doclang", type="Edm.String", filterable=True, facetable=True
-            ),
-            SimpleField(
-                name="category", type="Edm.String", filterable=True, facetable=True
-            ),
+def create_index(indexName, deprecated=False):
+    fields: list[SearchField] = [
+        SimpleField(name="id", type="Edm.String", key=True),
+        SearchableField(name="content", type="Edm.String", analyzer_name="en.microsoft"),
+        SearchField(
+            name="embedding",
+            type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+            hidden=False,
+            searchable=True,
+            filterable=False,
+            sortable=False,
+            facetable=False,
+            vector_search_dimensions=1536,
+            vector_search_profile_name="default_vector",
+        ),
+        SimpleField(name="doclang", type="Edm.String", filterable=True, facetable=True),
+        SimpleField(name="category", type="Edm.String", filterable=True, facetable=True),
+        SimpleField(
+            name="roles",
+            type="Collection(Edm.String)",
+            filterable=True,
+            retrievable=False,
+            facetable=True,
+            Nullable=True,
+        ),
+        SimpleField(
+            name="sourcepage",
+            type="Edm.String",
+            filterable=True,
+            facetable=True,
+        ),
+        SimpleField(
+            name="sourcefile",
+            type="Edm.String",
+            filterable=True,
+            facetable=True,
+        ),
+    ]
+    if deprecated:
+        fields.append(
             SimpleField(
                 name="accesskeys",
                 type="Collection(Edm.String)",
                 filterable=True,
                 retrievable=False,
                 Nullable=True,
-            ),
-            SimpleField(
-                name="sourcepage",
-                type="Edm.String",
-                filterable=True,
-                facetable=True,
-            ),
-            SimpleField(
-                name="sourcefile",
-                type="Edm.String",
-                filterable=True,
-                facetable=True,
-            ),
-        ],
+            )
+        )
+    return SearchIndex(
+        name=indexName,
+        fields=fields,
         semantic_search=SemanticSearch(
             configurations=[
                 SemanticConfiguration(
@@ -127,9 +143,38 @@ def create_index(indexName):
     )
 
 
-async def index_sections(
-    index_name, searchservice, search_creds, file, sections, verbose=False
+def update_roles_index(
+    index_name: str,
+    searchservice: str,
+    searchcreds,
+    role_config: dict[Optional[str], list[str]],
 ):
+    search_client = SearchClient(
+        endpoint=f"https://{searchservice}.search.windows.net/",
+        index_name=index_name,
+        credential=searchcreds,
+    )
+
+    documents_to_update = []
+
+    for result in search_client.search(select=["id", "category", "roles"]):
+        category = result["category"]
+        roles = result["roles"]
+        document_id = result["id"]
+        if role_config.get(category) != roles and not (role_config.get(category) is None and roles == ["public"]):
+            roles = role_config.get(category, ["public"])
+            partial_document = {"id": document_id, "roles": roles}
+            documents_to_update.append(partial_document)
+
+    if len(documents_to_update) > 0:
+        print(f"{len(documents_to_update)} documents will be updated with their roles")
+        print(documents_to_update)
+        search_client.merge_documents(documents_to_update)
+    else:
+        print("No documents to update with roles")
+
+
+async def index_sections(index_name, searchservice, search_creds, file, sections, verbose=False):
 
     print(f"Indexing sections from '{file}' into search index '{index_name}'")
     search_client = SearchClient(
@@ -164,9 +209,7 @@ def remove_file_from_index(
     file_directory,
     isPath=True,
 ):
-    print(
-        f"Removing sections from '{file_path or '<all>'}' from search index '{index_name}'"
-    )
+    print(f"Removing sections from '{file_path or '<all>'}' from search index '{index_name}'")
     search_client = SearchClient(
         endpoint=f"https://{searchservice}.search.windows.net/",
         index_name=index_name,
@@ -190,9 +233,7 @@ def remove_lc_from_index(
     search_creds,
     searchservice,
 ):
-    print(
-        f"Removing sections from '{base or '<all>'}' from search index '{index_name}'"
-    )
+    print(f"Removing sections from '{base or '<all>'}' from search index '{index_name}'")
 
     search_client = SearchClient(
         endpoint=f"https://{searchservice}.search.windows.net/",
@@ -262,9 +303,7 @@ def cleanup_search_recursive(search_client: SearchClient, key: str, num: int) ->
 
     # Search for documents where id equals the generated document id
     try:
-        result = search_client.get_document(
-            key=id, selected_fields=["id", "sourcepage"]
-        )
+        result = search_client.get_document(key=id, selected_fields=["id", "sourcepage"])
         print(result)
         # Delete the documents that were found
         delete_result = search_client.delete_documents(documents=[{"id": id}])
@@ -319,9 +358,7 @@ async def create_embedding(client: AsyncAzureOpenAI, engine, input, retry=0):
                 print("Waiting now for 60 seconds")
                 await asyncio.sleep(60)
                 # Retry creating the OpenAI Embedding for the input section
-                emb = await create_embedding(
-                    client=client, engine=engine, input=input, retry=retry + 1
-                )
+                emb = await create_embedding(client=client, engine=engine, input=input, retry=retry + 1)
             finally:
                 await session.close()
             return emb
