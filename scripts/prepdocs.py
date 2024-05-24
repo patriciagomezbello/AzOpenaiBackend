@@ -58,6 +58,7 @@ try:
         role_config.update({None: ["public"]})
 except OSError:
     print("---> no role_config found, no roles added to search index")
+    role_config = {None: ["public"]}
 
 MAX_SECTION_LENGTH: int = int(os.getenv("MAX_SECTION_LENGTH", 1100))
 SENTENCE_SEARCH_LIMIT: int = 100
