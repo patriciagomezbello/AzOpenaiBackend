@@ -24,7 +24,6 @@ def lc_load_docusaurus_docs(url):
         # custom_html_tags=["#content", ".main"],
     )
     documents = loader.load()
-    print(documents)
     return documents
 
 
