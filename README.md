@@ -2,6 +2,10 @@
 # <span style="color: #e20074">Mate as a Service by CCOE DTIT</span><!-- omit from toc -->
 <!-- markdownlint-enable MD033 -->
 
+> :warning: **Important Notice** :warning:
+>
+> Upgrading your Mate by executing the `all_start` command after May 24, 2024, may result in answers without your integrated data. To prevent this, please initiate the `data_start` task beforehand. This will automatically migrate your data to the new index format. If you have already run the `all_start` command, you can solve any issues by running the `data_start` command afterwards.
+
 - [What is Mate?](#what-is-mate)
 - [Documentation](#documentation)
   - [Deployment](#deployment)
