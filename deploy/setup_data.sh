@@ -69,11 +69,14 @@ elif [[ $DATA_MODE == "all" ]]; then
     prepareLangchain
 fi
 
+cp $ROLE_CONFIG role_config.json
+
 ./scripts/prepdocs.sh
 
 echo "deleting data ..."
 
 rm langchain_config.json
+rm role_config.json
 
 cd ..
 

@@ -1,10 +1,11 @@
-import pdfkit
+import json
 import os
+
+import pdfkit
 from md2pdf.core import md2pdf
+from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from PIL import Image
-import json
 
 pdfkit_options = {"encoding": "UTF-8"}
 
@@ -24,9 +25,7 @@ def convert_files(folder):
         for file in files:
             # create filepath and targetpath and ensure the directories will be created
             file_path = os.path.join(root, file)
-            target = (
-                file_path.replace("data2convert/", "data/").rsplit(".", 1)[0] + ".pdf"
-            )
+            target = file_path.replace("data2convert/", "data/").rsplit(".", 1)[0] + ".pdf"
             os.makedirs(os.path.dirname(target), exist_ok=True)
 
             if file.endswith(".md"):
@@ -45,9 +44,7 @@ def convert_files(folder):
                 pdfkit.from_file(file_path, target, options=pdfkit_options)
 
             # handle pictures
-            elif (
-                file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".png")
-            ):
+            elif file.endswith(".jpg") or file.endswith(".jpeg") or file.endswith(".png"):
                 thecanvas = canvas.Canvas(target, pagesize=A4)
                 img = Image.open(file_path)
                 img_width, img_height = img.size
@@ -79,9 +76,7 @@ def convert_files(folder):
                         url_target = target.replace("pages", key)
                         convert_website_to_pdf(value, url_target)
                     except Exception as e:
-                        print(
-                            f"Error creating PDF {key} from URL: {value}, Error: {str(e)}"
-                        )
+                        print(f"Error creating PDF {key} from URL: {value}, Error: {str(e)}")
 
             elif file.endswith(".json"):
                 print("please rename json files with URLs to -> pages.json")

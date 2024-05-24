@@ -1,0 +1,32 @@
+# Flake8 doesn't natively support pyproject.toml, so we're using the .flake8 file instead.
+# For more information regarding this, refer to https://github.com/microsoft/vscode-flake8/issues/135
+[flake8]
+# We're not using the PEP8 standard line length of 79 characters, but instead 132 characters.
+# For more information regarding this, refer to https://lkml.org/lkml/2020/5/29/1038
+max-line-length = 132
+extend-ignore = 
+    # This warning is not PEP8 compliant, for more information refer to https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html#e203
+    # https://www.flake8rules.com/rules/E203.html
+    E203,
+    # We're using the counterpart W504 instead.
+    # https://www.flake8rules.com/rules/W503.html
+    W503,
+    # The use of '...' in abstract classes are allowed to be in the same line.
+    # https://www.flake8rules.com/rules/E704.html
+    E704,
+    # For debugging purposes, bare exceptions are allowed.
+    # https://www.flake8rules.com/rules/E722.html
+    E722,
+
+exclude = 
+    # No need to traverse our git directory
+    .git,
+    # There's no value in checking cache directories
+    __pycache__,
+    # We don't need to check virtual environment directories
+    .venv,
+    venv,
+    backend_env,
+    # We don't need to check the context and abbrev files
+    context.py,
+    abbrev.py

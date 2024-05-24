@@ -68,7 +68,6 @@ if [ "$DEV_ENV" != "true" ] && [ "$AZURE_KEY_DEPLOY" != "false" ] && [ -n "$AZUR
     azd env set AZURE_DEPLOY_KEY false
 fi
 
-
 # Copy context.py to core
 cp $CONTEXT app/backend/core/context.py
 

@@ -1,18 +1,17 @@
-import html
-import pycountry
-import hashlib
-import re
 import base64
+import hashlib
+import html
 import os
+import re
 import sys
 import time
+
+import pycountry
 
 
 def name_from_path(file_path, files_directory):
     path_parts = file_path.split("/")
-    file_name = "_".join(path_parts[path_parts.index(files_directory) + 1 :]).replace(
-        "/", "_"
-    )
+    file_name = "_".join(path_parts[path_parts.index(files_directory) + 1 :]).replace("/", "_")
     return file_name
 
 
@@ -28,11 +27,7 @@ def table_to_html(table):
     for row_cells in rows:
         table_html += "<tr>"
         for cell in row_cells:
-            tag = (
-                "th"
-                if (cell.kind == "columnHeader" or cell.kind == "rowHeader")
-                else "td"
-            )
+            tag = "th" if (cell.kind == "columnHeader" or cell.kind == "rowHeader") else "td"
             cell_spans = ""
             if cell.column_span > 1:
                 cell_spans += f" colSpan={cell.column_span}"

@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["./app/backend/tests"]
+pythonpath = ["./app", "./app/backend"]
+
+[tool.black]
+# We're not using the PEP8 standard line length of 79 characters, but instead 132 characters.
+# For more information regarding this, refer to https://lkml.org/lkml/2020/5/29/1038
+line-length = 132
+
+[tool.isort]
+atomic = true
+profile = "black"
+# We're not using the PEP8 standard line length of 79 characters, but instead 132 characters.
+# For more information regarding this, refer to https://lkml.org/lkml/2020/5/29/1038
+line_length = 132
+skip_gitignore = true
+# We're using the multi-line output of 9, as it's the most readable for us.
+multi_line_output = 9
