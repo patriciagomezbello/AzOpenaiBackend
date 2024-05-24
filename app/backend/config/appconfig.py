@@ -176,7 +176,7 @@ class ChatConfig:
     def validate(self) -> None:
         """validate validates the configuration."""
         if self.abbreviations == {}:
-            raise InvalidConfigError("ABBREVIATIONS is required")
+            logger.warning("No abbreviations found")
         self.settings.validate()
 
 
