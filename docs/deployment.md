@@ -18,7 +18,16 @@ To deploy your own instance of Mate, follow the steps below.
 
 ## Prerequisites
 
-**Before using your own instance of Mate, you need to have the prerequisites described in the [main documentation](/docs/README.md#prerequisites).**
+Before using your own instance of Mate, you need to have the following prerequisites:
+
+- **A subscription on the DTIT Azure Tenant (no sandbox allowed)**
+- **Contributor access to the Azure Subscription** for the service principal
+- **A resource group in the subscription named `rg-<AZURE_ENV_NAME>`** (e.g. `rg-mate`)
+- **A private GitLab Runner for CI/CD**:
+  - You can find our GitLab Runner package [here](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
+  - You need to create two subnets in your existing VNet (`vnet_dtit_cix00xx` of your subscription):
+    1. One with the prefix `/27` (e.g. `sn-mate`)
+    2. The other with at least `/28` (e.g. `sn-mate-appservice`)
 
 ## Configuration
 
@@ -75,20 +84,19 @@ The environment file is a `.env` file that contains the environment variables fo
 
 ```properties
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
-AZURE_ENV_NAME="azure-search-openai-dev-env-name"
+AZURE_ENV_NAME="mate-env-name"
 AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
 AZURE_LOCATION="westeurope"
 AZURE_VNET_RESOURCE_GROUP="rg-ci-vnet"
 AZURE_VNET_NAME="vnet_dtit_cix00xx"
-AZURE_SUBNET_NAME="sn-standard"
-AZURE_SUBNET_NAME_APPSERVICE="sn-appservice"
+AZURE_SUBNET_NAME="sn-mate"
+AZURE_SUBNET_NAME_APPSERVICE="sn-mate-appservice"
 AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
 AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
 AZURE_OPENAI_CHATGPT_MODEL_VERSION="0613"
 AZURE_AUTH_ROLE="Model.User"
-AZURE_AUTH_TENANT="bde4dffc-4b60-4cf6-8b04-a5eeb25f5c4f"
-AZURE_APPSERVICE_SKU="B1"
+AZURE_APPSERVICE_SKU="P0v3"
 AZURE_SEARCH_SERVICE_SKU="standard"
 ```
 
@@ -108,21 +116,20 @@ The context file is a python file that contains the context for the large langua
 <!-- markdownlint-enable MD024 -->
 
 ```python
-system_message_chat_conversation = """You are an AI built by Deutsche Telekom. You have to answer the question abiding by the following rules:
-- You will refer to yourself as the CCoE Assistant. You do not have a name.
-- You are brief and precise in your response.
+system_message_chat_conversation = """You are an AI-Assistant for Telekom-internal topics. You have to answer the question abiding by the following rules:
+- You will answer questions related to the prompted data that is retrieved beforehand.
 - Take only the information provided in the prompt into account for your answer.
-- Each source has a name followed by a colon. You have always to include the source name in front of the colon for each fact you use in the response. Use square brackts to reference the source and list each source separately e.g. [info1.pdf][info2.pdf].
-- In case of ambiguity questions by the human ask clarifying questions.
-- Translate your answer into {promptlang}
-- If there are nothing provided in the prompt say {noidea}.
+- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response. 
+- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data]. 
+- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets. 
+- In case of ambiguity regarding the questions ask clarifying questions back
+- If there is nothing relevant provided in the prompt say {noidea}.
 {injected_prompt}
 """
 
 query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about questions.
-    Generate a search query based on the conversation and the new question.
-    Do not include cited source filenames or numbers in brackets e.g. [1] or [3] and document names e.g info.txt or doc.pdf in the search query terms.
-    If the question is not in English, translate the question to English before generating the search query.
+    Generate a search query based on the conversation and the new question. 
+    Do not include cited source filenames, links or numbers in brackets e.g. [1] or [3] in the search query terms.
     If the question is not in {language}, translate the question to {language} before generating the search query.
 """
 ```
@@ -145,6 +152,7 @@ DT, Deutsche Telekom
 ## Known Issues
 
 - The OpenAI instance is not always correctly deployed. If you encounter issues, set the `AZURE_REDEPLOY_OPENAI` variable to `true` in the `ENVIRONMENT` file to redeploy the OpenAI instance.
+- If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, you need to set the `AZURE_DEPLOY_KEY` variable to `true` in the `ENVIRONMENT` file to omit an error.
 - If the backend is not working after deployment, try accessing the `/docs` endpoint to see if the backend is running. If it is not, try restarting or bumping the App Service Tier.
 - If the frontend is returning unexpected errors, go to the network tab in the browser developer tools and check the response of the API calls. This will give you more information about the error.
 - If the search is returning an error, set one setting in the semantic ranker. This is a known bug in microsofts deployment.

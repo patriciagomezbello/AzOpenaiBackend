@@ -9,13 +9,14 @@
 - [What is Mate?](#what-is-mate)
 - [Documentation](#documentation)
   - [Deployment](#deployment)
+  - [Data Integration](#data-integration)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## What is Mate?
 
-Mate (formerly known as T-Chat) is a service that enables users to ask questions and get answers from a large knowledge base. The knowledge base is built from various sources like PDFs, websites, and wikis. The service is built on top of Azure services like Azure Search, Azure Cognitive Search, and Azure OpenAI. The service is designed to be used by Telekom employees to get answers to their questions quickly and efficiently.
+Mate (formerly known as T-Chat) is a service that enables users to ask questions and get answers from a large knowledge base. The knowledge base is built from various sources like PDFs, websites, and wikis. The service is built on top of Azure services like Azure Cognitive Services, Azure Blob Storage, and Azure OpenAI. The service is designed to be used by employees to get answers to their questions quickly and efficiently.
 
 The Mate application is PSA-compliant, but without the data. The data needs to be approved by the group workers council (KBR) before it can be used in production, each user needs to get approval separately. If you want to use this software for production, please reach out to [Jerome Chevaillier](mailto:Jerome.Chevaillier@telekom.de) for preparation.
 
@@ -28,6 +29,10 @@ You can find the documentation with deployment instructions, data integration, a
 ### Deployment
 
 To deploy Mate, you can follow the instructions in the [deployment guide](./docs/deployment.md).
+
+### Data Integration
+
+To integrate your data into Mate, you can follow the instructions in the [data integration guide](./docs/data-integration/README.md).
 
 ## Roadmap
 

@@ -30,15 +30,15 @@ The jobs that are triggered automatically are mainly for development purposes.
 
 ### `all-start` Job
 
-_tbd_
+Deploys the whole infrastructure and application. This job is triggered manually and should be used when you want to deploy the whole application.
 
 ### `app-start` Job
 
-_tbd_
+Deploys the application only. This job is triggered manually and should be used when you want to deploy the application only without updating the infrastructure.
 
 ### `data-start` Job
 
-_tbd_
+Runs the data integration and reindexes your configured data sources. This job is triggered manually and should be used when you want to reindex your data sources.
 
 ### `jira-bot-start` Job
 

@@ -13,7 +13,7 @@ Welcome to the Mate documentation! This documentation provides information on ho
 
 Before using your own instance of Mate, you need to have the following prerequisites:
 
-- **An Enterprise Subscription on the DTIT Azure Tenant**
+- **A subscription on the DTIT Azure Tenant (no sandbox allowed)**
 - **Contributor access to the Azure Subscription** for the service principal
 - **A resource group in the subscription named `rg-<AZURE_ENV_NAME>`** (e.g. `rg-mate`)
 - **A private GitLab Runner for CI/CD**:
