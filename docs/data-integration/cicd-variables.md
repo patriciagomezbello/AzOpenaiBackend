@@ -21,7 +21,15 @@ Available values are:
   - `file` (default): Load only file data sources.
   - `all`: Load all data sources.
   - `lc`: Load only LangChain data sources.
-- `DATA_CONVERT`: If set to `true`, data from the `data2convert` folder for the [file integration](#file-integration-variables) will be converted and put into the `data` folder during data integration.
+  
+- `ROLE_CONFIG`: File Variable in json format. In this config, you can restrict categories to specific roles. Categories not defined in the `ROLE_CONFIG` will be flagged as `public`. Please be aware: If your model has only one role in `AZURE_AUTH_ROLE` defined, this variable is useless, as everyone has the same access in this case. It does not make sense to specify your "global" role (the role with the least access) any category assignment, just define categories that only a specific usergroup should have access in this file. The format is as follows:
+  
+  ```json
+  {
+    "category1": ["role_custom", "role_special"],
+    "category2": ["role_special"]
+  }
+  ```
 
 ## File Integration Variables
 
