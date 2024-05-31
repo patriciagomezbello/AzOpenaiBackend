@@ -18,7 +18,7 @@
 
 Mate (formerly known as T-Chat) is a service that enables users to ask questions and get answers from a large knowledge base. The knowledge base is built from various sources like PDFs, websites, and wikis. The service is built on top of Azure services like Azure Cognitive Services, Azure Blob Storage, and Azure OpenAI. The service is designed to be used by employees to get answers to their questions quickly and efficiently.
 
-The Mate application is PSA-compliant, but without the data. The data needs to be approved by the group workers council (KBR) before it can be used in production, each user needs to get approval separately. If you want to use this software for production, please reach out to [Jerome Chevaillier](mailto:Jerome.Chevaillier@telekom.de) for preparation.
+The Mate application is PSA approved, that means you can reference our PSA in your own PSA. The only thing you need to clarify is the data you want to use. Furthermore, each user must obtain separate approval from the Group Workers Council (KBR) before the data can be used in production. If you want to use this software for production, please reach out to [Jerome Chevaillier](mailto:Jerome.Chevaillier@telekom.de) for preparation.
 
 This repository was initially inspired by the [Microsoft Azure Sample Repository](https://github.com/Azure-Samples/azure-search-openai-demo/tree/main).
 
