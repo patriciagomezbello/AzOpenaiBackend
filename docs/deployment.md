@@ -83,7 +83,9 @@ The environment file is a `.env` file that contains the environment variables fo
 ##### Example
 
 ```properties
-AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
+# Azure Configurations
+# https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md#file-environment
+
 AZURE_ENV_NAME="mate-env-name"
 AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
@@ -95,9 +97,11 @@ AZURE_SUBNET_NAME_APPSERVICE="sn-mate-appservice"
 AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
 AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
 AZURE_OPENAI_CHATGPT_MODEL_VERSION="0613"
-AZURE_AUTH_ROLE="Model.User"
 AZURE_APPSERVICE_SKU="P0v3"
 AZURE_SEARCH_SERVICE_SKU="standard"
+
+AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
+AZURE_AUTH_ROLE="all"
 ```
 
 #### File: `CONTEXT`
@@ -119,16 +123,16 @@ The context file is a python file that contains the context for the large langua
 system_message_chat_conversation = """You are an AI-Assistant for Telekom-internal topics. You have to answer the question abiding by the following rules:
 - You will answer questions related to the prompted data that is retrieved beforehand.
 - Take only the information provided in the prompt into account for your answer.
-- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response. 
-- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data]. 
-- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets. 
+- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response.
+- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data].
+- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets.
 - In case of ambiguity regarding the questions ask clarifying questions back
 - If there is nothing relevant provided in the prompt say {noidea}.
 {injected_prompt}
 """
 
 query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about questions.
-    Generate a search query based on the conversation and the new question. 
+    Generate a search query based on the conversation and the new question.
     Do not include cited source filenames, links or numbers in brackets e.g. [1] or [3] in the search query terms.
     If the question is not in {language}, translate the question to {language} before generating the search query.
 """

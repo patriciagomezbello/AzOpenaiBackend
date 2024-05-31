@@ -11,6 +11,7 @@
     - [Chat Configuration](#chat-configuration)
     - [Authentication Configuration](#authentication-configuration)
     - [Logging Configuration](#logging-configuration)
+    - [Example](#example)
   - [Run the application](#run-the-application)
     - [Run the backend only](#run-the-backend-only)
     - [Run the whole application](#run-the-whole-application)
@@ -113,6 +114,7 @@ The general configuration is used to set up the basic configuration of the appli
 | Environment Variable | Description                                                                                                             | Default Value | Mandatory |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------- | --------- |
 | `API_BASE_PATH`      | The base path of the API. The version will be appended automatically except if the version is set to its default value. | `/`           |           |
+| `CORS_DISABLED`      | Whether to disable the CORS policy. **Use with caution!**                                                               | `false`       |           |
 
 #### Azure Services Configuration
 
@@ -165,6 +167,75 @@ In case you need another Open ID Connect Provider, you can open an [issue](https
 | `LOG_FORMAT`          | Format of the log messages. Options: `color`, `text`, `json`.                        | `json`        |           |
 | `LOG_EXECUTION_TIMES` | Whether to log the execution times of each method. Needs `LOG_LEVEL` set to `DEBUG`. | `false`       |           |
 | `LOG_SENSITIVE_DATA`  | Whether to log sensitive data. Needs `LOG_LEVEL` set to `DEBUG`.                     | `false`       |           |
+
+#### Example
+
+<!-- markdownlint-disable MD033 -->
+<details>
+
+<summary>Example <code>.env</code> file</summary>
+
+```properties
+# Mate Configurations
+# https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/tree/main/docs/dev#mate-configuration
+
+# General Configuration
+API_BASE_PATH=/
+CORS_DISABLED=false
+
+# Azure Services Configuration
+AZURE_OPENAI_SERVICE=
+AZURE_OPENAI_CHATGPT_DEPLOYMENT=
+AZURE_OPENAI_CHATGPT_MODEL=
+AZURE_OPENAI_EMB_DEPLOYMENT=
+
+AZURE_SEARCH_SERVICE=
+AZURE_SEARCH_INDEX=
+
+AZURE_STORAGE_ACCOUNT=
+AZURE_STORAGE_CONTAINER_DOCS=
+
+AZURE_USE_DEFAULT_CREDENTIAL=false
+
+# Chat Configuration
+ABBREVIATIONS={"DTAG": "Deutsche Telekom AG"}
+
+ANSWER_SYSTEM_PROMPT='You are an AI-Assistant for Telekom-internal topics. You have to answer the question abiding by the following rules:
+- You will answer questions related to the prompted data that is retrieved beforehand.
+- Take only the information provided in the prompt into account for your answer.
+- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response. 
+- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data]. 
+- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets. 
+- In case of ambiguity regarding the questions ask clarifying questions back
+- If there is nothing relevant provided in the prompt say {noidea}.
+{injected_prompt}'
+
+QUERY_SYSTEM_PROMPT='Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about questions.
+    Generate a search query based on the conversation and the new question. 
+    Do not include cited source filenames, links or numbers in brackets e.g. [1] or [3] in the search query terms.
+    If the question is not in {language}, translate the question to {language} before generating the search query.'
+
+MAX_TOKENS_ANSWER=1024
+MAX_TOKENS_QUERY=32
+
+# Authentication/Authorization Configuration
+AZURE_AUTH_ROLE=all
+AZURE_AUTH_CLIENT=
+AZURE_AUTH_TENANT=same
+
+AZURE_AUTH_ICU_CLIENT= # optional
+AZURE_AUTH_ICU_ISSUER_URL= # optional
+
+# Logging Configuration
+LOG_LEVEL=info
+LOG_FORMAT=json
+LOG_CALLER=false
+LOG_EXECUTION_TIMES=false
+LOG_SENSITIVE_DATA=false
+```
+
+</details>
+<!-- markdownlint-enable MD033 -->
 
 ### Run the application
 
