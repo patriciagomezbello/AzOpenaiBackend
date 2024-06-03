@@ -60,11 +60,8 @@ def timer(log_level: int = logging.DEBUG) -> Callable[[T], T]:
             if exception:
                 logger.warning(f"{name} executed in {rtt} seconds until exception: {str(exception)}")
                 return
-            if log_level != logging.DEBUG:
+            if logger.isEnabledFor(log_level):
                 logger.log(log_level, f"{name} executed in {rtt} seconds.")
-                return
-
-            logger.debug(f"{name} executed in {rtt} seconds.")
 
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:

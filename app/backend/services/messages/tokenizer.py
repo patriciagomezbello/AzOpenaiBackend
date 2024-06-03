@@ -2,9 +2,9 @@ from abc import ABC
 from abc import abstractmethod
 from typing import List
 
+from services.schemas import Document
 from services.schemas import Message
 from services.schemas import Model
-from services.schemas import parse_model
 from tiktoken import encoding_for_model
 
 
@@ -15,7 +15,10 @@ class Tokenizer(ABC):
     def tokenize_messages(self, msgs: List[Message]) -> int: ...
 
     @abstractmethod
-    def _num_tokens_for_message(self, m: Message) -> int: ...
+    def tokenize_message(self, m: Message) -> int: ...
+
+    @abstractmethod
+    def tokenize_documents(self, docs: List[Document]) -> int: ...
 
 
 class Tokenization(Tokenizer):
@@ -24,7 +27,7 @@ class Tokenization(Tokenizer):
     """
 
     def __init__(self, model: Model):
-        self.model = parse_model(model)
+        self.model = model.parse()
         self.encoder = encoding_for_model(self.model)
 
     def tokenize_messages(self, msgs: List[Message]) -> int:
@@ -42,12 +45,19 @@ class Tokenization(Tokenizer):
         """
         num = 0
         for m in msgs:
-            num += self._num_tokens_for_message(m)
+            num += self.tokenize_message(m)
         return num
 
-    def _num_tokens_for_message(self, m: Message) -> int:
+    def tokenize_message(self, m: Message) -> int:
         """_num_tokens_for_message calculates the number of tokens required to encode the given message."""
         num = 2  # Initalize with 2 tokens for the message dictionary keys
         num += len(self.encoder.encode(m.role()))
         num += len(self.encoder.encode(m.content()))
+        return num
+
+    def tokenize_documents(self, docs: List[Document]) -> int:
+        """tokenize_document calculates the number of tokens required to encode the given document."""
+        num = 0
+        for doc in docs:
+            num += len(self.encoder.encode(str(doc)))
         return num

@@ -1,11 +1,13 @@
 from copy import deepcopy
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
 
 from api.models import Overrides
 from azure.search.documents.aio import AsyncSearchItemPaged
+from azure.search.documents.models import QueryCaptionResult
 from azure.search.documents.models import QueryType
 from azure.search.documents.models import VectorizedQuery
 from clients import SearchClient
@@ -19,6 +21,7 @@ from services.schemas import ChatCompletionsOptions
 from services.schemas import ChatData
 from services.schemas import ContextPrompt
 from services.schemas import CreateEmbeddingOptions
+from services.schemas import Document
 from services.schemas import Facet
 from services.schemas import LLMOptions
 from services.schemas import Message
@@ -84,7 +87,9 @@ class AzureSearchService(SearchService):
         return resp
 
     @timer()
-    async def cognitive_search(self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> str:
+    async def cognitive_search(
+        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+    ) -> List[Document]:
         """cognitive_search performs a search using the provided query and overrides.
         It returns the search results as a formatted string.
         """
@@ -95,14 +100,14 @@ class AzureSearchService(SearchService):
                 options=CreateEmbeddingOptions(),
             )
 
-            resp = await self.client.search(
+            docs = await self.client.search(
                 SearchOptions(
                     search_text=search_query,
                     filter=self._build_filter(overrides, lang, roles),
                     query_type=QueryType.SEMANTIC,
                     semantic_configuration_name="default",
                     top=overrides.top,
-                    query_caption=("extractive|highlight-false" if overrides.semantic_captions else None),
+                    query_caption=None,
                     vector_queries=[
                         VectorizedQuery(
                             fields="embedding",
@@ -115,7 +120,7 @@ class AzureSearchService(SearchService):
             logger.exception(f"Failed to search with query '{search_query}': {e}")
             raise ValueError(f"Failed to search with query '{search_query}': {e}")
 
-        return await self._process_search_results(resp, overrides.semantic_captions)
+        return await self._process_search_results(docs)
 
     def _build_filter(self, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> Optional[str]:
         """_build_filter builds a filter based on the provided overrides and language.
@@ -192,37 +197,38 @@ class AzureSearchService(SearchService):
         logger.debug(f"All filters combined: {filter[:-5]}")
         return filter[:-5]
 
-    async def _process_search_results(
-        self,
-        search_response: AsyncSearchItemPaged[Dict[str, Any]],
-        use_semantic_captions: bool,
-    ) -> str:
-        """_process_search_results processes the search results and returns a formatted string."""
-
-        results: List[str] = []
+    async def _process_search_results(self, search_items: AsyncSearchItemPaged[Dict[str, Any]]) -> List[Document]:
+        """_process_search_results processes the search results and returns a list of documents."""
+        documents: List[Document] = []
         try:
-            async for page in search_response.by_page():
+            async for page in search_items.by_page():
                 async for doc in page:
-                    base_text = f"{doc['sourcepage']}: "
-
-                    if use_semantic_captions:
-                        captions = " . ".join([str(c.text) for c in doc["@search.captions"]])
-                        results.append(f"{base_text}{self._remove_new_lines(captions)}")
-                        continue
-
-                    content = self._remove_new_lines(doc["content"])
-                    results.append(f"{base_text}{content}")
+                    documents.append(
+                        Document(
+                            id=doc.get("id"),
+                            content=doc.get("content"),
+                            embedding=doc.get("embedding"),
+                            image_embedding=doc.get("imageEmbedding"),
+                            doclang=doc.get("doclang"),
+                            category=doc.get("category"),
+                            sourcepage=doc.get("sourcepage"),
+                            roles=doc.get("roles"),
+                            sourcefile=doc.get("sourcefile"),
+                            captions=cast(List[QueryCaptionResult], doc.get("@search.captions")),
+                            score=doc.get("@search.score"),
+                            reranker_score=doc.get("@search.reranker_score"),
+                        )
+                    )
         except Exception as e:
             logger.exception(f"Failed to process search results: {e}")
             raise ValueError(f"Failed to process search results: {e}")
 
-        logger.debug(f"Found {len(results)} search results" + (":\n" + "\n".join(results) if LOG_SENSITIVE_DATA else ""))
-        return "\n".join(results)
+        logger.debug(
+            f"Found {len(documents)} search results"
+            + (":\n" + "\n".join(str(doc.to_dict()) for doc in documents) if LOG_SENSITIVE_DATA else "")
+        )
+        return documents
 
     def initialize_search_index(self, doclangs: List[Facet]) -> None:
         """initialize_search_index sets the local facets based on the provided facets."""
         self.cfg.doclangs = doclangs
-
-    def _remove_new_lines(self, text: str) -> str:
-        """_remove_new_lines removes new lines from the text and replace them with spaces."""
-        return text.replace("\n", " ").replace("\r", " ")

@@ -28,6 +28,9 @@ class Color(Enum):
 
 def _find_log_caller_frame() -> traceback.FrameSummary:
     """_find_log_caller_frame finds the frame of the caller of the logger."""
+    if not _LOG_CALLER:
+        return traceback.FrameSummary(filename="", lineno=0, name="", line="")
+
     frames = traceback.extract_stack()
     for frame in reversed(frames):
         if frame.filename != __file__ and logging.__file__ not in frame.filename:
@@ -39,13 +42,6 @@ _LOG_CALLER = os.getenv("LOG_CALLER", "false").lower() == "true"
 _LOG_FORMAT = os.getenv("LOG_FORMAT", "json").lower()
 LOG_EXECUTION_TIMES = os.getenv("LOG_EXECUTION_TIMES", "false").lower() == "true"
 LOG_SENSITIVE_DATA = os.getenv("LOG_SENSITIVE_DATA", "false").lower() == "true"
-
-_logger_registry = set()
-
-
-def get_registered_loggers() -> set[logging.Logger]:
-    """get_registered_loggers returns the set of all registered loggers."""
-    return _logger_registry
 
 
 class CustomFormatter(logging.Formatter):
@@ -164,5 +160,4 @@ def new_logger(module_name: str, use_console_handler: bool = True, use_file_hand
             except Exception as e:
                 logger.error(f"Failed to create file handler: {e}")
 
-        _logger_registry.add(logger)
         return logger

@@ -6,6 +6,7 @@ from typing import Optional
 from api.models import Overrides
 from lingua import Language
 from services.schemas import ChatData
+from services.schemas import Document
 from services.schemas import Facet
 from services.schemas import Message
 
@@ -29,7 +30,9 @@ class SearchService(ABC):
         ...
 
     @abstractmethod
-    async def cognitive_search(self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> str:
+    async def cognitive_search(
+        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+    ) -> List[Document]:
         """cognitive_search performs a cognitive search based on the provided query and overrides.
 
         Raises:
