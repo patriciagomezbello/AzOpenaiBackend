@@ -3,6 +3,7 @@ from config import Config
 from quart import jsonify
 from quart import ResponseReturnValue
 from services.auth import AuthService
+from werkzeug.exceptions import BadRequest
 
 
 class ErrorProvider:
@@ -47,3 +48,7 @@ class Controller(ErrorProvider):
         cls.config = cfg
         cls.auth = auth
         cls._initialized = True
+
+    def is_bad_request(self, e: Exception) -> bool:
+        """is_bad_request checks if the exception is a bad request."""
+        return isinstance(e, BadRequest) or isinstance(e, TypeError)
