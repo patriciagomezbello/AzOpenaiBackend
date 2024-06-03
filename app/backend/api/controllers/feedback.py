@@ -16,7 +16,6 @@ from quart_schema import document_response
 from services.auth import auth
 from services.feedback import FeedbackService
 from services.logger import new_logger
-from werkzeug.exceptions import BadRequest
 
 logger = new_logger(__name__)
 
@@ -40,9 +39,10 @@ class FeedbackController(Controller):
                 await self.feedback_svc.send_feedback(feedback)
             return jsonify({"response": "Feedback received."}), 200
         except Exception as e:
-            if isinstance(e, BadRequest) or isinstance(e, TypeError):
+            if self.is_bad_request(e):
                 logger.debug(f"Malformed request: {e}", exc_info=True)
                 return self.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)
+
             logger.exception(f"An error occurred while sending feedback: {e}")
             return self.error_response(str(e), 500)
 
@@ -59,6 +59,7 @@ class FeedbackRoute(MethodView):
         document_request(FeedbackRequest),
         document_response(FeedbackResponse, 200),
         document_response(ErrorResponse, 400),
+        document_response(ErrorResponse, 401),
         document_response(ErrorResponse, 403),
         document_response(ErrorResponse, 500),
     ]

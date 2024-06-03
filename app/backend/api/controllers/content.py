@@ -56,6 +56,7 @@ class ContentRoute(MethodView):
     """
 
     decorators: ClassVar[list[Callable]] = [
+        document_response(ErrorResponse, 401),
         document_response(ErrorResponse, 403),
         document_response(ErrorResponse, 404),
         document_response(ErrorResponse, 500),

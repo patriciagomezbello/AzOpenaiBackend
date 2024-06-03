@@ -47,6 +47,7 @@ class CategoryRoute(MethodView):
 
     decorators: ClassVar[list[Callable]] = [
         document_response(CategoryResponse, 200),
+        document_response(ErrorResponse, 401),
         document_response(ErrorResponse, 403),
         document_response(ErrorResponse, 500),
     ]

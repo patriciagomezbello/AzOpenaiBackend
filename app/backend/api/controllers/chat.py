@@ -20,7 +20,6 @@ from quart_schema import document_response
 from services.auth import auth
 from services.logger import LOG_SENSITIVE_DATA
 from services.logger import new_logger
-from werkzeug.exceptions import BadRequest
 
 
 logger = new_logger(__name__)
@@ -55,7 +54,7 @@ class ChatController(Controller):
             return jsonify(resp), 200
 
         except Exception as e:
-            if isinstance(e, BadRequest) or isinstance(e, TypeError):
+            if self.is_bad_request(e):
                 logger.debug(f"Malformed request: {e}")
                 return self.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)
             if isinstance(e, RateLimitError):
@@ -81,10 +80,12 @@ class ChatRoute(MethodView):
         document_request(ChatRequest),
         document_response(ChatResponse, 200),
         document_response(ErrorResponse, 400),
+        document_response(ErrorResponse, 401),
         document_response(ErrorResponse, 403),
         document_response(ErrorResponse, 415),
         document_response(ErrorResponse, 429),
         document_response(ErrorResponse, 500),
+        document_response(ErrorResponse, 503),
     ]
 
     def __init__(self, chat_controller: ChatController):
