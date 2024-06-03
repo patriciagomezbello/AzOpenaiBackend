@@ -1,8 +1,10 @@
+import json
 import logging.handlers
 import os
 import threading
 import traceback
 from enum import Enum
+from typing import Any
 
 # LOGGING_PRECISION defines the decimal precision for the logging times.
 LOGGING_PRECISION: int = 4
@@ -44,13 +46,32 @@ LOG_EXECUTION_TIMES = os.getenv("LOG_EXECUTION_TIMES", "false").lower() == "true
 LOG_SENSITIVE_DATA = os.getenv("LOG_SENSITIVE_DATA", "false").lower() == "true"
 
 
+class StructuredMessage:
+    """StructuredMessage is a class that represents a structured log message."""
+
+    def __init__(self, message: str, /, **kwargs):
+        self.message = message
+        self.kwargs = kwargs
+
+    def __str__(self) -> str:
+        if _LOG_FORMAT != "json":
+            return self._to_text()
+        return self._to_json()
+
+    def _to_text(self):
+        return f"{self.message}\t{', '.join([f'{k}={v}' for k, v in self.kwargs.items()])}"
+
+    def _to_json(self) -> str:
+        return json.dumps({"description": self.message, **self.kwargs})
+
+
 class CustomFormatter(logging.Formatter):
     """CustomFormatter is a custom formatter for log messages.
     It adds the color to the log messages based on the log level.
     """
 
     LEVEL_COLORS: list[tuple[int, str]] = [
-        (logging.DEBUG, Color.BLUE.value),
+        (logging.DEBUG, Color.GREEN.value),
         (logging.INFO, Color.CYAN.value),
         (logging.WARNING, Color.YELLOW.value),
         (logging.ERROR, Color.RED.value),
@@ -73,17 +94,24 @@ class CustomFormatter(logging.Formatter):
             case _:  # Default to JSON format
                 fmt = (
                     '{"time": "%(asctime)s", '
-                    + ('"stacktrace": "<%(pathname)s:%(lineno)d>", ' if _LOG_CALLER else "")
-                    + '"level": "%(levelname)s", "name": "%(name)s", "message": "%(message)s"}'
+                    + ('"stacktrace": "%(pathname)s:%(lineno)d", ' if _LOG_CALLER else "")
+                    + '"level": "%(levelname)s", "name": "%(name)s", "message": %(message)s}'
                 )
 
         FORMATS[level] = logging.Formatter(fmt, "%Y-%m-%d %H:%M:%S")
 
-    def format(self, record: logging.LogRecord):
-        formatter = self.FORMATS.get(record.levelno)
-        if formatter is None:
-            formatter = self.FORMATS[logging.DEBUG]
+    def format(self, record: logging.LogRecord) -> str:
+        formatter = self.FORMATS.get(record.levelno, self.FORMATS[logging.DEBUG])
 
+        # Since we have a package oriented repository, we want to remove the private module names.
+        # We cannot do this on logger creation because it may result in duplicate log emissions
+        # due to the fact that python's logging module uses the logger name to identify the logger.
+        module = record.name.split(".")[-1]
+        if module.startswith("_"):
+            record.name = ".".join(record.name.split(".")[:-1])
+
+        record.msg = self._build_structured_message(record.msg, record.args)
+        record.args = None
         # If there is no exception, get the frame information
         if not record.exc_info:
             frame = _find_log_caller_frame()
@@ -98,6 +126,16 @@ class CustomFormatter(logging.Formatter):
         # Remove the cache layer
         record.exc_text = None
         return output
+
+    def _build_structured_message(self, msg: str, args: Any) -> str:
+        """_convert_to_structured_message converts the message and arguments to a structured message."""
+        if not args:
+            return str(StructuredMessage(msg))
+
+        if isinstance(args, dict):
+            return str(StructuredMessage(msg, **args))
+
+        return str(StructuredMessage(msg, **{str(i): arg for i, arg in enumerate(args)}))
 
 
 # Define a lock for logger switching
@@ -128,18 +166,19 @@ def new_logger(module_name: str, use_console_handler: bool = True, use_file_hand
             logger.addHandler(logging.NullHandler())
             return logger
 
-        library, _, _ = module_name.partition(".py")
-        logger = logging.getLogger(library)
+        package, _, _ = module_name.partition(".py")
+
+        logger = logging.getLogger(package)
         level = logging.getLevelName(os.getenv("LOG_LEVEL", "INFO").upper())
         logger.setLevel(level)
 
-        if use_console_handler:
+        if use_console_handler and not any(isinstance(handler, logging.StreamHandler) for handler in logger.handlers):
             console_handler = logging.StreamHandler()
             console_handler.setLevel(level)
             console_handler.setFormatter(CustomFormatter())
             logger.addHandler(console_handler)
 
-        if use_file_handler:
+        if use_file_handler and not any(isinstance(handler, logging.handlers.RotatingFileHandler) for handler in logger.handlers):
             grandparent_dir = os.path.abspath(f"{__file__}/../../")
             log_name = os.getenv("LOG_FILE_NAME", "logger.log")
             log_path = os.path.join(grandparent_dir, log_name)
@@ -158,6 +197,6 @@ def new_logger(module_name: str, use_console_handler: bool = True, use_file_hand
                 log_handler.setLevel(level)
                 logger.addHandler(log_handler)
             except Exception as e:
-                logger.error(f"Failed to create file handler: {e}")
+                logger.error("Failed to create file handler", {"error": str(e)})
 
         return logger

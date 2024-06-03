@@ -13,6 +13,7 @@ from services.factory import ServiceFactory
 from services.factory import ServiceName
 from services.language import LanguageService
 from services.llm import LLMService
+from services.logger import LOG_SENSITIVE_DATA
 from services.logger import new_logger
 from services.messages.builder import Builder
 from services.schemas import ChatCompletionsOptions
@@ -80,7 +81,7 @@ class ChatReadRetrieveRead(ChatApproach):
 
             # Build the (optimized) search query for the cognitive search
             search_query = await self.search_svc.build_query_prompt(msgs, data)
-            logger.debug(f"Built search query: {search_query}")
+            logger.debug("Built search query", {"search_query": search_query})
 
             # Perform the cognitive search to get the enhanced context for the LLM (RAG data)
             search_res = await self.search_svc.cognitive_search(search_query, overrides, data.language, roles)
@@ -102,7 +103,7 @@ class ChatReadRetrieveRead(ChatApproach):
             )
 
         except Exception as e:
-            logger.error(f"Failed to run read-retrieve-read chat approach: {str(e.args[0])}")
+            logger.error("Error while running read-retrieve-read chat approach", {"error": str(e)})
             raise
 
         citations = self.citation_service.get_citations(answer)
@@ -137,7 +138,7 @@ class ChatReadRetrieveRead(ChatApproach):
             builder.add_message(Message({"role": Message.USER_ROLE, "content": msg.user}))
             current_tokens += user_tokens
 
-        logger.debug(f"Converted history to messages with {len(builder.get_messages())} messages and {builder.tokens()} tokens.")
+        logger.debug("Converted history to messages", {"num_messages": len(builder.get_messages()), "tokens": current_tokens})
         return builder.get_messages()[::-1]
 
     @timer()
@@ -145,9 +146,19 @@ class ChatReadRetrieveRead(ChatApproach):
         """_get_chat_data gets the chat data from the messages of the conversation."""
 
         detected_lang = self.lang_svc.detect(msgs[-1].content())
-        logger.debug(f"Detected language: {detected_lang.name}")
-        no_idea_message = self.NO_IDEA_MESSAGES.get(detected_lang, self.NO_IDEA_MESSAGES[Language.ENGLISH])
-        logger.debug(f"Using 'no idea' message: {no_idea_message}")
+        no_idea_message = self.NO_IDEA_MESSAGES.get(detected_lang)
+        if no_idea_message is None:
+            no_idea_message = self.NO_IDEA_MESSAGES[Language.ENGLISH]
+            logger.warning(
+                "Retrieved chat data with unrecognized language",
+                {
+                    "detected_lang": detected_lang.name,
+                    "no_idea_message": no_idea_message,
+                    "message": (msgs[-1].content() if LOG_SENSITIVE_DATA else "REDACTED"),
+                },
+            )
+        else:
+            logger.debug("Retrieved chat data", {"detected_lang": detected_lang.name, "no_idea_message": no_idea_message})
 
         return ChatData(language=detected_lang, no_idea_message=no_idea_message, injected_instructions=None)
 

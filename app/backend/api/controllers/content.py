@@ -42,8 +42,9 @@ class ContentController(Controller):
             )
         except Exception as e:
             if isinstance(e, FileNotFoundError):
+                logger.debug("File not found", {"path": path, "error": str(e)})
                 return self.error_response_with_message(ErrorProvider.DOC_NOT_FOUND)
-            logger.exception(f"Error getting file: {e}")
+            logger.exception("Error while getting file", {"path": path, "error": str(e)})
             return self.error_response(str(e), 500)
 
 

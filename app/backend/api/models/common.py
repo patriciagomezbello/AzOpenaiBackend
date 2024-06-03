@@ -72,7 +72,13 @@ class Overrides:
     multilingual_search: bool = True
 
     def __post_init__(self):
+        self.retrieval_mode = self.retrieval_mode or ""
+        self.semantic_ranker = self.semantic_ranker or False
+        self.temperature = self.temperature or 0.7
+        self.semantic_captions = self.semantic_captions or False
+        self.top = self.top or 3
         self.category_filter = self.category_filter or []
+        self.multilingual_search = self.multilingual_search or True
 
     def fill_defaults(self, defaults: "Overrides") -> "Overrides":
         """fill_defaults fills in the missing values with the given default values."""
@@ -87,3 +93,15 @@ class Overrides:
         if self.temperature == 0.0:
             self.temperature = defaults.temperature
         return self
+
+    def to_dict(self) -> dict[str, str | bool | float | List[str]]:
+        """to_dict converts the dataclass to a dictionary."""
+        return {
+            "retrieval_mode": self.retrieval_mode,
+            "semantic_ranker": self.semantic_ranker,
+            "temperature": self.temperature,
+            "semantic_captions": self.semantic_captions,
+            "top": self.top,
+            "category_filter": self.category_filter,
+            "multilingual_search": self.multilingual_search,
+        }

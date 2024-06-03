@@ -42,7 +42,7 @@ class OAuthService(AuthService):
             _ = self.client.decode_token(token)
         except Exception as e:
             if isinstance(e, InvalidTokenError) or isinstance(e, UnknownProviderError):
-                logger.warning("Invalid Token, returning 401")
+                logger.warning("Authentication failed", {"error": str(e)})
                 return False
             raise
 
@@ -57,7 +57,7 @@ class OAuthService(AuthService):
             # Even though is_authorized should always be called after is_authenticated,
             # we should still handle the case to avoid potential security issues.
             if isinstance(e, InvalidTokenError) or isinstance(e, UnknownProviderError):
-                logger.warning("Invalid Token")
+                logger.warning("Authorization failed", {"error": str(e)})
                 return False
             raise
 
@@ -70,7 +70,7 @@ class OAuthService(AuthService):
             decoded = self.client.decode_token(token)
         except Exception as e:
             if isinstance(e, InvalidTokenError) or isinstance(e, UnknownProviderError):
-                logger.warning("Invalid Token")
+                logger.warning("Invalid Token", {"error": str(e)})
                 return []
             raise
 
@@ -79,14 +79,14 @@ class OAuthService(AuthService):
     def _get_token(self, request: Request) -> str:
         header = request.headers.get("Authorization")
         if header is None:
-            logger.debug("No auth header, returning 401")
+            logger.debug("No 'Authorization' header found")
             raise NoAuthHeaderError("Authorization header is missing")
 
         parts = header.split()
         token = parts[1] if len(parts) > 1 else None
         if token is None:
-            logger.debug("no token found, returning 401")
-            raise NoAuthHeaderError("Token is missing")
+            logger.debug("Token is missing in 'Authorization' header")
+            raise NoAuthHeaderError("Token is missing in Authorization header")
 
         return token
 

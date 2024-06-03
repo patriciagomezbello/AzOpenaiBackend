@@ -154,6 +154,8 @@ class AnswerSettings:
 class ChatSettings:
     """ChatSettings is a class that holds the configuration for the chat service."""
 
+    # TODO: To set the system prompts per environment variables using azd, we'd need a solution to a bug of azd
+    # that fails to read multi-line strings from environment variables.
     query: QuerySettings = field(default_factory=QuerySettings)
     answer: AnswerSettings = field(default_factory=AnswerSettings)
 
@@ -167,6 +169,8 @@ class ChatSettings:
 class ChatConfig:
     """ChatConfig is a class that holds the configuration for the chat service."""
 
+    # TODO: Since azd env get-values escapes the double quotes, we'd need to write a custom json parser that
+    # handles the escaped double quotes since json doesn't support single quotes.
     abbreviations: dict[str, str] = field(
         default_factory=lambda: json.loads(os.getenv("ABBREVIATIONS", json.dumps(abbreviations or {})))
     )

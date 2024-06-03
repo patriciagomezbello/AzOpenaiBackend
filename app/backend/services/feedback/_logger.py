@@ -1,5 +1,3 @@
-import json
-
 from api.models import FeedbackRequest
 from services.feedback._interface import FeedbackService
 from services.logger import new_logger
@@ -18,5 +16,5 @@ class FeedbackLogger(FeedbackService):
 
         # This indirectly sends the feedback to the application insights service of azure
         # which will process the feedback further.
-        logger.eval(json.dumps(feedback.to_dict(), indent=2))
+        logger.info("Feedback received", {"feedback": feedback.to_dict()})
         return

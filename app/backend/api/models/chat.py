@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Any
 from typing import List
 from typing import Optional
 
@@ -30,6 +31,14 @@ class ChatRequest:
 
         if isinstance(self.overrides, dict):
             self.overrides = Overrides(**self.overrides)
+
+    def to_dict(self, include_sensitive: bool = False) -> dict[str, Any]:
+        """to_dict converts the dataclass to a dictionary."""
+        return {
+            "history": ([msg.to_dict() for msg in self.history] if include_sensitive else "REDACTED"),
+            "approach": self.approach,
+            "overrides": self.overrides.to_dict() if self.overrides else None,
+        }
 
     def validate(self) -> bool:
         """validate checks if the chat request is valid."""

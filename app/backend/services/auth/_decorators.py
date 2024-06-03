@@ -45,7 +45,8 @@ def auth(func: T) -> T:
         except Exception as e:
             if isinstance(e, NoAuthHeaderError):
                 return self.error_response_with_message(ErrorProvider.AUTHENTICATION)
-            logger.exception(f"Error checking authentication: {e}")
+
+            logger.exception("Error while authenticating or authorizing", {"error": str(e)})
             return self.error_response(str(e.args[0]), 500)
 
     return cast(T, wrapper)

@@ -33,7 +33,7 @@ class CategoryController(Controller):
             categories = await self.cat_svc.get_categories(self.auth.get_roles(req))
             return (jsonify({"categories": categories}), 200)
         except Exception as e:
-            logger.exception(f"Error getting categories: {e}")
+            logger.exception("Error while getting categories", {"error": str(e)})
             return self.error_response(str(e), 500)
 
 

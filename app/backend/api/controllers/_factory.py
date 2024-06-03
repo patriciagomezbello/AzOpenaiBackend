@@ -32,7 +32,7 @@ class Controllers:
             await cat_svc.sync_facets(search_svc=search_svc)
             logger.info("Syncronized facets with search service")
         except Exception as e:
-            logger.warning(f"Failed to syncronize facets with search service: {e}", exc_info=True)
+            logger.warning("Error while syncing facets with search service", {"error": str(e)}, exc_info=True)
 
     def setup_controllers(self) -> None:
         """setup_controllers initializes all the controllers."""

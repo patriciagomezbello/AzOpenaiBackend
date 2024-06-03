@@ -54,33 +54,25 @@ class ServiceFactory:
 
         match service:
             case ServiceName.OPEN_AI_SERVICE:
-                logger.info("Creating LLM service")
                 svc = OpenAIService(client=self.clients["LLMClient"])
             case ServiceName.OAUTH_SERVICE:
-                logger.info("Creating Auth service")
                 svc = OAuthService(
                     client=self.clients["AuthClient"],
                     cat_svc=self.get_service(ServiceName.FACET_CATEGORY_SERVICE),
                 )
             case ServiceName.FACET_CATEGORY_SERVICE:
-                logger.info("Creating Category service")
                 svc = FacetCategoryService(search_client=self.clients["SearchClient"])
             case ServiceName.REGEX_CITATION_SERVICE:
-                logger.info("Creating Citation service")
                 svc = RegexCitationService()
             case ServiceName.AZURE_BLOB_CONTENT_SERVICE:
-                logger.info("Creating Content service")
                 svc = AzureBlobContentService(client=self.clients["StorageClient"])
             case ServiceName.FEEDBACK_LOGGER:
-                logger.info("Creating Feedback service")
                 svc = FeedbackLogger()
             case ServiceName.LANGUAGE_PROCESSING_SERVICE:
-                logger.info("Creating language service")
                 svc = LanguageProcessingService(
                     abbreviations=self.config.chat.abbreviations,
                 )
             case ServiceName.AZURE_SEARCH_SERVICE:
-                logger.info("Creating Search service")
                 svc = AzureSearchService(
                     cfg=self.config.chat.settings.query,
                     search_client=self.clients["SearchClient"],
@@ -88,8 +80,9 @@ class ServiceFactory:
                     lang_svc=self.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE),
                 )
             case _:
-                logger.error(f"Service {service} is not recognized.")
+                logger.error("Requested service is not recognized", {"service": service.name})
                 raise ValueError(f"Service {service} is not recognized.")
 
+        logger.info("Created and cached service instance", {"service": type(svc).__name__})
         self.services[service] = svc
         return svc
