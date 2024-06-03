@@ -168,7 +168,8 @@ def update_roles_index(
 
     if len(documents_to_update) > 0:
         print(f"{len(documents_to_update)} documents will be updated with their roles")
-        print(documents_to_update)
+        if len(documents_to_update) < 100:
+            print(documents_to_update)
         search_client.merge_documents(documents_to_update)
     else:
         print("No documents to update with roles")
