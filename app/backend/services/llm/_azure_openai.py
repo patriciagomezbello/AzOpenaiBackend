@@ -6,10 +6,13 @@ from services.llm._interface import LLMService
 from services.logger import new_logger
 from services.messages.builder import Builder
 from services.messages.builder import new_builder_with_instructions
+from services.messages.tokenizer import Tokenizer
 from services.schemas import ChatData
 from services.schemas import CreateEmbeddingOptions
+from services.schemas import Document
 from services.schemas import LLMOptions
 from services.schemas import Message
+from services.schemas import Model
 from services.timer import timer
 
 
@@ -90,9 +93,10 @@ class OpenAIService(LLMService):
         builder: Builder = new_builder_with_instructions(instructions=instructions, model=self.config().gpt.model)
 
         for i, msg in enumerate(msgs):
-            if options.enhanced_context and options.enhanced_context != "" and i == len(msgs) - 1:
-                msg.set_content(f"{msg.content()}\n\nSources:\n{options.enhanced_context}")
             builder.add_message(msg)
+            if i == len(msgs) - 1 and options.enhanced_context and len(options.enhanced_context) > 0:
+                logger.debug(f"Trying to add enhanced context to the last message with {len(options.enhanced_context)} documents")
+                builder = self._add_enhanced_context(builder, options.enhanced_context)
 
         options.chat.messages = builder.build()
         resp = await self.client.create_completion(opts=options.chat)
@@ -121,3 +125,98 @@ class OpenAIService(LLMService):
         """_format_context_prompt formats the context prompt with the provided data."""
 
         return template.format(**data.to_dict())
+
+    @timer()
+    def _add_enhanced_context(self, builder: Builder, context: List[Document]) -> Builder:
+        """_add_enhanced_context adds the enhanced context to the builder.
+        It appends the context to the last message and evenly truncates the documents and messages
+        if the token limit is exceeded.
+        """
+        if len(context) == 0:
+            logger.debug("No documents to add to the builder")
+            return builder
+
+        total_tokens = builder.tokens() + builder.tokenizer.tokenize_documents(context) + Model.ANSWER_TOKEN_LIMIT
+        token_limit = self.config().gpt.model.token_limit()
+
+        if total_tokens <= token_limit:
+            builder.add_documents(context)
+            return builder
+
+        excess_tokens = total_tokens - token_limit
+
+        msg_tokens = [builder.tokenizer.tokenize_message(msg) for msg in builder.get_messages()]
+        total_msg_tokens = sum(msg_tokens)
+        total_doc_tokens = builder.tokenizer.tokenize_documents(context)
+
+        if total_msg_tokens == 0 or total_doc_tokens == 0:
+            raise ValueError("Total message or document tokens cannot be zero")
+
+        msg_truncation_ratio, doc_truncation_ratio = self._calculate_truncation_ratios(total_msg_tokens, total_doc_tokens)
+        logger.debug(f"Truncation ratios: messages={msg_truncation_ratio}, documents={doc_truncation_ratio}")
+
+        builder, remaining_tokens = self._truncate_messages(builder, msg_tokens, int(excess_tokens * msg_truncation_ratio))
+        logger.debug(f"Truncated messages to {len(builder.get_messages())} with {remaining_tokens} tokens remaining to truncate")
+
+        doc_truncation_ratio = self._calculate_truncation_ratios(total_msg_tokens, total_doc_tokens + remaining_tokens)[1]
+        logger.debug(f"Truncation ratio: documents={doc_truncation_ratio}")
+
+        truncated_docs = self._truncate_documents(context, int(excess_tokens * doc_truncation_ratio), builder.tokenizer)
+        logger.debug(f"Truncated {len(context) - len(truncated_docs)} documents")
+
+        builder.add_documents(truncated_docs)
+        logger.debug(
+            f"Added {len(truncated_docs)} documents to the builder and the builder has {len(builder.get_messages())} messages "
+            + f"with {builder.tokens()} tokens"
+        )
+
+        return builder
+
+    def _calculate_truncation_ratios(self, total_msg_tokens: int, total_doc_tokens: int) -> tuple[float, float]:
+        """_calculate_truncation_ratios calculates the truncation ratios for messages and documents."""
+        total_tokens = total_msg_tokens + total_doc_tokens
+        if total_tokens == 0:
+            raise ValueError("Total tokens for the messages and documents are zero, cannot calculate truncation ratios.")
+
+        msg_truncation_ratio = total_msg_tokens / total_tokens
+        doc_truncation_ratio = total_doc_tokens / total_tokens
+        return msg_truncation_ratio, doc_truncation_ratio
+
+    def _truncate_messages(self, builder: Builder, msg_tokens: List[int], msg_tokens_to_truncate: int) -> tuple[Builder, int]:
+        """_truncate_messages truncates messages to reduce the token count.
+        If no more messages can be truncated, the function returns the builder with only one message and
+        the remaining tokens to truncate.
+        """
+
+        truncated = 0
+        # We go through the messages in reverse order to preserve the last user message
+        for msg_token in reversed(msg_tokens):
+            if msg_tokens_to_truncate <= 0:
+                logger.debug(f"No more tokens to truncate, remaining tokens: {msg_tokens_to_truncate}")
+                break
+
+            if len(builder.get_messages()) <= 2:
+                logger.debug("Cannot truncate the last message")
+                break
+
+            msg_tokens_to_truncate -= msg_token
+            truncated += builder.truncate_messages(len(builder.get_messages()) - 1)
+
+        logger.debug(f"Truncated {truncated} messages, {max(0, msg_tokens_to_truncate)} tokens remaining to truncate")
+        return builder, max(0, msg_tokens_to_truncate)
+
+    def _truncate_documents(self, context: List[Document], doc_tokens_to_truncate: int, tokenizer: Tokenizer) -> List[Document]:
+        """_truncate_documents truncates documents to reduce the token count."""
+        truncated_docs: List[Document] = []
+        remaining_tokens = tokenizer.tokenize_documents(context) - doc_tokens_to_truncate
+
+        for doc in context:
+            doc_token_count = tokenizer.tokenize_documents([doc])
+            if doc_token_count > remaining_tokens or remaining_tokens <= 0:
+                logger.debug(f"Cannot add document with {doc_token_count} tokens, remaining tokens: {remaining_tokens}")
+                break
+
+            truncated_docs.append(doc)
+            remaining_tokens -= doc_token_count
+
+        return truncated_docs

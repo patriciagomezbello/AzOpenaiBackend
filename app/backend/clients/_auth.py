@@ -9,6 +9,7 @@ from typing import Callable
 from typing import cast
 from typing import Dict
 from typing import Iterable
+from typing import List
 from typing import Optional
 
 import jwt
@@ -130,7 +131,7 @@ class OpenIDClient(AuthClient):
             Provider.AZURE: Azure(cfg.azure.tenant, cfg.azure.client_id, cfg.allowed_roles),
             Provider.ICU: ICU(cfg.icu.url, cfg.icu.client_id, cfg.allowed_roles),
         }
-        self.cache = TTLCache(maxsize=Provider.len(), ttl=3600)
+        self.cache: TTLCache[str, Token] = TTLCache(maxsize=Provider.len(), ttl=3600)
         self.mutex = Lock()
 
     def decode_token(self, token: str) -> AuthenticatedToken:
@@ -255,8 +256,8 @@ class OpenIDClient(AuthClient):
 class Azure(TokenProvider):
     """Azure is a token provider for Azure Managed Identity."""
 
-    def __init__(self, tenant: str, client_id: str, allowed_roles: str):
-        self.allowed_roles = None if allowed_roles == "all" else [role.strip() for role in allowed_roles.split(",")]
+    def __init__(self, tenant: str, client_id: str, allowed_roles: Optional[List[str]]):
+        self.allowed_roles = allowed_roles
         self.tenant = tenant
         self.client_id = client_id
 
@@ -285,8 +286,8 @@ class Azure(TokenProvider):
 class ICU(TokenProvider):
     """ICU is a token provider for the ICU OpenID provider."""
 
-    def __init__(self, url: str, client_id: str, allowed_roles: str):
-        self.allowed_roles = allowed_roles.split(",") if allowed_roles != "all" else None
+    def __init__(self, url: str, client_id: str, allowed_roles: Optional[List[str]]):
+        self.allowed_roles = allowed_roles
         self.url = url
         self.client_id = client_id
 

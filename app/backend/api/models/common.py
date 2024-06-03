@@ -62,7 +62,8 @@ class Overrides:
     # temperature is the temperature for the LLM request.
     temperature: float = 0.7
     # semantic_captions is whether to use semantic captions for the search query.
-    semantic_captions: bool = False
+    # TODO: Remove this field with v2 of the API.
+    semantic_captions: bool = False  # DEPRECATED
     # top is the number of top results to return from the search query.
     top: int = 3
     # category_filter is the category filter for the search query.

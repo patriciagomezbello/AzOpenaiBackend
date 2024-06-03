@@ -12,7 +12,6 @@ from urllib.parse import urlparse
 from services.logger import new_logger
 from services.schemas import Facet
 from services.schemas import Model
-from services.schemas import parse_model
 
 
 def _safe_import(module: str, name: str) -> Optional[Any]:
@@ -53,7 +52,7 @@ class GPTConfig:
         if self.deployment == "":
             raise InvalidConfigError("AZURE_OPENAI_CHATGPT_DEPLOYMENT is required")
         try:
-            parse_model(self.model)
+            _ = self.model.parse()
         except ValueError as e:
             raise InvalidConfigError(f"AZURE_OPENAI_CHATGPT_MODEL is invalid: {str(e)}")
         if self.embed_deployment == "":
@@ -200,9 +199,14 @@ class ICUConfig:
 class AuthConfig:
     """AuthConfig is a class that holds the configuration for the authentication service."""
 
-    allowed_roles: str = os.getenv("AZURE_AUTH_ROLE", "all")
+    allowed_roles: Optional[List[str]] = field(default_factory=lambda: AuthConfig._parse_roles())
     azure: ManagedIdentityConfig = field(default_factory=ManagedIdentityConfig)
     icu: ICUConfig = field(default_factory=ICUConfig)
+
+    @staticmethod
+    def _parse_roles() -> Optional[List[str]]:
+        roles = os.getenv("AZURE_AUTH_ROLE", "all")
+        return None if roles == "all" else [role.strip() for role in roles.split(",")]
 
     def validate(self) -> None:
         """validate validates the configuration."""

@@ -20,6 +20,7 @@ from services.schemas import ChatData
 from services.schemas import ContextPrompt
 from services.schemas import LLMOptions
 from services.schemas import Message
+from services.schemas import Model
 from services.search import SearchService
 from services.timer import timer
 
@@ -59,7 +60,12 @@ class ChatReadRetrieveRead(ChatApproach):
         self.citation_service: CitationService = svc_factory.get_service(ServiceName.REGEX_CITATION_SERVICE)
 
     @timer()
-    async def run(self, history: List[ChatMessage], overrides: Optional[Overrides], roles: Optional[List[str]]) -> ChatResponseType:
+    async def run(
+        self,
+        history: List[ChatMessage],
+        overrides: Optional[Overrides],
+        roles: Optional[List[str]],
+    ) -> ChatResponseType:
         """run runs the chat approach for the 'read-retrieve-read' approach.
         It uses the cognitive search to enhance the context for the LLM.
         """
@@ -116,12 +122,10 @@ class ChatReadRetrieveRead(ChatApproach):
         current_tokens = 0
 
         for msg in reversed(history):
-            user_tokens = builder.tokenizer._num_tokens_for_message(Message({"role": Message.USER_ROLE, "content": msg.user}))
+            user_tokens = builder.tokenizer.tokenize_message(Message({"role": Message.USER_ROLE, "content": msg.user}))
             bot_tokens = 0
             if msg.bot is not None:
-                bot_tokens = builder.tokenizer._num_tokens_for_message(
-                    Message({"role": Message.ASSISTANT_ROLE, "content": msg.bot})
-                )
+                bot_tokens = builder.tokenizer.tokenize_message(Message({"role": Message.ASSISTANT_ROLE, "content": msg.bot}))
 
             if self._is_message_too_long(current_tokens + user_tokens + bot_tokens, max_tokens):
                 break
@@ -156,5 +160,4 @@ class ChatReadRetrieveRead(ChatApproach):
 
     def _is_message_too_long(self, tokens: int, max_tokens: int) -> bool:
         """_is_message_too_long checks if the message is too long."""
-        tokens = tokens + 1024  # 1024 is the fixed token length of the completion
-        return tokens > max_tokens * 0.9
+        return tokens + Model.ANSWER_TOKEN_LIMIT > max_tokens * 0.9
