@@ -78,7 +78,7 @@ class AzureSearchService(SearchService):
                 ),
             )
         except Exception as e:
-            logger.exception(f"Failed to generate query prompt {e}")
+            logger.exception("Failed to generate query prompt", {"error": str(e)})
             raise ValueError("Failed to generate query prompt")
 
         if resp.strip() == "0":
@@ -117,7 +117,7 @@ class AzureSearchService(SearchService):
                 )
             )
         except Exception as e:
-            logger.exception(f"Failed to search with query '{search_query}': {e}")
+            logger.exception("Failed to search with query", {"query": search_query, "error": str(e)})
             raise ValueError(f"Failed to search with query '{search_query}': {e}")
 
         return await self._process_search_results(docs)
@@ -194,7 +194,7 @@ class AzureSearchService(SearchService):
         for f in filters:
             filter += f"({f}) and "
 
-        logger.debug(f"All filters combined: {filter[:-5]}")
+        logger.debug("Combined filters", {"filter": filter[:-5]})
         return filter[:-5]
 
     async def _process_search_results(self, search_items: AsyncSearchItemPaged[Dict[str, Any]]) -> List[Document]:
@@ -220,12 +220,12 @@ class AzureSearchService(SearchService):
                         )
                     )
         except Exception as e:
-            logger.exception(f"Failed to process search results: {e}")
+            logger.exception("Failed to process search results", {"error": str(e)})
             raise ValueError(f"Failed to process search results: {e}")
 
         logger.debug(
-            f"Found {len(documents)} search results"
-            + (":\n" + "\n".join(str(doc.to_dict()) for doc in documents) if LOG_SENSITIVE_DATA else "")
+            "Found search results",
+            {"count": len(documents), "documents": ([doc.to_dict() for doc in documents] if LOG_SENSITIVE_DATA else "REDACTED")},
         )
         return documents
 

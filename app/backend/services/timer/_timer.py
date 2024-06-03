@@ -57,11 +57,12 @@ def timer(log_level: int = logging.DEBUG) -> Callable[[T], T]:
         is_async = inspect.iscoroutinefunction(func)
 
         def log_execution_time(name: str, rtt: float, exception: Optional[Exception] = None):
+            args = {"name": name, "rtt": rtt, "error": str(exception) if exception else None}
             if exception:
-                logger.warning(f"{name} executed in {rtt} seconds until exception: {str(exception)}")
+                logger.warning("Execution time", args)
                 return
             if logger.isEnabledFor(log_level):
-                logger.log(log_level, f"{name} executed in {rtt} seconds.")
+                logger.log(log_level, "Execution time", args)
 
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:

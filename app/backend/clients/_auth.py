@@ -197,11 +197,13 @@ class OpenIDClient(AuthClient):
         except Exception as e:
             if isinstance(e, jwt.exceptions.InvalidTokenError) or isinstance(e, requests.HTTPError):
                 if retry:
-                    logger.debug("Ran into an error, retrying with refreshed keys.", exc_info=True)
+                    logger.debug("Error while decoding and verifying token, retrying with refreshed keys", exc_info=True)
                     return self._decode_and_verify_jwt(token, spec, retry=False)
+
                 logger.warning("Could not decode and verify token after retry", exc_info=True)
                 raise InvalidTokenError("Could not decode and verify token")
-            logger.exception(f"Error while decoding and verifying token: {e}")
+
+            logger.exception("Error while decoding and verifying token", {"error": str(e)})
             raise Exception("Error while decoding and verifying token")
 
     def _get_public_key(self, token: str, decoded_token: Token) -> bytes:

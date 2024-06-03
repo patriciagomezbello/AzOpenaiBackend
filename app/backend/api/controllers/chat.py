@@ -43,8 +43,14 @@ class ChatController(Controller):
             if chat_req.validate():
                 return self.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)
 
-            if LOG_SENSITIVE_DATA:
-                logger.debug(f"Chat request: {chat_req.__dict__}")
+            logger.debug(
+                "Received request",
+                {
+                    "route": request.path,
+                    "method": request.method,
+                    "request": chat_req.to_dict(include_sensitive=LOG_SENSITIVE_DATA),
+                },
+            )
 
             approach = self.approaches.get(chat_req.approach)
             if not approach:
@@ -55,16 +61,16 @@ class ChatController(Controller):
 
         except Exception as e:
             if self.is_bad_request(e):
-                logger.debug(f"Malformed request: {e}")
+                logger.debug("Received malformed request", {"error": str(e)})
                 return self.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)
             if isinstance(e, RateLimitError):
-                logger.debug(f"Rate limit error: {e}")
+                logger.warning("Chat request rate limit exceeded", {"error": str(e)})
                 return self.error_response_with_message(ErrorProvider.RATE_LIMIT)
             if isinstance(e, ResourceNotFoundError):
-                logger.debug(f"Resource not found: {e}")
+                logger.warning("Resource not found", {"error": str(e)})
                 return self.error_response(e.message, e.status_code if e.status_code else 503)
 
-            logger.exception(f"Error processing chat request: {e}")
+            logger.exception("Error while processing chat request", {"error": str(e)})
             return self.error_response(str(e), 500)
 
 

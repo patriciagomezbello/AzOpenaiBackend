@@ -24,11 +24,11 @@ class AzureBlobContentService(ContentService):
         try:
             downloader = await self.client.download(path)
         except Exception as e:
-            logger.exception(f"Error downloading file: {e}")
+            logger.exception("Error while downloading file", {"path": path, "error": str(e)})
             raise FileNotFoundError(f"File not found: {path}")
 
         if not downloader.properties or not downloader.properties.has_key("content_settings"):
-            logger.debug(f"Downloaded file has no content settings: {path}")
+            logger.debug("Downloaded file has no content settings", {"path": path})
             raise FileNotFoundError(f"File not found: {path}")
 
         mimetype: str = downloader.properties["content_settings"]["content_type"]

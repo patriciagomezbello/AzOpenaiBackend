@@ -183,6 +183,7 @@ class Document:
             "imageEmbedding": Document._trim_embedding(self.image_embedding),
             "doclang": self.doclang,
             "category": self.category,
+            "roles": self.roles,
             "sourcepage": self.sourcepage,
             "sourcefile": self.sourcefile,
             "captions": (

@@ -58,7 +58,7 @@ class FacetCategoryService(CategoryService):
                 raise ValueError("No facets found")
             return res
         except Exception as e:
-            logger.info(f"Error searching categories: {e}", exc_info=True)
+            logger.warning("Error while searching categories", {"error": str(e)}, exc_info=True)
             return self._default_facets(facets)
 
     def _default_facets(self, facets: List[str]) -> Facets:

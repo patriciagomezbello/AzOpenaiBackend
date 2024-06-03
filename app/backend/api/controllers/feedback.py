@@ -40,10 +40,10 @@ class FeedbackController(Controller):
             return jsonify({"response": "Feedback received."}), 200
         except Exception as e:
             if self.is_bad_request(e):
-                logger.debug(f"Malformed request: {e}", exc_info=True)
+                logger.debug("Received malformed request", {"error": str(e)})
                 return self.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)
 
-            logger.exception(f"An error occurred while sending feedback: {e}")
+            logger.exception("Error while sending feedback", {"error": str(e)})
             return self.error_response(str(e), 500)
 
 

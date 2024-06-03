@@ -28,6 +28,7 @@
   "markdown.extension.toc.levels": "2..6",
   "shellformat.flag": "-i=2",
   "files.associations": {
+    ".env": "properties",
     "frontend.env": "properties"
   }
 }
