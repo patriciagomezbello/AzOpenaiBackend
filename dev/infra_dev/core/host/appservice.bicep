@@ -10,19 +10,24 @@ param managedIdentity bool = !empty(keyVaultName)
 
 // MSAL variables
 param authTenant string
-param clientSecretSetting string
+
+// API variables
+param apiBasePath string
+var basePath = !empty(apiBasePath) && apiBasePath != '/' ? '${apiBasePath}/v1' : ''
 
 // OIDC variables
-param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
-param oidcClientId string
-param oidcIssuerUrl string
-@secure()
-param oidcClientSecretSetting string
-param oidcScopes array = []
+// param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
 
 // Runtime Properties
 @allowed([
-  'dotnet', 'dotnetcore', 'dotnet-isolated', 'node', 'python', 'java', 'powershell', 'custom'
+  'dotnet'
+  'dotnetcore'
+  'dotnet-isolated'
+  'node'
+  'python'
+  'java'
+  'powershell'
+  'custom'
 ])
 param runtimeName string
 param runtimeNameAndVersion string = '${runtimeName}|${runtimeVersion}'
@@ -54,8 +59,12 @@ param healthCheckPath string = ''
 param clientId string = ''
 param tenantId string = ''
 
+#disable-next-line no-hardcoded-env-urls
 var commonLogin = 'https://login.microsoftonline.com/common/v2.0'
 var tenantLogin = 'https://sts.windows.net/${tenantId}/v2.0'
+
+var excludedRoutes = ['/docs', '/redocs', '/openapi.json', '/openapi.yaml']
+var excludedPaths = [for route in excludedRoutes: '${basePath}${route}']
 
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: name
@@ -76,7 +85,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       functionAppScaleLimit: functionAppScaleLimit != -1 ? functionAppScaleLimit : null
       healthCheckPath: healthCheckPath
       cors: {
-        allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com' ], allowedOrigins)
+        allowedOrigins: union(['https://portal.azure.com', 'https://ms.portal.azure.com'], allowedOrigins)
       }
     }
     clientAffinityEnabled: clientAffinityEnabled
@@ -93,26 +102,14 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       globalValidation: {
         requireAuthentication: true
         unauthenticatedClientAction: 'Return401'
-        excludedPaths: [ '/docs', '/redocs', '/openapi.json' ]
+        excludedPaths: excludedPaths
       }
-      identityProviders: (authProvider == 'microsoft') ? {
+      identityProviders: {
         azureActiveDirectory: {
           enabled: true
           registration: {
             clientId: clientId
-            clientSecret: clientSecretSetting
             openIdIssuer: (authTenant == 'same') ? tenantLogin : commonLogin
-          }
-        }
-      } : {
-        openIdConnect: {
-          enabled: true
-          registration: {
-            clientId: oidcClientId
-            clientSecret: oidcClientSecretSetting
-            openIdIssuer: oidcIssuerUrl
-            responseType: 'code' // Typically "code" for server side flows
-            scopes: oidcScopes
           }
         }
       }
@@ -129,14 +126,18 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
 
   resource configAppSettings 'config' = {
     name: 'appsettings'
-    properties: union(appSettings,
+    properties: union(
+      appSettings,
       {
         SCM_DO_BUILD_DURING_DEPLOYMENT: string(scmDoBuildDuringDeployment)
         ENABLE_ORYX_BUILD: string(enableOryxBuild)
       },
       runtimeName == 'python' ? { PYTHON_ENABLE_GUNICORN_MULTIWORKERS: 'true' } : {},
-      !empty(applicationInsightsName) ? { APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString } : {},
-      !empty(keyVaultName) ? { AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri } : {})
+      !empty(applicationInsightsName)
+        ? { APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString }
+        : {},
+      !empty(keyVaultName) ? { AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri } : {}
+    )
   }
 
   resource configLogs 'config' = {
@@ -151,7 +152,6 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       configAppSettings
     ]
   }
-
 }
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = if (!(empty(keyVaultName))) {

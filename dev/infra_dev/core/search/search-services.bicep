@@ -1,6 +1,7 @@
 param name string
 param location string = resourceGroup().location
 param tags object = {}
+// param privateDNSZoneId string
 
 param sku object = {
   name: 'standard'
@@ -30,10 +31,45 @@ resource search 'Microsoft.Search/searchServices@2022-09-01' = {
     partitionCount: 1
     publicNetworkAccess: 'enabled'
     replicaCount: 1
-
   }
   sku: sku
 }
+
+// resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+//   name: 'PE-${name}'
+//   location: location
+//   properties: {
+//     subnet: {
+//       id: virtualNetworkSubnetId
+//     }
+//     privateLinkServiceConnections: [
+//       {
+//         properties: {
+//           privateLinkServiceId: search.id
+//           groupIds: [
+//             'searchService'
+//           ]
+//         }
+//         name: 'PrivateEndpointSearch'
+//       }
+//     ]
+//   }
+// }
+
+// resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2020-04-01' = {
+//   parent: privateEndpoint
+//   name: 'peDNSZoneGroup'
+//   properties: {
+//     privateDnsZoneConfigs: [
+//       {
+//         name: 'config1'
+//         properties: {
+//           privateDnsZoneId: privateDNSZoneId
+//         }
+//       }
+//     ]
+//   }
+// }
 
 output id string = search.id
 output endpoint string = 'https://${name}.search.windows.net/'
