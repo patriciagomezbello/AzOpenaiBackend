@@ -56,6 +56,12 @@
     "chatGptModelVersion": {
       "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=0613}"
     },
+    "embCapacity": {
+      "value": "${AZURE_OPENAI_EMBEDDING_CAPACITY=100}"
+    },
+    "gptCapacity": {
+      "value": "${AZURE_OPENAI_GPT_CAPACITY=60}"
+    },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
     },
@@ -77,26 +83,20 @@
     "authProvider": {
       "value": "${AZURE_AUTH_PROVIDER='microsoft'}"
     },
-    "authClientSecretSetting": {
-      "value": "${AZURE_AUTH_ClIENT_SECRET_SETTING='MICROSOFT_PROVIDER_AUTHENTICATION_SECRET'}"
-    },
     "appServicePlanSku": {
       "value": "${AZURE_APPSERVICE_SKU=B1}"
     },
     "searchServiceSkuName": {
       "value": "${AZURE_SEARCH_SERVICE_SKU=standard}"
     },
-    "oidcClientId": {
-      "value": "${AZURE_AUTH_OIDC_CLIENT}"
+    "icuClientId": {
+      "value": "${AZURE_AUTH_ICU_CLIENT}"
     },
-    "oidcClientSecretSetting": {
-      "value": "${AZURE_AUTH_OIDC_CLIENT_SECRET_SETTING='OIDC_PROVIDER_AUTHENTICATION_SECRET'}"
+    "icuIssuerUrl": {
+      "value": "${AZURE_AUTH_ICU_ISSUER_URL}"
     },
-    "oidcIssuerUrl": {
-      "value": "${AZURE_AUTH_OIDC_ISSUER_URL}"
-    },
-    "oidcScopes": {
-      "value": "${AZURE_AUTH_OIDC_SCOPES}"
+    "apiBasePath": {
+      "value": "${API_BASE_PATH}"
     }
   }
 }

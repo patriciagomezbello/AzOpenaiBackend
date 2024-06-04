@@ -107,11 +107,11 @@
     "deployKey": {
       "value": "${AZURE_DEPLOY_KEY='true'}"
     },
-    "oidcClientId": {
-      "value": "${AZURE_AUTH_OIDC_CLIENT}"
+    "icuClientId": {
+      "value": "${AZURE_AUTH_ICU_CLIENT}"
     },
-    "oidcIssuerUrl": {
-      "value": "${AZURE_AUTH_OIDC_ISSUER_URL}"
+    "icuIssuerUrl": {
+      "value": "${AZURE_AUTH_ICU_ISSUER_URL}"
     },
     "apiBasePath": {
       "value": "${API_BASE_PATH}"

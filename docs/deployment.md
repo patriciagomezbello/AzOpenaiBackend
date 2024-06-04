@@ -157,6 +157,6 @@ DT, Deutsche Telekom
 
 - The OpenAI instance is not always correctly deployed. If you encounter issues, set the `AZURE_REDEPLOY_OPENAI` variable to `true` in the `ENVIRONMENT` file to redeploy the OpenAI instance.
 - If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, you need to set the `AZURE_DEPLOY_KEY` variable to `true` in the `ENVIRONMENT` file to omit an error.
-- If the backend is not working after deployment, try accessing the `/docs` endpoint to see if the backend is running. If it is not, try restarting or bumping the App Service Tier.
+- If the backend is not working after deployment, try accessing the `/docs` endpoint to see if the backend is running. If it is not, try restarting or bumping the App Service Tier. If this also does not work, try redeploying the backend as the [deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
 - If the frontend is returning unexpected errors, go to the network tab in the browser developer tools and check the response of the API calls. This will give you more information about the error.
 - If the search is returning an error, set one setting in the semantic ranker. This is a known bug in microsofts deployment.

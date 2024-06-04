@@ -11,6 +11,10 @@ param managedIdentity bool = !empty(keyVaultName)
 // MSAL variables
 param authTenant string
 
+// API variables
+param apiBasePath string
+var basePath = !empty(apiBasePath) && apiBasePath != '/' ? '${apiBasePath}/v1' : ''
+
 // OIDC variables
 // param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
 
@@ -59,6 +63,9 @@ param tenantId string = ''
 var commonLogin = 'https://login.microsoftonline.com/common/v2.0'
 var tenantLogin = 'https://sts.windows.net/${tenantId}/v2.0'
 
+var excludedRoutes = ['/docs', '/redocs', '/openapi.json', '/openapi.yaml']
+var excludedPaths = [for route in excludedRoutes: '${basePath}${route}']
+
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: name
   location: location
@@ -95,7 +102,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       globalValidation: {
         requireAuthentication: true
         unauthenticatedClientAction: 'Return401'
-        excludedPaths: ['/docs', '/redocs', '/openapi.json']
+        excludedPaths: excludedPaths
       }
       identityProviders: {
         azureActiveDirectory: {
@@ -147,15 +154,13 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
   }
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing =
-  if (!(empty(keyVaultName))) {
-    name: keyVaultName
-  }
+resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = if (!(empty(keyVaultName))) {
+  name: keyVaultName
+}
 
-resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing =
-  if (!empty(applicationInsightsName)) {
-    name: applicationInsightsName
-  }
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (!empty(applicationInsightsName)) {
+  name: applicationInsightsName
+}
 
 output identityPrincipalId string = managedIdentity ? appService.identity.principalId : ''
 output name string = appService.name
