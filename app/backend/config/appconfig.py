@@ -124,6 +124,7 @@ class QuerySettings:
 
     query_system_prompt: str = os.getenv("QUERY_SYSTEM_PROMPT", query_prompt_template or "")
     max_tokens: int = int(os.getenv("MAX_TOKENS_QUERY", 32))
+    mode: str = os.getenv("QUERY_MODE", "default").lower()
     # TODO: remove these configuration options since they take no effect
     doclangs: List[Facet] = field(default_factory=lambda: json.loads(os.getenv("FACETS_RESULTS", "[{}]").replace("'", '"')))
 

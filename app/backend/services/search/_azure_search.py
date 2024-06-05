@@ -127,11 +127,11 @@ class AzureSearchService(SearchService):
         Returns None if no filter is needed.
         """
 
-        lang_filter = self._build_lang_filter(overrides, lang)
-        category_filter = self._build_category_filter(overrides)
-        roles_filter = self._build_role_filter(roles)
-
-        return self._combine_filters(lang_filter, category_filter, roles_filter)
+        return self._combine_filters(
+            self._build_lang_filter(overrides, lang),
+            self._build_category_filter(overrides),
+            self._build_role_filter(roles),
+        )
 
     def _build_lang_filter(self, overrides: Overrides, lang: Language) -> Optional[str]:
         """_build_lang_filter builds a language filter based on the provided overrides and language.
@@ -175,24 +175,18 @@ class AzureSearchService(SearchService):
 
         return f"""roles/any(r:search.in(r, 'public, {", ".join(roles)}'))"""
 
-    def _combine_filters(self, lang_filter: Optional[str], category_filter: Optional[str], roles_filter: str) -> str:
-        """_combine_filters combines the language and category filters into a single filter.
+    def _combine_filters(self, *filters: Optional[str]) -> str:
+        """_combine_filters combines any number of filters into a single filter.
 
         The filters use the ODATA syntax. For example, to combine two filters, use:
         (filter1) and (filter2)
 
         For more information, see: https://learn.microsoft.com/en-us/azure/search/search-query-odata-filter
         """
-        filters: List[str] = [roles_filter]
-        if lang_filter is not None:
-            filters.append(lang_filter)
-
-        if category_filter is not None:
-            filters.append(category_filter)
-
         filter = ""
         for f in filters:
-            filter += f"({f}) and "
+            if f is not None:
+                filter += f"({f}) and "
 
         logger.debug("Combined filters", {"filter": filter[:-5]})
         return filter[:-5]
@@ -232,3 +226,81 @@ class AzureSearchService(SearchService):
     def initialize_search_index(self, doclangs: List[Facet]) -> None:
         """initialize_search_index sets the local facets based on the provided facets."""
         self.cfg.doclangs = doclangs
+
+
+class AzureExtendedSearchService(AzureSearchService):
+    """AzureExtendedSearchService extends AzureSearchService to provide additional search functionality.
+
+    It searches not only for documents fitting the search query but also for document chunks around the search results."""
+
+    def __init__(
+        self,
+        cfg: QuerySettings,
+        search_client: SearchClient,
+        llm_svc: LLMService,
+        lang_svc: LanguageService,
+    ):
+        super().__init__(cfg, search_client, llm_svc, lang_svc)
+
+    async def cognitive_search(
+        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+    ) -> List[Document]:
+        """cognitive_search performs a search using the provided query and overrides.
+        It returns the search results as a formatted string.
+        """
+
+        documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
+        if overrides.top > 3:
+            return documents
+
+        opts = SearchOptions(
+            search_text=search_query,
+            query_type=QueryType.SEMANTIC,
+            semantic_configuration_name="default",
+            top=overrides.top,
+            query_caption=None,
+        )
+
+        extended: List[Document] = []
+        for doc in documents:
+            opts.filter = self._build_extended_filter(doc, overrides, lang, roles)
+            items = await self.client.search(opts)
+            extended.extend([doc] + await self._process_search_results(items))
+
+        return extended
+
+    def _build_extended_filter(self, doc: Document, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> str:
+        """_build_extended_filter builds a filter based on the provided overrides and language.
+        Returns None if no filter is needed.
+        """
+
+        return self._combine_filters(
+            self._build_lang_filter(overrides, lang),
+            self._build_category_filter(overrides),
+            self._build_role_filter(roles),
+            self._build_doc_filter(doc),
+        )
+
+    def _build_doc_filter(self, doc: Document) -> Optional[str]:
+        if not doc.id or not doc.sourcepage:
+            return None
+
+        try:
+            if not self.are_ids_filterable():
+                raise ValueError("IDs are not filterable")
+            parts = doc.id.split("-")
+            doc_id = int(parts[-1])
+            key = "id"
+            suffix = ""
+        except ValueError:
+            parts = doc.sourcepage.split("-")
+            doc_id, suffix = parts[-1].split(".")
+            suffix = f".{suffix}"
+            doc_id = int(doc_id)
+            key = "sourcepage"
+
+        ids = [f"{key} eq '{'-'.join(parts[:-1] + [str(id)])}{suffix}'" for id in range(doc_id - 2, doc_id + 3) if id != doc_id]
+        return " or ".join(ids)
+
+    def are_ids_filterable(self) -> bool:
+        return False
