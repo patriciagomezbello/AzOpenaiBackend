@@ -137,7 +137,7 @@ class SearchSettings:
     def _parse_service_type(cls) -> ServiceName:
         mode = os.getenv("QUERY_SERVICE_TYPE", "default")
         match mode:
-            case "default":
+            case "default" | "":
                 return ServiceName.AZURE_SEARCH_SERVICE
             case "extended":
                 return ServiceName.AZURE_EXTENDED_SEARCH_SERVICE
