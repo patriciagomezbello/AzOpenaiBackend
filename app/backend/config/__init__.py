@@ -7,8 +7,8 @@ from config.appconfig import Config
 from config.appconfig import GPTConfig
 from config.appconfig import InvalidConfigError
 from config.appconfig import OpenAIConfig
-from config.appconfig import QuerySettings
 from config.appconfig import SearchConfig
+from config.appconfig import SearchSettings
 from config.appconfig import StorageConfig
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
     "SearchConfig",
     "StorageConfig",
     "AzureConfig",
-    "QuerySettings",
+    "SearchSettings",
     "AnswerSettings",
     "ChatSettings",
     "ChatConfig",

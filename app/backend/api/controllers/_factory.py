@@ -27,11 +27,7 @@ class Controllers:
         """startup initializes the controllers and services."""
 
         cat_svc: CategoryService = self.svc_factory.get_service(ServiceName.FACET_CATEGORY_SERVICE)
-        search_svc: SearchService = (
-            self.svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE)
-            if self.cfg.chat.settings.query.mode != "extended"
-            else self.svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE)
-        )
+        search_svc: SearchService = self.svc_factory.get_service(self.cfg.chat.settings.search.typ)
         try:
             await cat_svc.sync_facets(search_svc=search_svc)
             logger.info("Syncronized facets with search service")

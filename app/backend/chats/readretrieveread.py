@@ -55,11 +55,7 @@ class ChatReadRetrieveRead(ChatApproach):
 
     def __init__(self, cfg: Config, svc_factory: ServiceFactory):
         self.config = cfg
-        if cfg.chat.settings.query.mode == "extended":
-            self.search_svc: SearchService = svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE)
-        else:
-            self.search_svc: SearchService = svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE)
-
+        self.search_svc: SearchService = svc_factory.get_service(cfg.chat.settings.search.typ)
         self.lang_svc: LanguageService = svc_factory.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE)
         self.llm_svc: LLMService = svc_factory.get_service(ServiceName.OPEN_AI_SERVICE)
         self.citation_service: CitationService = svc_factory.get_service(ServiceName.REGEX_CITATION_SERVICE)
@@ -99,7 +95,7 @@ class ChatReadRetrieveRead(ChatApproach):
                         max_tokens=self.config.chat.settings.answer.max_tokens,
                     ),
                     context_prompt=ContextPrompt(
-                        template=self.config.chat.settings.answer.answer_system_prompt,
+                        template=self.config.chat.settings.answer.system_prompt,
                         data=data,
                     ),
                     enhanced_context=search_res,

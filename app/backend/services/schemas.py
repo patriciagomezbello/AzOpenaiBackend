@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from enum import auto
+from enum import Enum
 from io import BytesIO
 from typing import Any
 from typing import Dict
@@ -29,6 +31,8 @@ __all__ = [
     "File",
     "Facet",
     "Facets",
+    "Document",
+    "ServiceName",
 ]
 
 FacetValue: TypeAlias = Union[str, int]
@@ -333,3 +337,17 @@ class File:
         self.name = name
         self.mimetype = mimetype
         self.data = data
+
+
+class ServiceName(Enum):
+    """ServiceName is an enumeration of all available service implementations."""
+
+    OPEN_AI_SERVICE = auto()
+    OAUTH_SERVICE = auto()
+    FACET_CATEGORY_SERVICE = auto()
+    REGEX_CITATION_SERVICE = auto()
+    AZURE_BLOB_CONTENT_SERVICE = auto()
+    FEEDBACK_LOGGER = auto()
+    LANGUAGE_PROCESSING_SERVICE = auto()
+    AZURE_SEARCH_SERVICE = auto()
+    AZURE_EXTENDED_SEARCH_SERVICE = auto()

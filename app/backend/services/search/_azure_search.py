@@ -11,7 +11,7 @@ from azure.search.documents.models import QueryCaptionResult
 from azure.search.documents.models import QueryType
 from azure.search.documents.models import VectorizedQuery
 from clients import SearchClient
-from config import QuerySettings
+from config import SearchSettings
 from lingua import Language
 from services.language import LanguageService
 from services.llm import LLMService
@@ -36,7 +36,7 @@ logger = new_logger(__name__)
 class AzureSearchService(SearchService):
     def __init__(
         self,
-        cfg: QuerySettings,
+        cfg: SearchSettings,
         search_client: SearchClient,
         llm_svc: LLMService,
         lang_svc: LanguageService,
@@ -45,6 +45,7 @@ class AzureSearchService(SearchService):
         self.client = search_client
         self.llm_svc = llm_svc
         self.lang_service = lang_svc
+        self.doclangs: List[Facet] = [{"value": "en", "count": 0}]
 
     @timer()
     async def build_query_prompt(self, msgs: List[Message], data: ChatData) -> str:
@@ -74,7 +75,7 @@ class AzureSearchService(SearchService):
                         max_tokens=self.cfg.max_tokens,
                         n=1,
                     ),
-                    context_prompt=ContextPrompt(template=self.cfg.query_system_prompt, data=data),
+                    context_prompt=ContextPrompt(template=self.cfg.system_prompt, data=data),
                 ),
             )
         except Exception as e:
@@ -141,10 +142,10 @@ class AzureSearchService(SearchService):
         if overrides.multilingual_search:
             return None
 
-        if self.cfg.doclangs == {}:
+        if self._empty_doclangs():
             return None
 
-        facet_languages = self.lang_service.get_facet_languages(self.cfg.doclangs)
+        facet_languages = self.lang_service.get_facet_languages(self.doclangs)
         if self.lang_service.get_lang_code(lang) not in facet_languages:
             return None
 
@@ -225,7 +226,11 @@ class AzureSearchService(SearchService):
 
     def initialize_search_index(self, doclangs: List[Facet]) -> None:
         """initialize_search_index sets the local facets based on the provided facets."""
-        self.cfg.doclangs = doclangs
+        self.doclangs = doclangs
+
+    def _empty_doclangs(self) -> bool:
+        """_empty_doclangs returns True if the doclangs facet is empty."""
+        return self.doclangs is None or len(self.doclangs) == 0 or self.doclangs[0].get("count", 0) == 0
 
 
 class AzureExtendedSearchService(AzureSearchService):
@@ -235,7 +240,7 @@ class AzureExtendedSearchService(AzureSearchService):
 
     def __init__(
         self,
-        cfg: QuerySettings,
+        cfg: SearchSettings,
         search_client: SearchClient,
         llm_svc: LLMService,
         lang_svc: LanguageService,
@@ -253,54 +258,48 @@ class AzureExtendedSearchService(AzureSearchService):
         if overrides.top > 3:
             return documents
 
-        opts = SearchOptions(
-            search_text=search_query,
-            query_type=QueryType.SEMANTIC,
-            semantic_configuration_name="default",
-            top=overrides.top,
-            query_caption=None,
-        )
-
-        extended: List[Document] = []
+        augmented: List[Document] = []
         for doc in documents:
-            opts.filter = self._build_extended_filter(doc, overrides, lang, roles)
-            items = await self.client.search(opts)
-            extended.extend([doc] + await self._process_search_results(items))
+            sourcepages = self._get_nearby_chunk_pages(doc.sourcepage)
+            items = await self.client.get_documents(sourcepages)
+            augmented.extend(
+                [doc]
+                + [
+                    Document(
+                        id=item.get("id"),
+                        content=item.get("content"),
+                        embedding=item.get("embedding"),
+                        image_embedding=item.get("imageEmbedding"),
+                        doclang=item.get("doclang"),
+                        category=item.get("category"),
+                        sourcepage=item.get("sourcepage"),
+                        roles=item.get("roles"),
+                        sourcefile=item.get("sourcefile"),
+                        captions=cast(List[QueryCaptionResult], item.get("@search.captions")),
+                        score=item.get("@search.score"),
+                        reranker_score=item.get("@search.reranker_score"),
+                    )
+                    for item in items
+                ]
+            )
 
-        return extended
+        return augmented
 
-    def _build_extended_filter(self, doc: Document, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> str:
-        """_build_extended_filter builds a filter based on the provided overrides and language.
-        Returns None if no filter is needed.
-        """
+    def _get_nearby_chunk_pages(self, sourcepage: Optional[str]) -> List[str]:
+        """_get_nearby_chunk_pages returns the sourcepages of the chunks around the given sourcepage."""
+        if not sourcepage:
+            return []
 
-        return self._combine_filters(
-            self._build_lang_filter(overrides, lang),
-            self._build_category_filter(overrides),
-            self._build_role_filter(roles),
-            self._build_doc_filter(doc),
-        )
-
-    def _build_doc_filter(self, doc: Document) -> Optional[str]:
-        if not doc.id or not doc.sourcepage:
-            return None
-
+        parts = sourcepage.split("-")
+        doc_name = parts[:-1]
         try:
-            if not self.are_ids_filterable():
-                raise ValueError("IDs are not filterable")
-            parts = doc.id.split("-")
-            doc_id = int(parts[-1])
-            key = "id"
-            suffix = ""
-        except ValueError:
-            parts = doc.sourcepage.split("-")
-            doc_id, suffix = parts[-1].split(".")
-            suffix = f".{suffix}"
-            doc_id = int(doc_id)
-            key = "sourcepage"
+            chunk, suffix = parts[-1].split(".")
+            chunk = int(chunk)
+        except Exception as e:
+            if isinstance(e, ValueError):
+                logger.error("Failed to parse chunk number", {"chunk": parts[-1].split("."), "sourcepage": sourcepage})
+            if isinstance(e, IndexError):
+                logger.warning("Cannot unpack chunk number and suffix", {"sourcepage": sourcepage})
+            return []
 
-        ids = [f"{key} eq '{'-'.join(parts[:-1] + [str(id)])}{suffix}'" for id in range(doc_id - 2, doc_id + 3) if id != doc_id]
-        return " or ".join(ids)
-
-    def are_ids_filterable(self) -> bool:
-        return False
+        return [f"{'-'.join(doc_name)}-{chunk + i}.{suffix}" for i in range(-2, 3) if i != 0]
