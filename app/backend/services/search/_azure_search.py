@@ -262,7 +262,12 @@ class AzureExtendedSearchService(AzureSearchService):
         augmented: List[Document] = []
         for doc in documents:
             ids = self._get_nearby_chunk_ids(doc.id)
-            items = await self.client.get_documents(ids)
+            try:
+                items = await self.client.get_documents(ids)
+            except Exception as e:
+                logger.exception("Failed to get nearby chunks", {"ids": ids, "error": str(e)})
+                continue
+
             logger.debug(
                 "Found nearby chunks",
                 {"initial_chunk": doc.id, "nearby_chunks": [id for id in ids], "returned_chunks": len(items)},
