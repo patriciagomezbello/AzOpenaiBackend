@@ -28,6 +28,7 @@ from services.schemas import Message
 from services.schemas import SearchOptions
 from services.search._interface import SearchService
 from services.timer import timer
+from services.utils import is_valid_url
 
 
 logger = new_logger(__name__)
@@ -255,6 +256,7 @@ class AzureExtendedSearchService(AzureSearchService):
         """
 
         documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
+        # TODO: Should we let the user decide when to use the extended search?
         if overrides.top > 3:
             return documents
 
@@ -262,6 +264,7 @@ class AzureExtendedSearchService(AzureSearchService):
         for doc in documents:
             sourcepages = self._get_nearby_chunk_pages(doc.sourcepage)
             items = await self.client.get_documents(sourcepages)
+            logger.debug("Found nearby chunk pages", {"sourcepages": sourcepages, "items": len(items)})
             augmented.extend(
                 [doc]
                 + [
@@ -290,16 +293,21 @@ class AzureExtendedSearchService(AzureSearchService):
         if not sourcepage:
             return []
 
-        parts = sourcepage.split("-")
-        doc_name = parts[:-1]
+        if is_valid_url(sourcepage):
+            logger.debug("Skipping nearby chunk pages for URL", {"sourcepage": sourcepage})
+            return []
+
         try:
+            parts = sourcepage.split("-")
+            doc_name = parts[:-1]
             chunk, suffix = parts[-1].split(".")
             chunk = int(chunk)
         except Exception as e:
             if isinstance(e, ValueError):
-                logger.error("Failed to parse chunk number", {"chunk": parts[-1].split("."), "sourcepage": sourcepage})
-            if isinstance(e, IndexError):
-                logger.warning("Cannot unpack chunk number and suffix", {"sourcepage": sourcepage})
+                logger.warning("Failed to parse chunk number", {"chunk": parts[-1].split(".")[0], "sourcepage": sourcepage})
+                return []
+            logger.exception("Failed to parse sourcepage", {"sourcepage": sourcepage})
             return []
 
+        # TODO: Should we let the user decide how many nearby chunks to include? (range(-2, 3) gets the 4 chunks around the sourcepage) # noqa
         return [f"{'-'.join(doc_name)}-{chunk + i}.{suffix}" for i in range(-2, 3) if i != 0]
