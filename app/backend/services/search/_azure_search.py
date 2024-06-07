@@ -28,7 +28,6 @@ from services.schemas import Message
 from services.schemas import SearchOptions
 from services.search._interface import SearchService
 from services.timer import timer
-from services.utils import is_valid_url
 
 
 logger = new_logger(__name__)
@@ -262,9 +261,12 @@ class AzureExtendedSearchService(AzureSearchService):
 
         augmented: List[Document] = []
         for doc in documents:
-            sourcepages = self._get_nearby_chunk_pages(doc.sourcepage)
-            items = await self.client.get_documents(sourcepages)
-            logger.debug("Found nearby chunk pages", {"sourcepages": sourcepages, "items": len(items)})
+            ids = self._get_nearby_chunk_ids(doc.id)
+            items = await self.client.get_documents(ids)
+            logger.debug(
+                "Found nearby chunks",
+                {"initial_chunk": doc.id, "nearby_chunks": [id for id in ids], "returned_chunks": len(items)},
+            )
             augmented.extend(
                 [doc]
                 + [
@@ -285,29 +287,35 @@ class AzureExtendedSearchService(AzureSearchService):
                     for item in items
                 ]
             )
+        logger.debug(
+            "Augmented search results with nearby chunks",
+            {"count": len(augmented), "documents": ([doc.to_dict() for doc in augmented] if LOG_SENSITIVE_DATA else "REDACTED")},
+        )
 
         return augmented
 
-    def _get_nearby_chunk_pages(self, sourcepage: Optional[str]) -> List[str]:
-        """_get_nearby_chunk_pages returns the sourcepages of the chunks around the given sourcepage."""
-        if not sourcepage:
+    def _get_nearby_chunk_ids(self, id: Optional[str]) -> List[str]:
+        """_get_nearby_chunk_ids returns the ids of the chunks around the given sourcepage."""
+        if not id:
             return []
 
-        if is_valid_url(sourcepage):
-            logger.debug("Skipping nearby chunk pages for URL", {"sourcepage": sourcepage})
-            return []
+        if id.startswith("url-") or id.startswith("file-"):
+            return self._get_surrounding_chunks(id)
 
+        raise ValueError(f"Unknown sourcepage format: {id}")
+
+    def _get_surrounding_chunks(self, id: str) -> List[str]:
+        """_get_surrounding_chunks returns the ids of the chunks around the given chunk id."""
         try:
-            parts = sourcepage.split("-")
-            doc_name = parts[:-1]
-            chunk, suffix = parts[-1].split(".")
-            chunk = int(chunk)
+            parts = id.split("-")
+            doc_name = "-".join(parts[:-1])
+            chunk = int(parts[-1])
         except Exception as e:
             if isinstance(e, ValueError):
-                logger.warning("Failed to parse chunk number", {"chunk": parts[-1].split(".")[0], "sourcepage": sourcepage})
+                logger.warning("Failed to parse chunk number", {"chunk": parts[-1].split(".")[0], "sourcepage": id})
                 return []
-            logger.exception("Failed to parse sourcepage", {"sourcepage": sourcepage})
+            logger.exception("Failed to parse sourcepage", {"sourcepage": id})
             return []
 
         # TODO: Should we let the user decide how many nearby chunks to include? (range(-2, 3) gets the 4 chunks around the sourcepage) # noqa
-        return [f"{'-'.join(doc_name)}-{chunk + i}.{suffix}" for i in range(-2, 3) if i != 0]
+        return [f"{doc_name}-{chunk + i}" for i in range(-2, 3) if i != 0]
