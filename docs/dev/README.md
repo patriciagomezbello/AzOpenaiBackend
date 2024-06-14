@@ -143,7 +143,6 @@ The chat configuration is used to set up the chat conversation. The following en
 | `QUERY_SYSTEM_PROMPT`  | The query prompt for enhancing the search keywords for the knowledge base                                                                |               | X         |
 | `MAX_TOKENS_ANSWER`    | The maximum number of tokens for the answer                                                                                              | `1024`        |           |
 | `MAX_TOKENS_QUERY`     | The maximum number of tokens for the query                                                                                               | `32`          |           |
-| `QUERY_SERVICE_TYPE`   | The type of the search service to use. Options: `default`, `extended`                                                                    | `default`     |           |
 
 #### Authentication Configuration
 
@@ -218,7 +217,6 @@ QUERY_SYSTEM_PROMPT='Below is a history of the conversation so far, and a new qu
 
 MAX_TOKENS_ANSWER=1024
 MAX_TOKENS_QUERY=32
-QUERY_SERVICE_TYPE=default
 
 # Authentication/Authorization Configuration
 AZURE_AUTH_ROLE=all
