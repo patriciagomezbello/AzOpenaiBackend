@@ -1,13 +1,13 @@
 param virtualNetworkId string
 param isCn bool = false
-param deployDNSLink bool
+param deployDNSLink string = 'true'
 
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.search.windows.net'
   location: 'global'
 }
 
-resource pDNSLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isCn && deployDNSLink) {
+resource pDNSLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (isCn && deployDNSLink != 'false') {
   name: 'vnet-link'
   location: 'global'
   parent: privateDnsZone
