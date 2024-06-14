@@ -12,6 +12,7 @@ from azure.identity import AzureDeveloperCliCredential
 from azure.identity.aio import DefaultAzureCredential
 from azure.identity.aio import get_bearer_token_provider
 from azure.storage.blob import BlobServiceClient
+from core.aisearch import cleanup_lc_corpses_from_index
 from core.aisearch import cleanup_lc_sections_from_index
 from core.aisearch import create_embedding
 from core.aisearch import create_search_index
@@ -98,7 +99,7 @@ detector: LanguageDetector = LanguageDetectorBuilder.from_languages(
 ).build()
 
 
-async def create_document_sections(openai_client: AsyncAzureOpenAI, file_path, page_map, accessKeys, category=None):
+async def create_document_sections(openai_client: AsyncAzureOpenAI, file_path, page_map, category=None):
     file_id = file_path_to_id(file_path)
     # Loop through the text and page numbers created by split_text function
 
@@ -137,7 +138,7 @@ async def create_document_sections(openai_client: AsyncAzureOpenAI, file_path, p
             raise ValueError("No embedding was created")
 
 
-async def create_document_blob_sections(openai_client: AsyncAzureOpenAI, blob_name, page_map, accessKeys, category=None):
+async def create_document_blob_sections(openai_client: AsyncAzureOpenAI, blob_name, page_map, category=None):
     blob_id = file_path_to_id(blob_name)
     # Loop through the text and page numbers created by split_text function
 
@@ -178,12 +179,15 @@ async def create_langchain_sections(
     openai_client: AsyncAzureOpenAI,
     document_map,
     search_creds,
-    accessKeys,
     splitter="standard",
     category=None,
 ):
     # define dictionary with source as key and number (counter) as value
     counter_dict: dict[str, int] = {}
+
+    # define list of indexed sources for corpse finding
+    indexed_sources: list[str] = []
+    base = document_map[0][1]  # get the base url for the document
 
     for _, (source, base, section) in enumerate(
         split_langchain_text(
@@ -225,9 +229,19 @@ async def create_langchain_sections(
         else:
             raise ValueError("No embedding was created")
 
+        indexed_sources.append(source)
+
     # call recursive cleanup function with filled counter_dict
     cleanup_lc_sections_from_index(
         counter_dict=counter_dict,
+        index_name=args.index,
+        search_creds=search_creds,
+        search_service=args.searchservice,
+    )
+
+    cleanup_lc_corpses_from_index(
+        file_name=base,
+        indexed_sources=indexed_sources,
         index_name=args.index,
         search_creds=search_creds,
         search_service=args.searchservice,
@@ -377,7 +391,6 @@ async def main():
                         openai_client,
                         document_map=document_map,
                         search_creds=search_creds,
-                        accessKeys=["All"],
                         splitter=splitter,
                         category=item.get("category"),
                     )
@@ -506,7 +519,6 @@ async def main():
                                 openai_client,
                                 file_path_local,
                                 page_map,
-                                ["All"],
                                 local_category,
                             )
 
@@ -567,7 +579,6 @@ async def main():
                             openai_client,
                             file_path_local,
                             page_map,
-                            ["All"],
                             local_category,
                         )
 
@@ -743,7 +754,7 @@ async def main():
                         formrecognizer_creds=formrecognizer_creds,
                         formrecognizerservice=args.formrecognizerservice,
                     )
-                    sections = create_document_blob_sections(openai_client, new_blob_name, page_map, ["All"], local_category)
+                    sections = create_document_blob_sections(openai_client, new_blob_name, page_map, local_category)
                     await index_sections(
                         index_name=args.index,
                         searchservice=args.searchservice,
