@@ -11,7 +11,7 @@ param authOptions object = {}
 
 param virtualNetworkSubnetId string
 
-resource search 'Microsoft.Search/searchServices@2022-09-01' = {
+resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: name
   location: location
   tags: tags
@@ -31,6 +31,7 @@ resource search 'Microsoft.Search/searchServices@2022-09-01' = {
     partitionCount: 1
     publicNetworkAccess: 'disabled'
     replicaCount: 1
+    semanticSearch: 'standard'
   }
   sku: sku
 }
