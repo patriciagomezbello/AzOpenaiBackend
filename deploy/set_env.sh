@@ -9,6 +9,9 @@ azd env set AZURE_REDEPLOY_OPENAI false
 # set keyvault
 azd env set AZURE_DEPLOY_KEY false
 
+# set link
+azd env set AZURE_DEPLOY_LINK false
+
 # Get new value using "azd env get-values" command
 value=$(azd env get-values)
 

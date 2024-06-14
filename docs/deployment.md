@@ -28,6 +28,9 @@ Before using your own instance of Mate, you need to have the following prerequis
   - You need to create two subnets in your existing VNet (`vnet_dtit_cix00xx` of your subscription):
     1. One with the prefix `/27` (e.g. `sn-mate`)
     2. The other with at least `/28` (e.g. `sn-mate-appservice`)
+- If you deploy a second instance of Mate in the same subscription, these things are important:
+    1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
+    2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service, Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
 
 ## Configuration
 
@@ -157,6 +160,8 @@ DT, Deutsche Telekom
 
 - The OpenAI instance is not always correctly deployed. If you encounter issues, set the `AZURE_REDEPLOY_OPENAI` variable to `true` in the `ENVIRONMENT` file to redeploy the OpenAI instance.
 - If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, you need to set the `AZURE_DEPLOY_KEY` variable to `true` in the `ENVIRONMENT` file to omit an error.
+- If you deploy a second instance of mate to your subscription, you need to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file to omit an error.
 - If the backend is not working after deployment, try accessing the `/docs` endpoint to see if the backend is running. If it is not, try restarting or bumping the App Service Tier. If this also does not work, try redeploying the backend as the [deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
 - If the frontend is returning unexpected errors, go to the network tab in the browser developer tools and check the response of the API calls. This will give you more information about the error.
 - If the search is returning an error, set one setting in the semantic ranker. This is a known bug in microsofts deployment.
+- 

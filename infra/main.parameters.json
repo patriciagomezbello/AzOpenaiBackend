@@ -107,6 +107,9 @@
     "deployKey": {
       "value": "${AZURE_DEPLOY_KEY='true'}"
     },
+    "deployLink": {
+      "value": "${AZURE_DEPLOY_LINK='true'}"
+    },
     "icuClientId": {
       "value": "${AZURE_AUTH_ICU_CLIENT}"
     },

@@ -97,6 +97,8 @@ param vnetResourceGroupName string
 
 param deployKey string = 'true'
 
+param deployLink string = 'true'
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
@@ -197,6 +199,7 @@ module searchDNSZone 'core/dns/dns-zones.bicep' = {
   scope: resourceGroupVNET
   params: {
     isCn: isContainsCN
+    deployDNSLink: bool(deployLink)
     virtualNetworkId: vnet.id
   }
 }
