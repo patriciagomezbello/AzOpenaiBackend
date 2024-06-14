@@ -6,6 +6,7 @@ from api.models.common import DataPoint
 from api.models.common import ErrorMessage
 from api.models.common import ErrorResponse
 from api.models.common import Overrides
+from api.models.common import SearchMode
 from api.models.feedback import FeedbackRequest
 from api.models.feedback import FeedbackResponse
 
@@ -18,6 +19,7 @@ __all__ = [
     "FeedbackResponse",
     "DataPoint",
     "Overrides",
+    "SearchMode",
     "ErrorMessage",
     "ErrorResponse",
 ]

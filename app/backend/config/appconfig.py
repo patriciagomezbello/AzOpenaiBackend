@@ -11,7 +11,6 @@ from urllib.parse import urlparse
 
 from services.logger import new_logger
 from services.schemas import Model
-from services.schemas import ServiceName
 
 
 def _safe_import(module: str, name: str) -> Optional[Any]:
@@ -124,7 +123,6 @@ class SearchSettings:
 
     system_prompt: str = os.getenv("QUERY_SYSTEM_PROMPT", query_prompt_template or "")
     max_tokens: int = int(os.getenv("MAX_TOKENS_QUERY", 32))
-    typ: ServiceName = field(default_factory=lambda: SearchSettings._parse_service_type())
 
     def validate(self) -> None:
         """validate validates the configuration."""
@@ -132,17 +130,6 @@ class SearchSettings:
             raise InvalidConfigError("QUERY_SYSTEM_PROMPT is required")
         if self.max_tokens <= 0:
             raise InvalidConfigError("MAX_TOKENS_QUERY must be greater than 0")
-
-    @classmethod
-    def _parse_service_type(cls) -> ServiceName:
-        mode = os.getenv("QUERY_SERVICE_TYPE", "default")
-        match mode:
-            case "default" | "":
-                return ServiceName.AZURE_SEARCH_SERVICE
-            case "extended":
-                return ServiceName.AZURE_EXTENDED_SEARCH_SERVICE
-            case _:
-                raise InvalidConfigError("QUERY_SERVICE_TYPE is invalid")
 
 
 @dataclass

@@ -6,6 +6,7 @@ from typing import List
 from typing import Optional
 
 from api.models import Overrides
+from api.models import SearchMode
 from azure.search.documents.aio import AsyncSearchItemPaged
 from azure.search.documents.models import QueryCaptionResult
 from azure.search.documents.models import QueryType
@@ -236,7 +237,11 @@ class AzureSearchService(SearchService):
 class AzureExtendedSearchService(AzureSearchService):
     """AzureExtendedSearchService extends AzureSearchService to provide additional search functionality.
 
-    It searches not only for documents fitting the search query but also for document chunks around the search results."""
+    It searches not only for documents fitting the search query but also for document chunks around the search results.
+
+    This service differs from AzureCompleteSearchService in that it only searches for nearby chunks
+    when the search result is selected instead of searching for all chunks of a document.
+    """
 
     def __init__(
         self,
@@ -255,8 +260,7 @@ class AzureExtendedSearchService(AzureSearchService):
         """
 
         documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
-        # TODO: Should we let the user decide when to use the extended search?
-        if overrides.top > 3:
+        if overrides.top > 3 or overrides.search_mode == SearchMode.DEFAULT:
             return documents
 
         augmented: List[Document] = []
@@ -300,14 +304,14 @@ class AzureExtendedSearchService(AzureSearchService):
         return augmented
 
     def _get_nearby_chunk_ids(self, id: Optional[str]) -> List[str]:
-        """_get_nearby_chunk_ids returns the ids of the chunks around the given sourcepage."""
+        """_get_nearby_chunk_ids returns the ids of the chunks around the given chunk id."""
         if not id:
             return []
 
         if id.startswith("url-") or id.startswith("file-"):
             return self._get_surrounding_chunks(id)
 
-        raise ValueError(f"Unknown sourcepage format: {id}")
+        raise ValueError(f"Unknown chunk id format: {id}")
 
     def _get_surrounding_chunks(self, id: str) -> List[str]:
         """_get_surrounding_chunks returns the ids of the chunks around the given chunk id."""
@@ -324,3 +328,71 @@ class AzureExtendedSearchService(AzureSearchService):
 
         # TODO: Should we let the user decide how many nearby chunks to include? (range(-2, 3) gets the 4 chunks around the sourcepage) # noqa
         return [f"{doc_name}-{chunk + i}" for i in range(-2, 3) if i != 0]
+
+
+class AzureCompleteSearchService(AzureSearchService):
+    """AzureCompleteSearchService extends AzureSearchService to provide additional search functionality.
+
+    It searches for all chunks of a document when a search result is selected.
+
+    This is useful for getting all the information from a document instead of just the search result or the nearby chunks.
+    """
+
+    def __init__(
+        self,
+        cfg: SearchSettings,
+        search_client: SearchClient,
+        llm_svc: LLMService,
+        lang_svc: LanguageService,
+    ):
+        super().__init__(cfg, search_client, llm_svc, lang_svc)
+
+    async def cognitive_search(
+        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+    ) -> List[Document]:
+        """cognitive_search performs a search using the provided query and overrides.
+        It returns the search results as a formatted string.
+        """
+
+        documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
+        if overrides.top > 3 or overrides.search_mode == SearchMode.DEFAULT:
+            return documents
+
+        all_docs: List[Document] = []
+        for doc in documents:
+            try:
+                items = await self.client.search(
+                    opts=SearchOptions(
+                        search_text="*",
+                        filter=self._build_file_filter(overrides, lang, roles, doc.sourcefile),
+                        query_type=QueryType.SEMANTIC,
+                        semantic_configuration_name="default",
+                        query_caption=None,
+                    )
+                )
+            except Exception as e:
+                logger.exception("Failed to get all chunks", {"sourcefile": doc.sourcefile, "error": str(e)})
+                continue
+
+            docs = await self._process_search_results(items)
+            logger.debug(
+                "Found all chunks",
+                {"initial_chunk": doc.id, "returned_chunks": len(all_docs)},
+            )
+            all_docs.extend(docs)
+
+        return all_docs
+
+    def _build_file_filter(
+        self,
+        overrides: Overrides,
+        lang: Language,
+        roles: Optional[List[str]],
+        sourcefile: Optional[str],
+    ) -> str:
+        """_build_full_filter builds a filter to get all chunks of a document."""
+        filters = self._build_filter(overrides, lang, roles)
+        if not filters:
+            return f"sourcefile eq '{sourcefile}'"
+
+        return f"(sourcefile eq '{sourcefile}') and {filters}"

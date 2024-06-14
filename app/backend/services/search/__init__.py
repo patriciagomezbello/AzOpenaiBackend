@@ -1,5 +1,6 @@
+from services.search._azure_search import AzureCompleteSearchService
 from services.search._azure_search import AzureExtendedSearchService
 from services.search._azure_search import AzureSearchService
 from services.search._interface import SearchService
 
-__all__ = ["SearchService", "AzureSearchService", "AzureExtendedSearchService"]
+__all__ = ["SearchService", "AzureSearchService", "AzureExtendedSearchService", "AzureCompleteSearchService"]

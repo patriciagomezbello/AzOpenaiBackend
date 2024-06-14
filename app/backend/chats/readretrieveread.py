@@ -4,6 +4,7 @@ from typing import Optional
 from api.models import ChatMessage
 from api.models import ChatResponse
 from api.models import Overrides
+from api.models import SearchMode
 from chats.interfaces import ChatApproach
 from chats.interfaces import ChatResponseType
 from config import Config
@@ -51,11 +52,16 @@ class ChatReadRetrieveRead(ChatApproach):
         top=3,
         temperature=0.7,
         category_filter=[],
+        search_mode=SearchMode.DEFAULT,
     )
 
     def __init__(self, cfg: Config, svc_factory: ServiceFactory):
         self.config = cfg
-        self.search_svc: SearchService = svc_factory.get_service(cfg.chat.settings.search.typ)
+        self.search_svcs: dict[SearchMode, SearchService] = {
+            SearchMode.DEFAULT: svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE),
+            SearchMode.EXTENDED: svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE),
+            SearchMode.COMPLETE: svc_factory.get_service(ServiceName.AZURE_COMPLETE_SEARCH_SERVICE),
+        }
         self.lang_svc: LanguageService = svc_factory.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE)
         self.llm_svc: LLMService = svc_factory.get_service(ServiceName.OPEN_AI_SERVICE)
         self.citation_service: CitationService = svc_factory.get_service(ServiceName.REGEX_CITATION_SERVICE)
@@ -72,6 +78,7 @@ class ChatReadRetrieveRead(ChatApproach):
         """
 
         overrides = self._fill_overrides(overrides)
+        search_svc = self.search_svcs.get(overrides.search_mode, self.search_svcs[SearchMode.DEFAULT])
         msgs = self._convert_history_to_messages(history, self.llm_svc.config().gpt.model.token_limit())
 
         try:
@@ -80,11 +87,11 @@ class ChatReadRetrieveRead(ChatApproach):
             msgs[-1].set_content(self.lang_svc.replace_abbreviations(msgs[-1].content()))
 
             # Build the (optimized) search query for the cognitive search
-            search_query = await self.search_svc.build_query_prompt(msgs, data)
+            search_query = await search_svc.build_query_prompt(msgs, data)
             logger.debug("Built search query", {"search_query": search_query})
 
             # Perform the cognitive search to get the enhanced context for the LLM (RAG data)
-            search_res = await self.search_svc.cognitive_search(search_query, overrides, data.language, roles)
+            search_res = await search_svc.cognitive_search(search_query, overrides, data.language, roles)
 
             # Generate the answer with the LLM using the enhanced context
             answer = await self.llm_svc.generate(

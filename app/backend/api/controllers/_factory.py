@@ -27,12 +27,18 @@ class Controllers:
         """startup initializes the controllers and services."""
 
         cat_svc: CategoryService = self.svc_factory.get_service(ServiceName.FACET_CATEGORY_SERVICE)
-        search_svc: SearchService = self.svc_factory.get_service(self.cfg.chat.settings.search.typ)
-        try:
-            await cat_svc.sync_facets(search_svc=search_svc)
-            logger.info("Syncronized facets with search service")
-        except Exception as e:
-            logger.warning("Error while syncing facets with search service", {"error": str(e)}, exc_info=True)
+        search_svcs: list[SearchService] = [
+            self.svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE),
+            self.svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE),
+            self.svc_factory.get_service(ServiceName.AZURE_COMPLETE_SEARCH_SERVICE),
+        ]
+
+        for search_svc in search_svcs:
+            try:
+                await cat_svc.sync_facets(search_svc=search_svc)
+                logger.info("Syncronized facets with search service")
+            except Exception as e:
+                logger.warning("Error while syncing facets with search service", {"error": str(e)}, exc_info=True)
 
     def setup_controllers(self) -> None:
         """setup_controllers initializes all the controllers."""

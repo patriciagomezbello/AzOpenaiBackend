@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from enum import Enum
 from typing import List
 from typing import Optional
 
@@ -51,6 +52,14 @@ class DataPoint:
     page: Optional[int]
 
 
+class SearchMode(Enum):
+    """SearchMode represents the search mode for the search service."""
+
+    DEFAULT = "default"
+    EXTENDED = "extended"
+    COMPLETE = "complete"
+
+
 @dataclass
 class Overrides:
     """Overrides represents overrides for the search query and AI request."""
@@ -70,6 +79,8 @@ class Overrides:
     category_filter: List[str] = field(default_factory=list)
     # multilingual_search is whether to use multilingual search.
     multilingual_search: bool = True
+    # search_mode is the search mode for the search service.
+    search_mode: SearchMode = SearchMode.DEFAULT
 
     def __post_init__(self):
         self.retrieval_mode = self.retrieval_mode or ""
@@ -79,9 +90,10 @@ class Overrides:
         self.top = self.top or 3
         self.category_filter = self.category_filter or []
         self.multilingual_search = self.multilingual_search or True
+        self.search_mode = self.search_mode or SearchMode.DEFAULT
 
     def fill_defaults(self, defaults: "Overrides") -> "Overrides":
-        """fill_defaults fills in the missing values with the given default values."""
+        """fill_defaults can be used to fill in the missing values with the default values."""
         if self.retrieval_mode == "":
             self.retrieval_mode = defaults.retrieval_mode
         if self.semantic_ranker is False:
