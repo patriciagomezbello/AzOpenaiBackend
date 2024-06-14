@@ -199,7 +199,7 @@ module searchDNSZone 'core/dns/dns-zones.bicep' = {
   scope: resourceGroupVNET
   params: {
     isCn: isContainsCN
-    deployDNSLink: bool(deployLink)
+    deployDNSLink: deployLink
     virtualNetworkId: vnet.id
   }
 }
