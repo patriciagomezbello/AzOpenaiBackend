@@ -30,7 +30,7 @@ class Controllers:
         search_svcs: list[SearchService] = [
             self.svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE),
             self.svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE),
-            self.svc_factory.get_service(ServiceName.AZURE_COMPLETE_SEARCH_SERVICE),
+            self.svc_factory.get_service(ServiceName.AZURE_FULL_SEARCH_SERVICE),
         ]
 
         for search_svc in search_svcs:

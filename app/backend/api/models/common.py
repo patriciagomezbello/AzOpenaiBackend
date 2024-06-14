@@ -57,7 +57,7 @@ class SearchMode(Enum):
 
     DEFAULT = "default"
     EXTENDED = "extended"
-    COMPLETE = "complete"
+    FULL = "full"
 
 
 @dataclass

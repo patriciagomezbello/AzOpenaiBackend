@@ -239,7 +239,7 @@ class AzureExtendedSearchService(AzureSearchService):
 
     It searches not only for documents fitting the search query but also for document chunks around the search results.
 
-    This service differs from AzureCompleteSearchService in that it only searches for nearby chunks
+    This service differs from AzureFullSearchService in that it only searches for nearby chunks
     when the search result is selected instead of searching for all chunks of a document.
     """
 
@@ -332,8 +332,8 @@ class AzureExtendedSearchService(AzureSearchService):
         return [f"{doc_name}-{chunk + i}" for i in range(-span // 2, span // 2 + 1) if i != 0]
 
 
-class AzureCompleteSearchService(AzureSearchService):
-    """AzureCompleteSearchService extends AzureSearchService to provide additional search functionality.
+class AzureFullSearchService(AzureSearchService):
+    """AzureFullSearchService extends AzureSearchService to provide additional search functionality.
 
     It searches for all chunks of a document when a search result is selected.
 

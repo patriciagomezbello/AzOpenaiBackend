@@ -11,8 +11,8 @@ from services.language import LanguageProcessingService
 from services.llm import OpenAIService
 from services.logger import new_logger
 from services.schemas import ServiceName
-from services.search import AzureCompleteSearchService
 from services.search import AzureExtendedSearchService
+from services.search import AzureFullSearchService
 from services.search import AzureSearchService
 
 logger = new_logger(__name__)
@@ -74,8 +74,8 @@ class ServiceFactory:
                     llm_svc=self.get_service(ServiceName.OPEN_AI_SERVICE),
                     lang_svc=self.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE),
                 )
-            case ServiceName.AZURE_COMPLETE_SEARCH_SERVICE:
-                svc = AzureCompleteSearchService(
+            case ServiceName.AZURE_FULL_SEARCH_SERVICE:
+                svc = AzureFullSearchService(
                     cfg=self.config.chat.settings.search,
                     search_client=self.clients["SearchClient"],
                     llm_svc=self.get_service(ServiceName.OPEN_AI_SERVICE),

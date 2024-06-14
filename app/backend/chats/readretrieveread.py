@@ -60,7 +60,7 @@ class ChatReadRetrieveRead(ChatApproach):
         self.search_svcs: dict[SearchMode, SearchService] = {
             SearchMode.DEFAULT: svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE),
             SearchMode.EXTENDED: svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE),
-            SearchMode.COMPLETE: svc_factory.get_service(ServiceName.AZURE_COMPLETE_SEARCH_SERVICE),
+            SearchMode.FULL: svc_factory.get_service(ServiceName.AZURE_FULL_SEARCH_SERVICE),
         }
         self.lang_svc: LanguageService = svc_factory.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE)
         self.llm_svc: LLMService = svc_factory.get_service(ServiceName.OPEN_AI_SERVICE)
