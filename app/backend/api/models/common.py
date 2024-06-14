@@ -81,6 +81,9 @@ class Overrides:
     multilingual_search: bool = True
     # search_mode is the search mode for the search service.
     search_mode: SearchMode = SearchMode.DEFAULT
+    # search_span is the search span for the search service.
+    # This is only used for the extended search mode.
+    search_span: Optional[int] = None
 
     def __post_init__(self):
         self.retrieval_mode = self.retrieval_mode or ""
@@ -91,6 +94,7 @@ class Overrides:
         self.category_filter = self.category_filter or []
         self.multilingual_search = self.multilingual_search or True
         self.search_mode = self.search_mode or SearchMode.DEFAULT
+        self.search_span = self.search_span or None
 
     def fill_defaults(self, defaults: "Overrides") -> "Overrides":
         """fill_defaults can be used to fill in the missing values with the default values."""

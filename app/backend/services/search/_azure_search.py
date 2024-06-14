@@ -260,12 +260,12 @@ class AzureExtendedSearchService(AzureSearchService):
         """
 
         documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
-        if overrides.top > 3 or overrides.search_mode == SearchMode.DEFAULT:
+        if overrides.search_mode == SearchMode.DEFAULT or overrides.search_span == 0:
             return documents
 
         augmented: List[Document] = []
         for doc in documents:
-            ids = self._get_nearby_chunk_ids(doc.id)
+            ids = self._get_nearby_chunk_ids(doc.id, overrides.search_span)
             try:
                 items = await self.client.get_documents(ids)
             except Exception as e:
@@ -303,17 +303,17 @@ class AzureExtendedSearchService(AzureSearchService):
 
         return augmented
 
-    def _get_nearby_chunk_ids(self, id: Optional[str]) -> List[str]:
+    def _get_nearby_chunk_ids(self, id: Optional[str], span: Optional[int]) -> List[str]:
         """_get_nearby_chunk_ids returns the ids of the chunks around the given chunk id."""
         if not id:
             return []
 
         if id.startswith("url-") or id.startswith("file-"):
-            return self._get_surrounding_chunks(id)
+            return self._get_surrounding_chunks(id, span)
 
         raise ValueError(f"Unknown chunk id format: {id}")
 
-    def _get_surrounding_chunks(self, id: str) -> List[str]:
+    def _get_surrounding_chunks(self, id: str, span: Optional[int]) -> List[str]:
         """_get_surrounding_chunks returns the ids of the chunks around the given chunk id."""
         try:
             parts = id.split("-")
@@ -326,8 +326,10 @@ class AzureExtendedSearchService(AzureSearchService):
             logger.exception("Failed to parse sourcepage", {"sourcepage": id})
             return []
 
-        # TODO: Should we let the user decide how many nearby chunks to include? (range(-2, 3) gets the 4 chunks around the sourcepage) # noqa
-        return [f"{doc_name}-{chunk + i}" for i in range(-2, 3) if i != 0]
+        if not span:
+            return [f"{doc_name}-{chunk + i}" for i in range(-2, 3) if i != 0]
+
+        return [f"{doc_name}-{chunk + i}" for i in range(-span // 2, span // 2 + 1) if i != 0]
 
 
 class AzureCompleteSearchService(AzureSearchService):
@@ -355,7 +357,7 @@ class AzureCompleteSearchService(AzureSearchService):
         """
 
         documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
-        if overrides.top > 3 or overrides.search_mode == SearchMode.DEFAULT:
+        if overrides.search_mode == SearchMode.DEFAULT:
             return documents
 
         all_docs: List[Document] = []
