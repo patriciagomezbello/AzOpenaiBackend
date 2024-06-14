@@ -1,4 +1,6 @@
 import os
+from typing import Generator
+from typing import List
 
 from bs4 import BeautifulSoup as Soup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -6,9 +8,10 @@ from langchain_community.document_loaders import ConfluenceLoader
 from langchain_community.document_loaders import DocusaurusLoader
 from langchain_community.document_loaders import GitLoader
 from langchain_community.document_loaders import RecursiveUrlLoader
+from langchain_core.documents import Document
 
 
-def lc_load_url_docs(url, max_depth=2):
+def lc_load_url_docs(url: str, max_depth=2):
     url = url
     loader = RecursiveUrlLoader(url=url, max_depth=max_depth, extractor=lambda x: Soup(x, "html.parser").text)
     documents = loader.load()
@@ -27,11 +30,14 @@ def lc_load_docusaurus_docs(url):
     return documents
 
 
-def lc_load_confluence_docs(url, username, token_ref, space_key, include_att=False, limit=50, max_pages=50):
+def lc_load_confluence_docs(
+    url: str, username: str, token_ref: str, space_key: str, include_att=False, limit=50, max_pages=50
+) -> List[Document]:
     if include_att:
         include_att = False
 
     token = os.getenv(token_ref)
+
     if username.lower() == "token":
         print("using token only")
         loader = ConfluenceLoader(
@@ -57,7 +63,7 @@ def lc_load_confluence_docs(url, username, token_ref, space_key, include_att=Fal
     return documents
 
 
-def lc_load_git_docs(url, path, filter):
+def lc_load_git_docs(url: str, path: str, filter: str):
     if filter != "" or filter is not None:
         loader = GitLoader(
             clone_url=url,
@@ -82,7 +88,7 @@ loader_map = {
 }
 
 
-def handle_lc_config_item(config_item):
+def handle_lc_config_item(config_item: dict) -> list[tuple[str, str, str]] | int:
     try:
         documents = loader_map[config_item["loader"]](**config_item["config"])
         base = config_item["config"]["url"]
@@ -96,23 +102,24 @@ def handle_lc_config_item(config_item):
         return -1
 
 
-# TODO: baselink for deletion
-def get_langchain_map(documents, base):
-    document_map = []
+def get_langchain_map(documents: List[Document], base: str) -> list[tuple[str, str, str]]:
+    document_map: list[tuple[str, str, str]] = []
 
-    for i, document in enumerate(documents):
+    for _, document in enumerate(documents):
         # mark all positions of the table spans in the page
 
         # build page text by replacing charcters in table spans with table html
-        document_text = document.page_content
         document_source = document.metadata["source"]
         document_base = base
+        document_text = document.page_content
 
         document_map.append((document_source, document_base, document_text))
     return document_map
 
 
-def split_langchain_text_recursive(document_map, section_overlap=100, max_section_length=1100):
+def split_langchain_text_recursive(
+    document_map: list[tuple[str, str, str]], section_overlap=100, max_section_length=1100
+) -> Generator[tuple[str, str, str], None, None]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=max_section_length,
         chunk_overlap=section_overlap,
@@ -125,11 +132,11 @@ def split_langchain_text_recursive(document_map, section_overlap=100, max_sectio
 
 
 def split_langchain_text(
-    document_map,
-    section_overlap,
-    max_section_length,
-    sentence_search_limit,
-):
+    document_map: list[tuple[str, str, str]],
+    section_overlap: int,
+    max_section_length: int,
+    sentence_search_limit: int,
+) -> Generator[tuple[str, str, str], None, None]:
     SENTENCE_ENDINGS = [".", "!", "?"]
     WORDS_BREAKS = [",", ";", ":", " ", "(", ")", "[", "]", "{", "}", "\t", "\n"]
 

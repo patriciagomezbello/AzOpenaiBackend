@@ -1,7 +1,11 @@
 import asyncio
 import re
 import time
+from typing import Dict
+from typing import List
 from typing import Optional
+from typing import TypeAlias
+from typing import Union
 
 import aiohttp
 from azure.core.exceptions import ResourceNotFoundError
@@ -287,6 +291,38 @@ def cleanup_lc_sections_from_index(
     print(f"Cleanup of search index '{index_name}' finished.")
 
 
+def cleanup_lc_corpses_from_index(
+    file_name: str,
+    indexed_sources: List[str],
+    index_name: str,
+    search_creds,
+    search_service: str,
+) -> None:
+    """
+    Cleanup documents from specified azure search index based on the matching the facets of the searchfile and the indexed data.
+    """
+    print(f"Starting cleanup of search index corpses '{index_name}'...")
+
+    # Create a search client for the specified azure search service and index
+    search_client = SearchClient(
+        endpoint=f"https://{search_service}.search.windows.net/",
+        index_name=index_name,
+        credential=search_creds,
+    )
+
+    documents = search_client.search(search_text="*", search_fields=["id", "sourcepage"], filter=f"sourcefile eq '{file_name}'")
+
+    documents_to_delete = [result for result in documents if result["sourcepage"] not in indexed_sources]
+
+    print("Corpses to delete: ", len(documents_to_delete))
+
+    if len(documents_to_delete) > 0:
+        search_client.delete_documents(documents=documents_to_delete)
+        print(f"Deleted {len(documents_to_delete)} corpses sucessfully from index")
+    else:
+        print("No corpses to delete")
+
+
 def cleanup_search_recursive(search_client: SearchClient, key: str, num: int) -> None:
     """
     Recursive function to delete documents from azure search index.
@@ -368,6 +404,7 @@ async def create_embedding(client: AsyncAzureOpenAI, engine, input, retry=0):
             return None
 
 
+# TODO: replace all these usages with function below
 async def cgsIndexColumnFacetDist(searchservice, index_name, search_creds, facet):
     search_client = SearchClient(
         endpoint=f"https://{searchservice}.search.windows.net/",
@@ -393,3 +430,30 @@ async def cgsIndexColumnFacetDist(searchservice, index_name, search_creds, facet
         print(e)
         print("setting default to 'de' due to error in facets search query")
         return [{"count": 1, "value": "de"}]
+
+
+FacetValue: TypeAlias = Union[str, int]
+Facets: TypeAlias = List[Dict[str, FacetValue]]
+
+
+async def searchFacets(search_client: SearchClient, facet: str, fallback_answer: Facets = [{"count": 1, "value": "de"}]) -> Facets:
+    try:
+        facets_search = search_client.search(
+            top=0,
+            skip=0,
+            query_type="simple",
+            select=[""],
+            search_text="*",
+            search_fields=[],
+            filter="",
+            facets=[facet],
+            include_total_count=True,
+        )
+        res = facets_search.get_facets()
+        if res is None:
+            return fallback_answer
+        return res[facet]
+    except Exception as e:
+        print(e)
+        print("returning fallback answer")
+        return fallback_answer
