@@ -97,7 +97,10 @@ class Overrides:
         self.top = self.top or 3
         self.category_filter = self.category_filter or []
         self.multilingual_search = self.multilingual_search or True
-        self.search_mode = self.search_mode or SearchMode.DEFAULT
+        try:
+            self.search_mode = SearchMode(self.search_mode) if isinstance(self.search_mode, str) else self.search_mode
+        except ValueError:
+            self.search_mode = SearchMode.DEFAULT
         self.search_span = self.search_span or None
 
     def fill_defaults(self, defaults: "Overrides") -> "Overrides":
