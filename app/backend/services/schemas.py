@@ -135,35 +135,42 @@ def _remove_new_lines(text: str) -> str:
 class Document:
     """Document represents a document in the search index."""
 
-    # id represents the document id.
     id: Optional[str]
-    # content contains the document content.
+    """id represents the document id."""
     content: Optional[str]
-    # embedding is the document embedding vector.
+    """content contains the document content."""
     embedding: Optional[List[float]]
-    # image_embedding is the document image embedding vector.
+    """embedding is the document embedding vector."""
     image_embedding: Optional[List[float]]
-    # doclang is the primary language of the document.
+    """image_embedding is the document image embedding vector."""
     doclang: Optional[str]
-    # category is the category of the document.
-    # For example: "Azure"
+    """doclang is the primary language of the document.
+    For example: "en"
+    """
     category: Optional[str]
-    # sourcepage is the name of the document with its page number.
-    # For example: "data-3.pdf" -> document name = "data", page number = 3
-    sourcepage: Optional[str]
-    # roles are the roles that have access to the document.
-    # For example: ["manager", "employee"] or ["public"]
+    """category is the category of the document.
+    For example: "Azure"
+    """
     roles: Optional[List[str]]
-    # sourcefile is the name of the document file.
-    # For example: "data.pdf"
+    """roles are the roles that have access to the document.
+    For example: ["manager", "employee"] or ["public"]
+    """
+    sourcepage: Optional[str]
+    """sourcepage is the name of the document with its page number.
+    For example: "data-3.pdf" -> document name = "data", page number = 3
+    """
     sourcefile: Optional[str]
-    # captions are the semantic search captions.
-    # For more information on this, please refer to the Azure AI Search documentation.
+    """sourcefile is the name of the document file.
+    For example: "data.pdf"
+    """
     captions: List[QueryCaptionResult]
-    # score represents the match score in relation to the search query.
+    """captions are the semantic search captions.
+    For more information on this, please refer to the Azure AI Search documentation.
+    """
     score: Optional[float] = None
-    # reranker_score represents the match score after the reranker.
+    """score represents the match score in relation to the search query."""
     reranker_score: Optional[float] = None
+    """reranker_score represents the match score after the reranker."""
 
     def __str__(self) -> str:
         """__str__ returns the document content as a string."""
