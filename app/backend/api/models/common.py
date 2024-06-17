@@ -117,7 +117,7 @@ class Overrides:
             self.temperature = defaults.temperature
         return self
 
-    def to_dict(self) -> dict[str, str | bool | float | List[str] | SearchMode | None]:
+    def to_dict(self) -> dict[str, str | bool | float | List[str] | None]:
         """to_dict converts the dataclass to a dictionary."""
         return {
             "retrieval_mode": self.retrieval_mode,

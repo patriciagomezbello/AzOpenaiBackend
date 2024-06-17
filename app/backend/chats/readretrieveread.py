@@ -79,7 +79,6 @@ class ChatReadRetrieveRead(ChatApproach):
 
         overrides = self._fill_overrides(overrides)
         search_svc = self.search_svcs.get(overrides.search_mode, self.search_svcs[SearchMode.DEFAULT])
-        logger.debug("Running read-retrieve-read chat approach", {"search_mode": overrides.search_mode})
         msgs = self._convert_history_to_messages(history, self.llm_svc.config().gpt.model.token_limit())
 
         try:
