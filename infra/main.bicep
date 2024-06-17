@@ -23,8 +23,8 @@ param searchServiceName string = ''
 param searchServiceResourceGroupName string = ''
 param searchServiceResourceGroupLocation string = location
 
-@allowed(['basic', 'standard', 'standard2', 'standard3'])
 param searchServiceSkuName string = 'standard'
+param searchServiceLocation string
 
 param searchIndexName string = 'gptkbindex'
 
@@ -350,7 +350,7 @@ module searchService 'core/search/search-services.bicep' = {
   scope: searchServiceResourceGroup
   params: {
     name: !empty(searchServiceName) ? searchServiceName : 'gptkb-${resourceToken}'
-    location: searchServiceResourceGroupLocation
+    location: !empty(searchServiceLocation) ? searchServiceLocation : searchServiceResourceGroupLocation
     tags: tags
     virtualNetworkSubnetId: subnet_default.id
     privateDNSZoneId: searchDNSZone.outputs.privateDNSZoneId
