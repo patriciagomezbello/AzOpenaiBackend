@@ -15,6 +15,13 @@ To deploy your own instance of Mate, follow the steps below.
     - [File: `ABBREV`](#file-abbrev)
       - [Example](#example-2)
 - [Known Issues](#known-issues)
+  - [Deployment Issues](#deployment-issues)
+    - [OpenAI Instance](#openai-instance)
+    - [First Deployment](#first-deployment)
+    - [Second Instance](#second-instance)
+  - [Backend Issues](#backend-issues)
+  - [Frontend Issues](#frontend-issues)
+  - [Search Issues](#search-issues)
 
 ## Prerequisites
 
@@ -158,10 +165,28 @@ DT, Deutsche Telekom
 
 ## Known Issues
 
-- The OpenAI instance is not always correctly deployed. If you encounter issues, set the `AZURE_REDEPLOY_OPENAI` variable to `true` in the `ENVIRONMENT` file to redeploy the OpenAI instance.
-- If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, you need to set the `AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file to omit an error.
-- If you deploy a second instance of mate to your subscription, you need to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file to omit an error.
-- If the backend is not working after deployment, try accessing the `/docs` endpoint to see if the backend is running. You can check if the deployment was successfull via the Deployment Logs in the App Service. If it is not, try restarting or bumping the App Service Tier. You should check the logs via the App Service in Azure. You can see them via the Advanced Tools Menu, then go to docker logs and open the default docker logs for the current day. If this also does not help you (no specific error message, just "cannot find main" error), try redeploying the backend as the [deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
-- If the frontend is returning unexpected errors, go to the network tab in the browser developer tools and check the response of the API calls. This will give you more information about the error.
-- If the search is returning an error, set one setting in the semantic ranker. This is a known bug in microsofts deployment.
-- 
+### Deployment Issues
+
+#### OpenAI Instance
+
+If the OpenAI instance is not correctly deployed, set the `AZURE_REDEPLOY_OPENAI` variable to `true` in the `ENVIRONMENT` file. This will trigger a redeployment of the OpenAI instance.
+
+#### First Deployment
+
+If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, set the `AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file. This will prevent a deployment error related to the keyvault.
+
+#### Second Instance
+
+When deploying a second instance of mate to your subscription, set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. This will prevent a deployment error related to the second instance.
+
+### Backend Issues
+
+If the backend is not working after deployment, try accessing the `/docs` endpoint to check if the backend is running. You can also check the Deployment Logs in the App Service. If the backend is still not working, try restarting or bumping the App Service Tier. Check the logs via the App Service in Azure, accessible through the Advanced Tools Menu. If the error message is `No module named 'main'`, consider redeploying the backend as the [deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
+
+### Frontend Issues
+
+If the frontend is returning unexpected errors, open the network tab in the browser developer tools and check the response of the API calls. This will provide more information about the error.
+
+### Search Issues
+
+If the search is returning an error, adjust one setting in the semantic ranker. This is a known bug in Microsoft's deployment.
