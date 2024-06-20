@@ -1,5 +1,6 @@
 param name string
-param location string = resourceGroup().location
+param location string
+param vnetLocation string
 param tags object = {}
 param privateDNSZoneId string
 
@@ -38,7 +39,7 @@ resource search 'Microsoft.Search/searchServices@2024-03-01-preview' = {
 
 resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   name: 'PE-${name}'
-  location: location
+  location: vnetLocation
   properties: {
     subnet: {
       id: virtualNetworkSubnetId

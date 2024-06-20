@@ -351,6 +351,7 @@ module searchService 'core/search/search-services.bicep' = {
   params: {
     name: !empty(searchServiceName) ? searchServiceName : 'gptkb-${resourceToken}'
     location: !empty(searchServiceLocation) ? searchServiceLocation : searchServiceResourceGroupLocation
+    vnetLocation: location
     tags: tags
     virtualNetworkSubnetId: subnet_default.id
     privateDNSZoneId: searchDNSZone.outputs.privateDNSZoneId
