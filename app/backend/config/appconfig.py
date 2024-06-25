@@ -10,7 +10,6 @@ from urllib.parse import ParseResult
 from urllib.parse import urlparse
 
 from services.logger import new_logger
-from services.schemas import Facet
 from services.schemas import Model
 
 
@@ -119,17 +118,15 @@ class AzureConfig:
 
 
 @dataclass
-class QuerySettings:
-    """QuerySettings is a class that holds the configuration for the query service."""
+class SearchSettings:
+    """SearchSettings is a class that holds the configuration for the search service."""
 
-    query_system_prompt: str = os.getenv("QUERY_SYSTEM_PROMPT", query_prompt_template or "")
+    system_prompt: str = os.getenv("QUERY_SYSTEM_PROMPT", query_prompt_template or "")
     max_tokens: int = int(os.getenv("MAX_TOKENS_QUERY", 32))
-    # TODO: remove these configuration options since they take no effect
-    doclangs: List[Facet] = field(default_factory=lambda: json.loads(os.getenv("FACETS_RESULTS", "[{}]").replace("'", '"')))
 
     def validate(self) -> None:
         """validate validates the configuration."""
-        if self.query_system_prompt == "":
+        if self.system_prompt == "":
             raise InvalidConfigError("QUERY_SYSTEM_PROMPT is required")
         if self.max_tokens <= 0:
             raise InvalidConfigError("MAX_TOKENS_QUERY must be greater than 0")
@@ -139,12 +136,12 @@ class QuerySettings:
 class AnswerSettings:
     """AnswerSettings is a class that holds the configuration for the answer service."""
 
-    answer_system_prompt: str = os.getenv("ANSWER_SYSTEM_PROMPT", system_message_chat_conversation or "")
+    system_prompt: str = os.getenv("ANSWER_SYSTEM_PROMPT", system_message_chat_conversation or "")
     max_tokens: int = int(os.getenv("MAX_TOKENS_ANSWER", 1024))
 
     def validate(self) -> None:
         """validate validates the configuration."""
-        if self.answer_system_prompt == "":
+        if self.system_prompt == "":
             raise InvalidConfigError("ANSWER_SYSTEM_PROMPT is required")
         if self.max_tokens <= 0:
             raise InvalidConfigError("MAX_TOKENS_ANSWER must be greater than 0")
@@ -156,12 +153,12 @@ class ChatSettings:
 
     # TODO: To set the system prompts per environment variables using azd, we'd need a solution to a bug of azd
     # that fails to read multi-line strings from environment variables.
-    query: QuerySettings = field(default_factory=QuerySettings)
+    search: SearchSettings = field(default_factory=SearchSettings)
     answer: AnswerSettings = field(default_factory=AnswerSettings)
 
     def validate(self) -> None:
         """validate validates the configuration."""
-        self.query.validate()
+        self.search.validate()
         self.answer.validate()
 
 

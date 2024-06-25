@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Awaitable
 from typing import Dict
+from typing import List
 
 from azure.identity.aio import ChainedTokenCredential
 from azure.search.documents.aio import AsyncSearchItemPaged
@@ -20,6 +21,11 @@ class SearchClient(ABC):
     @abstractmethod
     def search(self, opts: SearchOptions) -> Awaitable[AsyncSearchItemPaged[Dict]]:
         """search searches the index for the provided options."""
+        ...
+
+    @abstractmethod
+    async def get_documents(self, keys: List[str]) -> List[Dict]:
+        """get_documents retrieves the documents with the provided keys."""
         ...
 
     @abstractmethod
@@ -57,6 +63,10 @@ class AzureSearchClient(SearchClient):
             query_caption=opts.query_caption,
             vector_queries=opts.vector_queries,
         )
+
+    async def get_documents(self, keys: List[str]) -> List[Dict]:
+        """get_documents retrieves the documents with the provided keys."""
+        return [await self.client.get_document(key) for key in keys]
 
     async def close(self) -> None:
         """close closes the search client's connection.

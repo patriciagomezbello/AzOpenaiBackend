@@ -1,5 +1,3 @@
-from enum import auto
-from enum import Enum
 from typing import Any
 from typing import Dict
 
@@ -12,22 +10,12 @@ from services.feedback import FeedbackLogger
 from services.language import LanguageProcessingService
 from services.llm import OpenAIService
 from services.logger import new_logger
+from services.schemas import ServiceName
+from services.search import AzureExtendedSearchService
+from services.search import AzureFullSearchService
 from services.search import AzureSearchService
 
 logger = new_logger(__name__)
-
-
-class ServiceName(Enum):
-    """ServiceName is an enumeration of all available service implementations."""
-
-    OPEN_AI_SERVICE = auto()
-    OAUTH_SERVICE = auto()
-    FACET_CATEGORY_SERVICE = auto()
-    REGEX_CITATION_SERVICE = auto()
-    AZURE_BLOB_CONTENT_SERVICE = auto()
-    FEEDBACK_LOGGER = auto()
-    LANGUAGE_PROCESSING_SERVICE = auto()
-    AZURE_SEARCH_SERVICE = auto()
 
 
 class ServiceFactory:
@@ -74,7 +62,21 @@ class ServiceFactory:
                 )
             case ServiceName.AZURE_SEARCH_SERVICE:
                 svc = AzureSearchService(
-                    cfg=self.config.chat.settings.query,
+                    cfg=self.config.chat.settings.search,
+                    search_client=self.clients["SearchClient"],
+                    llm_svc=self.get_service(ServiceName.OPEN_AI_SERVICE),
+                    lang_svc=self.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE),
+                )
+            case ServiceName.AZURE_EXTENDED_SEARCH_SERVICE:
+                svc = AzureExtendedSearchService(
+                    cfg=self.config.chat.settings.search,
+                    search_client=self.clients["SearchClient"],
+                    llm_svc=self.get_service(ServiceName.OPEN_AI_SERVICE),
+                    lang_svc=self.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE),
+                )
+            case ServiceName.AZURE_FULL_SEARCH_SERVICE:
+                svc = AzureFullSearchService(
+                    cfg=self.config.chat.settings.search,
                     search_client=self.clients["SearchClient"],
                     llm_svc=self.get_service(ServiceName.OPEN_AI_SERVICE),
                     lang_svc=self.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE),

@@ -6,12 +6,13 @@ from typing import List
 from typing import Optional
 
 from api.models import Overrides
+from api.models import SearchMode
 from azure.search.documents.aio import AsyncSearchItemPaged
 from azure.search.documents.models import QueryCaptionResult
 from azure.search.documents.models import QueryType
 from azure.search.documents.models import VectorizedQuery
 from clients import SearchClient
-from config import QuerySettings
+from config import SearchSettings
 from lingua import Language
 from services.language import LanguageService
 from services.llm import LLMService
@@ -36,7 +37,7 @@ logger = new_logger(__name__)
 class AzureSearchService(SearchService):
     def __init__(
         self,
-        cfg: QuerySettings,
+        cfg: SearchSettings,
         search_client: SearchClient,
         llm_svc: LLMService,
         lang_svc: LanguageService,
@@ -45,6 +46,7 @@ class AzureSearchService(SearchService):
         self.client = search_client
         self.llm_svc = llm_svc
         self.lang_service = lang_svc
+        self.doclangs: List[Facet] = [{"value": "en", "count": 0}]
 
     @timer()
     async def build_query_prompt(self, msgs: List[Message], data: ChatData) -> str:
@@ -74,7 +76,7 @@ class AzureSearchService(SearchService):
                         max_tokens=self.cfg.max_tokens,
                         n=1,
                     ),
-                    context_prompt=ContextPrompt(template=self.cfg.query_system_prompt, data=data),
+                    context_prompt=ContextPrompt(template=self.cfg.system_prompt, data=data),
                 ),
             )
         except Exception as e:
@@ -127,11 +129,11 @@ class AzureSearchService(SearchService):
         Returns None if no filter is needed.
         """
 
-        lang_filter = self._build_lang_filter(overrides, lang)
-        category_filter = self._build_category_filter(overrides)
-        roles_filter = self._build_role_filter(roles)
-
-        return self._combine_filters(lang_filter, category_filter, roles_filter)
+        return self._combine_filters(
+            self._build_lang_filter(overrides, lang),
+            self._build_category_filter(overrides),
+            self._build_role_filter(roles),
+        )
 
     def _build_lang_filter(self, overrides: Overrides, lang: Language) -> Optional[str]:
         """_build_lang_filter builds a language filter based on the provided overrides and language.
@@ -141,10 +143,10 @@ class AzureSearchService(SearchService):
         if overrides.multilingual_search:
             return None
 
-        if self.cfg.doclangs == {}:
+        if self._empty_doclangs():
             return None
 
-        facet_languages = self.lang_service.get_facet_languages(self.cfg.doclangs)
+        facet_languages = self.lang_service.get_facet_languages(self.doclangs)
         if self.lang_service.get_lang_code(lang) not in facet_languages:
             return None
 
@@ -175,24 +177,18 @@ class AzureSearchService(SearchService):
 
         return f"""roles/any(r:search.in(r, 'public, {", ".join(roles)}'))"""
 
-    def _combine_filters(self, lang_filter: Optional[str], category_filter: Optional[str], roles_filter: str) -> str:
-        """_combine_filters combines the language and category filters into a single filter.
+    def _combine_filters(self, *filters: Optional[str]) -> str:
+        """_combine_filters combines any number of filters into a single filter.
 
         The filters use the ODATA syntax. For example, to combine two filters, use:
         (filter1) and (filter2)
 
         For more information, see: https://learn.microsoft.com/en-us/azure/search/search-query-odata-filter
         """
-        filters: List[str] = [roles_filter]
-        if lang_filter is not None:
-            filters.append(lang_filter)
-
-        if category_filter is not None:
-            filters.append(category_filter)
-
         filter = ""
         for f in filters:
-            filter += f"({f}) and "
+            if f is not None:
+                filter += f"({f}) and "
 
         logger.debug("Combined filters", {"filter": filter[:-5]})
         return filter[:-5]
@@ -231,4 +227,174 @@ class AzureSearchService(SearchService):
 
     def initialize_search_index(self, doclangs: List[Facet]) -> None:
         """initialize_search_index sets the local facets based on the provided facets."""
-        self.cfg.doclangs = doclangs
+        self.doclangs = doclangs
+
+    def _empty_doclangs(self) -> bool:
+        """_empty_doclangs returns True if the doclangs facet is empty."""
+        return self.doclangs is None or len(self.doclangs) == 0 or self.doclangs[0].get("count", 0) == 0
+
+
+class AzureExtendedSearchService(AzureSearchService):
+    """AzureExtendedSearchService extends AzureSearchService to provide additional search functionality.
+
+    It searches not only for documents fitting the search query but also for document chunks around the search results.
+
+    This service differs from AzureFullSearchService in that it only searches for nearby chunks
+    when the search result is selected instead of searching for all chunks of a document.
+    """
+
+    def __init__(
+        self,
+        cfg: SearchSettings,
+        search_client: SearchClient,
+        llm_svc: LLMService,
+        lang_svc: LanguageService,
+    ):
+        super().__init__(cfg, search_client, llm_svc, lang_svc)
+
+    async def cognitive_search(
+        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+    ) -> List[Document]:
+        """cognitive_search performs a search using the provided query and overrides.
+        It returns the search results as a formatted string.
+        """
+
+        documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
+        if overrides.search_mode == SearchMode.DEFAULT or overrides.search_span == 0:
+            return documents
+
+        augmented: List[Document] = []
+        for doc in documents:
+            ids = self._get_nearby_chunk_ids(doc.id, overrides.search_span)
+            try:
+                items = await self.client.get_documents(ids)
+            except Exception as e:
+                logger.exception("Failed to get nearby chunks", {"ids": ids, "error": str(e)})
+                continue
+
+            logger.debug(
+                "Found nearby chunks",
+                {"initial_chunk": doc.id, "nearby_chunks": [id for id in ids], "returned_chunks": len(items)},
+            )
+            augmented.extend(
+                [doc]
+                + [
+                    Document(
+                        id=item.get("id"),
+                        content=item.get("content"),
+                        embedding=item.get("embedding"),
+                        image_embedding=item.get("imageEmbedding"),
+                        doclang=item.get("doclang"),
+                        category=item.get("category"),
+                        sourcepage=item.get("sourcepage"),
+                        roles=item.get("roles"),
+                        sourcefile=item.get("sourcefile"),
+                        captions=cast(List[QueryCaptionResult], item.get("@search.captions")),
+                        score=item.get("@search.score"),
+                        reranker_score=item.get("@search.reranker_score"),
+                    )
+                    for item in items
+                ]
+            )
+        logger.debug(
+            "Augmented search results with nearby chunks",
+            {"count": len(augmented), "documents": ([doc.to_dict() for doc in augmented] if LOG_SENSITIVE_DATA else "REDACTED")},
+        )
+
+        return augmented
+
+    def _get_nearby_chunk_ids(self, id: Optional[str], span: Optional[int]) -> List[str]:
+        """_get_nearby_chunk_ids returns the ids of the chunks around the given chunk id."""
+        if not id:
+            return []
+
+        if id.startswith("url-") or id.startswith("file-"):
+            return self._get_surrounding_chunks(id, span)
+
+        raise ValueError(f"Unknown chunk id format: {id}")
+
+    def _get_surrounding_chunks(self, id: str, span: Optional[int]) -> List[str]:
+        """_get_surrounding_chunks returns the ids of the chunks around the given chunk id."""
+        try:
+            parts = id.split("-")
+            doc_name = "-".join(parts[:-1])
+            chunk = int(parts[-1])
+        except Exception as e:
+            if isinstance(e, ValueError):
+                logger.warning("Failed to parse chunk number", {"chunk": parts[-1].split(".")[0], "sourcepage": id})
+                return []
+            logger.exception("Failed to parse sourcepage", {"sourcepage": id})
+            return []
+
+        if not span:
+            return [f"{doc_name}-{chunk + i}" for i in range(-2, 3) if i != 0]
+
+        return [f"{doc_name}-{chunk + i}" for i in range(-span // 2, span // 2 + 1) if i != 0]
+
+
+class AzureFullSearchService(AzureSearchService):
+    """AzureFullSearchService extends AzureSearchService to provide additional search functionality.
+
+    It searches for all chunks of a document when a search result is selected.
+
+    This is useful for getting all the information from a document instead of just the search result or the nearby chunks.
+    """
+
+    def __init__(
+        self,
+        cfg: SearchSettings,
+        search_client: SearchClient,
+        llm_svc: LLMService,
+        lang_svc: LanguageService,
+    ):
+        super().__init__(cfg, search_client, llm_svc, lang_svc)
+
+    async def cognitive_search(
+        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+    ) -> List[Document]:
+        """cognitive_search performs a search using the provided query and overrides.
+        It returns the search results as a formatted string.
+        """
+
+        documents: List[Document] = await super().cognitive_search(search_query, overrides, lang, roles)
+        if overrides.search_mode == SearchMode.DEFAULT:
+            return documents
+
+        all_docs: List[Document] = []
+        for doc in documents:
+            try:
+                items = await self.client.search(
+                    opts=SearchOptions(
+                        search_text="*",
+                        filter=self._build_file_filter(overrides, lang, roles, doc.sourcefile),
+                        query_type=QueryType.SEMANTIC,
+                        semantic_configuration_name="default",
+                        query_caption=None,
+                    )
+                )
+            except Exception as e:
+                logger.exception("Failed to get all chunks", {"sourcefile": doc.sourcefile, "error": str(e)})
+                continue
+
+            docs = await self._process_search_results(items)
+            logger.debug(
+                "Found all chunks",
+                {"initial_chunk": doc.id, "returned_chunks": len(all_docs)},
+            )
+            all_docs.extend(docs)
+
+        return all_docs
+
+    def _build_file_filter(
+        self,
+        overrides: Overrides,
+        lang: Language,
+        roles: Optional[List[str]],
+        sourcefile: Optional[str],
+    ) -> str:
+        """_build_full_filter builds a filter to get all chunks of a document."""
+        filters = self._build_filter(overrides, lang, roles)
+        if not filters:
+            return f"sourcefile eq '{sourcefile}'"
+
+        return f"(sourcefile eq '{sourcefile}') and {filters}"
