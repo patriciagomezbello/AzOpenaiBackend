@@ -666,9 +666,10 @@ async def main():
                         start_time = time.time()
 
                     if (blob_name not in [data_blob.name for data_blob in blobs]) and (
-                        blob_name not in [data_blob.name.replace("_", "/", 1) for data_blob in blobs]
+                        blob_name not in [data_blob.name.replace("/", "_", 1) for data_blob in blobs]
                     ):
                         print(f"-----> {blob_name} only indexed and not in data, will be removed from blob and index")
+
                         remove_blobs_docs(
                             file_path=blob_name,
                             files_directory=args.containerdata,
