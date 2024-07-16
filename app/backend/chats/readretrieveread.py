@@ -88,7 +88,9 @@ class ChatReadRetrieveRead(ChatApproach):
 
             # Build the (optimized) search query for the cognitive search
             search_query = await search_svc.build_query_prompt(msgs, data)
-            logger.debug("Built search query", {"search_query": search_query})
+            logger.debug(
+                "Built search query & used temperature", {"search_query": search_query, "temperature": overrides.temperature}
+            )
 
             # Perform the cognitive search to get the enhanced context for the LLM (RAG data)
             search_res = await search_svc.cognitive_search(search_query, overrides, data.language, roles)

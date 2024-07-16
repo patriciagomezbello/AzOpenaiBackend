@@ -92,7 +92,7 @@ class Overrides:
     def __post_init__(self):
         self.retrieval_mode = self.retrieval_mode or ""
         self.semantic_ranker = self.semantic_ranker or False
-        self.temperature = self.temperature or 0.7
+        self.temperature = 0.0 if self.temperature == 0 else self.temperature or 0.7
         self.semantic_captions = self.semantic_captions or False
         self.top = self.top or 3
         self.category_filter = self.category_filter or []
@@ -113,7 +113,7 @@ class Overrides:
             self.semantic_captions = defaults.semantic_captions
         if self.top == 0:
             self.top = defaults.top
-        if self.temperature == 0.0:
+        if not 0.0 <= self.temperature <= 1.0:
             self.temperature = defaults.temperature
         return self
 
