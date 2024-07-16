@@ -27,7 +27,7 @@ class FacetCategoryService(CategoryService):
             filter = f"""roles/any(r:search.in(r, 'public, {", ".join(roles)}'))"""
             logger.debug(f"Filtering categories by roles: {roles}")
 
-        facets = await self._search_facets(["category"], filter=filter)
+        facets = await self._search_facets(["category,count:0"], filter=filter)
         return [str(cat["value"]) for cat in facets["category"]]
 
     @timer()
