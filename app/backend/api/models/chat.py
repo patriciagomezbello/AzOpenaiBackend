@@ -30,7 +30,8 @@ class ChatRequest:
             # fmt: on
 
         if isinstance(self.overrides, dict):
-            self.overrides = Overrides(**self.overrides)
+            valid_attrs: dict[str, Any] = {k: v for k, v in self.overrides.items() if k in Overrides.__dataclass_fields__.keys()}
+            self.overrides = Overrides(**valid_attrs)
 
     def to_dict(self, include_sensitive: bool = False) -> dict[str, Any]:
         """to_dict converts the dataclass to a dictionary."""
