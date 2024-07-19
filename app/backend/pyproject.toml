@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "backend"
+version = "1.2.0"
+description = "This backend that enables users to ask questions and get answers from a large knowledge base. The knowledge base is built from various sources like PDFs, websites, and wikis. The service is built on top of Azure services like Azure Search, Azure Cognitive Search, and Azure OpenAI. The service is designed to be used by Telekom employees to get answers to their questions quickly and efficiently."
+authors = [
+    "Leander Kunstmann <leander.kunstmann@telekom.de",
+    "Matthias Nega <m.nega@telekom.de>",
+    "Tom Vendolsky <tom.vendolsky@telekom.de>",
+]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4"
+aiohttp = "^3.9.5"
+azure-identity = "^1.16.0"
+azure-monitor-opentelemetry = "^1.4.2"
+azure-search-documents = "^11.4.0"
+azure-storage-blob = "^12.20.0"
+cryptography = "^42.0.7"
+cachetools = "^5.3.3"
+lingua-language-detector = "^2.0.2"
+openai = "1.30.5"
+opentelemetry-instrumentation-asgi = "^0.45b0"
+opentelemetry-instrumentation-requests = "^0.45b0"
+opentelemetry-instrumentation-aiohttp-client = "^0.45b0"
+opentelemetry-instrumentation-logging = "^0.45b0"
+pycountry = "^23.12.11"
+pyjwt = "^2.8.0"
+quart = "^0.19.5"
+quart-cors = "^0.7.0"
+quart-schema = "^0.19.1"
+tiktoken = "^0.7.0"
+uvicorn = { extras = ["standard"], version = "^0.29.0" }
+pyyaml = "^6.0.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+flake8 = "*"
+black = "*"
+pre-commit = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "ticket-bot"
+version = "0.1.0"
+description = "A bot that answers tickets in Jira"
+authors = [
+    "Leander Kunstmann <leander.kunstmann@telekom.de",
+    "Matthias Nega <m.nega@telekom.de>",
+    "Tom Vendolsky <tom.vendolsky@telekom.de>",
+]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+azure-identity = "1.16.0"
+jira = "3.8.0"
+msal = "1.28.0"
+openai = "1.23.2"
+requests = "2.31.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
