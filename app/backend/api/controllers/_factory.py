@@ -52,6 +52,7 @@ class Controllers:
         )
         self.content = ContentController(
             con_svc=self.svc_factory.get_service(ServiceName.AZURE_BLOB_CONTENT_SERVICE),
+            search_svc=self.svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE),
         )
         self.feedback = FeedbackController(
             feedback_svc=self.svc_factory.get_service(ServiceName.FEEDBACK_LOGGER),
