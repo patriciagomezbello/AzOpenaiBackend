@@ -250,6 +250,39 @@ To get a list of all available commands, you can run `make help`.
 make mate
 ```
 
+After running the command, you can test the backend locally by visiting [`http://localhost:50505/docs`](http://localhost:50505/docs). This may vary if you have set `API_BASE_PATH` to a different value.
+
+To access protected endpoints, you need to authorize your requests. You can do this by copying a JWT Token from a live application or the local frontend. Alternatively, you can use the following script if you have a working machine account/service principal:
+
+```python
+import requests
+
+# The tenant id of the app registration that has access to the API
+tenant_id = "xxxx"
+# The client id of the app registration that has access to the API
+client_id = "xxxx"
+
+# To load the client_secret from the environment
+client_secret = os.getenv("CLIENT_SECRET")
+
+login_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+
+# The client id of the API that you want to access
+api_client_id = "xxxx"
+
+payload = {
+    "grant_type": "client_credentials",
+    "client_id": client_id,
+    "client_secret": client_secret,
+    "scope": f"{api_client_id}/.default",
+}
+response_token = requests.post(login_url, data=payload, timeout=5)
+
+access_token = response_token.json().get("access_token")
+
+print(access_token)
+```
+
 #### Run the whole application
 
 ```bash
