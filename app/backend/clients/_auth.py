@@ -237,7 +237,7 @@ class OpenIDClient(AuthClient):
 
     def _fetch_openid_keys(self, url: str) -> Token:
         """_fetch_openid_keys fetches the OpenID keys from the OpenID provider."""
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         keys: Optional[Iterable[dict[str, Any]]] = cast(dict[str, Any], resp.json()).get("keys", None)
         if not keys:
