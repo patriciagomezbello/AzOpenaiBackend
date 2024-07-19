@@ -170,11 +170,17 @@ def update_roles_index(
             partial_document = {"id": document_id, "roles": roles}
             documents_to_update.append(partial_document)
 
-    if len(documents_to_update) > 0:
-        print(f"{len(documents_to_update)} documents will be updated with their roles")
+    total_documents = len(documents_to_update)
+    if total_documents > 0:
+        print(f"{total_documents} documents will be updated with their roles")
         if len(documents_to_update) < 100:
             print(documents_to_update)
-        search_client.merge_documents(documents_to_update)
+        # Split documents into chunks of 32,000
+        chunk_size = 32000
+        for i in range(0, total_documents, chunk_size):
+            chunk = documents_to_update[i : i + chunk_size]
+            search_client.merge_documents(documents=chunk)
+            print(f"Updated {len(chunk)} documents with their roles")
     else:
         print("No documents to update with roles")
 
