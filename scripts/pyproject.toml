@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "scripts"
+version = "0.1.0"
+description = ""
+authors = [
+    "Leander Kunstmann <leander.kunstmann@telekom.de",
+    "Matthias Nega <m.nega@telekom.de>",
+    "Tom Vendolsky <tom.vendolsky@telekom.de>",
+]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pypdf = "3.11.0"
+azure-identity = "1.15.0"
+azure-search-documents = "11.4.0"
+azure-ai-formrecognizer = "3.2.1"
+azure-storage-blob = "12.14.1"
+openai = "1.12.0"
+md2pdf = "1.0.1"
+pdfkit = "1.0.0"
+reportlab = "4.0.4"
+lingua-language-detector = "2.0.2"
+pycryptodome = "3.18.0"
+pycountry = "22.3.5"
+langchain = "0.1.12"
+langchain-community = "0.0.28"
+beautifulsoup4 = "4.12.2"
+atlassian-python-api = "3.41.4"
+lxml = "4.9.3"
+nest-asyncio = "1.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
