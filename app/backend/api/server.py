@@ -100,6 +100,10 @@ class Server:
             openapi_path=os.path.join(prefix, "openapi.json"),
             swagger_ui_path=os.path.join(prefix, "docs"),
             redoc_ui_path=os.path.join(prefix, "redocs"),
+            security=[{"bearerAuth": []}],
+            security_schemes={
+                "bearerAuth": {"type": "http", "name": "Authorization", "in": "header", "bearerFormat": "JWT", "scheme": "bearer"}
+            },
         )
         return app
 
