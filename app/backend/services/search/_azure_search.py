@@ -124,6 +124,25 @@ class AzureSearchService(SearchService):
 
         return await self._process_search_results(docs)
 
+    async def has_file_access(self, path: str, roles: Optional[List[str]]) -> bool:
+        """has_file_access checks if the user has access to the file at the specified path."""
+        try:
+            search_items = await self.client.search(
+                opts=SearchOptions(
+                    search_text="*",
+                    filter=(self._combine_filters(f"sourcefile eq '{path}'", self._build_role_filter(roles))),
+                    top=1,
+                )
+            )
+            async for page in search_items.by_page():
+                async for _ in page:
+                    return True
+        except Exception as e:
+            logger.exception("Failed to check file access", {"path": path, "error": str(e)})
+            return False
+
+        return False
+
     def _build_filter(self, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> Optional[str]:
         """_build_filter builds a filter based on the provided overrides and language.
         Returns None if no filter is needed.

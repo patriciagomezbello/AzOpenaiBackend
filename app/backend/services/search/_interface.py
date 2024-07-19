@@ -44,6 +44,11 @@ class SearchService(ABC):
         ...
 
     @abstractmethod
+    async def has_file_access(self, path: str, roles: Optional[List[str]]) -> bool:
+        """has_file_access checks if the user has access to the file at the specified path."""
+        ...
+
+    @abstractmethod
     def initialize_search_index(self, doclangs: List[Facet]) -> None:
         """initialize_search_index sets the local facets based on the provided facets."""
         ...

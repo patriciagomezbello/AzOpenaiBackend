@@ -14,6 +14,7 @@ from services.auth import auth
 from services.content import ContentService
 from services.logger import new_logger
 from services.schemas import File
+from services.search import SearchService
 
 
 logger = new_logger(__name__)
@@ -22,14 +23,19 @@ logger = new_logger(__name__)
 class ContentController(Controller):
     """ContentController is a class that provides the content controller."""
 
-    def __init__(self, con_svc: ContentService):
+    def __init__(self, con_svc: ContentService, search_svc: SearchService):
         super().__init__()
         self.content_service = con_svc
+        self.search_service = search_svc
 
     @auth
-    async def get(self, _: Request, path: str) -> ResponseReturnValue:
+    async def get(self, req: Request, path: str) -> ResponseReturnValue:
         """get returns the file from the content service."""
         try:
+
+            if not await self.search_service.has_file_access(path, self.auth.get_roles(req)):
+                return self.error_response_with_message(ErrorProvider.AUTHORIZATION)
+
             file: File = await self.content_service.get_file(path)
             return (
                 await send_file(
@@ -40,6 +46,7 @@ class ContentController(Controller):
                 ),
                 200,
             )
+
         except Exception as e:
             if isinstance(e, FileNotFoundError):
                 logger.debug("File not found", {"path": path, "error": str(e)})
