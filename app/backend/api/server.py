@@ -101,9 +101,7 @@ class Server:
             swagger_ui_path=os.path.join(prefix, "docs"),
             redoc_ui_path=os.path.join(prefix, "redocs"),
             security=[{"bearerAuth": []}],
-            security_schemes={
-                "bearerAuth": {"type": "http", "name": "Authorization", "in": "header", "bearerFormat": "JWT", "scheme": "bearer"}
-            },
+            security_schemes={"bearerAuth": {"type": "http", "bearer_format": "JWT", "scheme": "bearer"}},
         )
         return app
 
