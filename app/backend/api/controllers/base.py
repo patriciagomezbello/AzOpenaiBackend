@@ -1,8 +1,10 @@
+from typing import Any
 from api.models import ErrorMessage
 from config import Config
 from quart import jsonify
 from quart import ResponseReturnValue
 from services.auth import AuthService
+from services.logger import LOG_SENSITIVE_DATA as RESPOND_WITH_SENSITIVE_DATA
 from werkzeug.exceptions import BadRequest
 
 
@@ -20,11 +22,18 @@ class ErrorProvider:
     def error_response_with_message(self, message: ErrorMessage) -> ResponseReturnValue:
         """error_response_with_message returns a response with the given ErrorMessage.
         You may only use the class's constants as arguments."""
-        return (jsonify({"error": {"code": message.code, "message": message.message}}), message.code)
+        return self.error_response(message.message, message.code)
 
-    def error_response(self, message: str, code: int) -> ResponseReturnValue:
-        """error_response returns a response with the given message and code."""
-        return (jsonify({"error": {"code": code, "message": message}}), code)
+    def error_response(self, message: str, code: int, **kwargs: Any) -> ResponseReturnValue:
+        """error_response returns a response with the given message and code.
+        You may also provide an error object to be included in the response if SENSITIVE_DATA is enabled.
+        """
+        response = {"error": {"code": code, "message": message}}
+        if RESPOND_WITH_SENSITIVE_DATA:
+            if err := kwargs.get("error"):
+                response["error"]["error"] = str(err)
+
+        return (jsonify(response), code)
 
 
 class Controller(ErrorProvider):
