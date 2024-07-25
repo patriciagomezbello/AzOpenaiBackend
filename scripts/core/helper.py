@@ -59,9 +59,9 @@ def get_md5_hash(file_path):
         return file_hash.digest()
 
 
-def invalidFileName(string):
+def invalid_filename(string):
     pattern = r".+-\d+\.pdf$"
-    if re.search(pattern, string):
+    if re.search(pattern, string) or "'" in string:
         return True
     return False
 
