@@ -103,7 +103,7 @@ start: create-venv restore-packages
 .PHONY: frontend
 frontend: update-submodules install-frontend-deps
 	@echo 'Starting frontend'
-	@cd app/frontend && npm run dev
+	@cd app/frontend && npm run dev -- --host 0.0.0.0
 
 .PHONY: run-test
 run-test: create-venv restore-packages
@@ -162,7 +162,7 @@ remove-venv:
 	fi
 
 .PHONY: restore-packages
-restore-packages:
+restore-packages: create-venv
 	@if [ -z "$(USE_POETRY)" ]; then \
 		$(MAKE) -s restore-packages-pip; \
 	else \
@@ -190,7 +190,6 @@ restore-packages-poetry:
 .PHONY: lint
 lint:
 	@pre-commit run --hook-stage pre-commit -a
-	@pre-commit run --hook-stage pre-push -a
 
 .PHONY: remove-pycache
 remove-pycache:

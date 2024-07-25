@@ -55,19 +55,39 @@ Before running the application locally, you need to set up the azure and mate co
 
 To be able to use the Azure services locally, you need to set up the Azure configuration.
 
-1. Log in to Azure using the Azure CLI:
+1. Make sure you or the service account you are using has the following access roles. In case your are using the 'infra_dev' environment you can skip this step.
+
+    - Cognitive Services OpenAI User
+    - Cognitive Services User
+    - Search Index Data Contributor
+    - Search Index Data Reader
+    - Search Service Contributor
+    - Storage Blob Data Contributor
+    - Storage Blob Storage Data Reader
+
+    You also have to enable access for your IP-Address for each resource individually:
+
+    - Search Service
+    - OpenAI Services
+    - Blob Storage Accounts
+
+2. Log in to Azure using the Azure CLI:
 
     ```bash
     az login
+    # If the redirection does not work:
+    az login --use-device-code
     ```
 
-2. Log in to the Azure Developer CLI:
+3. Log in to the Azure Developer CLI:
 
     ```bash
     azd auth login
+    # If the redirection does not work:
+    azd auth login --use-device-code # Visit: https://microsoft.com/devicelogin
     ```
 
-3. Add the azure configuration to `./.azure/config.json`:
+4. Add the azure configuration to `./.azure/config.json`:
 
     ```json
     {
@@ -78,7 +98,7 @@ To be able to use the Azure services locally, you need to set up the Azure confi
 
     Replace `<AZURE_ENV_NAME>` with the `azd-env-name` tag of your Azure Resource Group.
 
-4. Add the environment configuration to `./.azure/<AZURE_ENV_NAME>/config.json`:
+5. Add the environment configuration to `./.azure/<AZURE_ENV_NAME>/config.json`:
 
     ```json
     {
@@ -92,9 +112,9 @@ To be able to use the Azure services locally, you need to set up the Azure confi
 
     Replace `<OpenAILocation>` with the location of the OpenAI resource group (e.g. `westeurope`, `swedencentral`, etc.).
 
-5. Add a `.env` file to `./.azure/<AZURE_ENV_NAME>` with the [`ENVIRONMENT` configuration](/docs/deployment.md#file-environment).
+6. Add a `.env` file to `./.azure/<AZURE_ENV_NAME>` with the [`ENVIRONMENT` configuration](/docs/deployment.md#file-environment).
 
-6. Add the [`CONTEXT` configuration](/docs/deployment.md#file-context) to `./app/backend/core/context.py`.
+7. Add the [`CONTEXT` configuration](/docs/deployment.md#file-context) to `./app/backend/core/context.py`.
 
 ### Mate Configuration
 
@@ -233,6 +253,8 @@ LOG_CALLER=false
 LOG_EXECUTION_TIMES=false
 LOG_SENSITIVE_DATA=false
 ```
+
+> Tip: The values of your development environment can be gathered from the deployed App Service.
 
 </details>
 <!-- markdownlint-enable MD033 -->
