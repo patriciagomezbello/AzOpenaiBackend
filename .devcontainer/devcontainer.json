@@ -1,0 +1,35 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+	"name": "Python 3",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	"features": {
+		"ghcr.io/devcontainers/features/azure-cli:1": {},
+		"ghcr.io/devcontainers-contrib/features/poetry:2": {},
+		"ghcr.io/azure/azure-dev/azd:0": {},
+		"ghcr.io/devcontainers/features/node:1": {}
+	},
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.debugpy",
+				"ms-python.black-formatter",
+				"ms-vscode.makefile-tools",
+				"ms-azuretools.vscode-bicep",
+				"ms-python.flake8",
+				"DavidAnson.vscode-markdownlint",
+				"streetsidesoftware.code-spell-checker"
+			]
+		}
+	},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [50505, 5173],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}; make restore-packages; cd app/backend; poetry run pre-commit install"
+}

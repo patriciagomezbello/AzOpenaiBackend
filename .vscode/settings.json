@@ -30,5 +30,11 @@
   "files.associations": {
     ".env": "properties",
     "frontend.env": "properties"
-  }
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/app/backend/.venv/bin/python",
+  "python.testing.pytestArgs": [
+    "app/backend/tests"
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }
