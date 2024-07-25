@@ -52,7 +52,7 @@ class ContentController(Controller):
                 logger.debug("File not found", {"path": path, "error": str(e)})
                 return self.error_response_with_message(ErrorProvider.DOC_NOT_FOUND)
             logger.exception("Error while getting file", {"path": path, "error": str(e)})
-            return self.error_response(str(e), 500)
+            return self.error_response("Error while getting file", 500, error=e)
 
 
 # The docstring is the description shown in the API documentation.

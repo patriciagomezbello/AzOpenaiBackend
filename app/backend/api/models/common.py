@@ -13,7 +13,11 @@ class ErrorMessage:
     """ErrorMessage represents an error message."""
 
     code: int
+    """code is the error code."""
     message: str
+    """message is the error message."""
+    error: Optional[str] = None
+    """error is an optional field that displays the exception message."""
 
 
 @dataclass

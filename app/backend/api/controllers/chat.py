@@ -71,7 +71,7 @@ class ChatController(Controller):
                 return self.error_response(e.message, e.status_code if e.status_code else 503)
 
             logger.exception("Error while processing chat request", {"error": str(e)})
-            return self.error_response(str(e), 500)
+            return self.error_response("Error while processing chat request", 500, error=e)
 
 
 # The docstring is the description shown in the API documentation.

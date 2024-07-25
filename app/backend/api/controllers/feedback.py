@@ -44,7 +44,7 @@ class FeedbackController(Controller):
                 return self.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)
 
             logger.exception("Error while sending feedback", {"error": str(e)})
-            return self.error_response(str(e), 500)
+            return self.error_response("Error while sending feedback", 500, error=e)
 
 
 # The docstring is the description shown in the API documentation.

@@ -34,7 +34,7 @@ class CategoryController(Controller):
             return (jsonify({"categories": categories}), 200)
         except Exception as e:
             logger.exception("Error while getting categories", {"error": str(e)})
-            return self.error_response(str(e), 500)
+            return self.error_response("Error while getting categories", 500, error=e)
 
 
 # The docstring is the description shown in the API documentation.
