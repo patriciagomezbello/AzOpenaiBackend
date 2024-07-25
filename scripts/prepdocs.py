@@ -35,7 +35,7 @@ from core.helper import delete_non_pdf_files
 from core.helper import detectLang
 from core.helper import file_path_to_id
 from core.helper import get_md5_hash
-from core.helper import invalidFileName
+from core.helper import invalid_filename
 from core.helper import name_from_path
 from core.helper import url_to_id
 from core.langchain import handle_lc_config_item
@@ -382,7 +382,7 @@ async def main():
                         ) = get_credentials()
                         start_time = time.time()
                     document_map = handle_lc_config_item(item)
-                    if document_map == -1:
+                    if not document_map:
                         continue
                     splitter = item.get("splitter")
                     splitter = "standard" if splitter not in ["standard", "recursive"] else splitter
@@ -449,6 +449,16 @@ async def main():
         if args.file_mode == "git":
             print("---> file mode is git, local/git files will be used as source for indexing")
 
+            print("---> File validity check and renaming...")
+            for root, dirs, files in os.walk(args.files):
+                for file in files:
+                    if invalid_filename(file):
+                        print(f"Renaming {file}...")
+                        new_name = "_".join(file.rsplit("-", 1))
+                        new_name = new_name.replace("'", "")
+                        os.rename(os.path.join(root, file), os.path.join(root, new_name))
+                        print(f"Renamed to {new_name}")
+
             for root, dirs, files in os.walk(args.files):
                 for file in files:
                     file_path = os.path.join(root, file)
@@ -460,8 +470,6 @@ async def main():
                         get_md5_hash(file_path),
                         category,
                     ]
-                    if invalidFileName(file):
-                        raise Exception(f"The filename {file} is invalid, as it is not allowed to end with -012.pdf etc.")
 
             # creation of the blob hashmap with the blob.name (file_name) and the md5hash as value
             for blob in blob_list:
@@ -696,8 +704,10 @@ async def main():
             # check regarding updating/adding files
             print("---> checking data blob files...")
             for blob in blobs:
-                if invalidFileName(blob.name):
-                    raise Exception(f"!!! The filename {blob.name} is invalid, as it is not allowed to end with -012.pdf etc.")
+                if invalid_filename(blob.name):
+                    raise Exception(
+                        f"!!! The filename {blob.name} is invalid, it is not allowed to end with -012.pdf and not contain  -> ' <-"
+                    )
                 if not blob.name.endswith(".pdf"):
                     print(f"-----> {blob.name} is not a pdf file, will be skipped")
                     continue

@@ -9,10 +9,10 @@ These can be extended with [other document loaders](https://python.langchain.com
   - [`LANGCHAIN_CONFIG`](#langchain_config)
     - [Values](#values)
       - [`loader` - Mandatory](#loader---mandatory)
-      - [`config` - Mandatory](#config---mandatory)
       - [`splitter` - Optional](#splitter---optional)
       - [`category` - Optional](#category---optional)
-    - [Example](#example)
+      - [`config` - Mandatory](#config---mandatory)
+    - [Examples of each loader](#examples-of-each-loader)
 
 ## Available Variables
 
@@ -33,6 +33,8 @@ You need to set this as `file` variable.
 
 #### Values
 
+(for examples in json format for each loader, see [Examples of each loader](#examples-of-each-loader))
+
 ##### `loader` - Mandatory
 
 Defines which loader you want to use. The following loaders are available:
@@ -40,6 +42,21 @@ Defines which loader you want to use. The following loaders are available:
 - `confluence`: Load data from Confluence.
 - `docusaurus`: Load data from Docusaurus.
 - `rurl`: Load data from a URL.
+- `magentainfos`: Load data from magentainfos.
+- `staffbase`: Load data from Staffbase.
+
+##### `splitter` - Optional
+
+The splitter to use. The following splitters are available:
+
+- `standard` (default): Use the standard splitter. (Microsoft splitting)
+- `recursive`: Use the recursive splitter. (LangChain splitting)
+
+##### `category` - Optional
+
+The category of the data source. This is used to group the data sources in the frontend.
+
+If you don't want to use a category, you need to delete the `category` key from the configuration.
 
 ##### `config` - Mandatory
 
@@ -64,20 +81,30 @@ The configuration for the loader that you have [chosen](#loader---mandatory).
 - `url`: The base URL of the website.
 - `max_depth`: The maximum link recursion depth.
 
-##### `splitter` - Optional
+**Magentainfos:**
 
-The splitter to use. The following splitters are available:
+- `auth_url` (str): The URL used for authentication.
+- `api_url` (str): The base URL for the API.
+- `client_id` (str): The client ID for authentication.
+- `secret_reference` (str): The environment variable name where the client secret is stored.
+- `categories` (List[str]): A list of categories to filter the documents. Example: `["category1", "category2"]`.
+- `document_list` (List[DocumentRequest]): A list of document requests.
+- `publish_date` (PublishDate | None): The publish date filter for the documents. Can be `None`.
+- `rows` (int | None): The number of rows to fetch. Can be `None`.
+- `page` (int | None): The page number to fetch. Can be `None`.
+- `type` (DocumentType | None): The type of documents to fetch. Can be `None`.
 
-- `standard` (default): Use the standard splitter. (Microsoft splitting)
-- `recursive`: Use the recursive splitter. (LangChain splitting)
+**Staffbase:**
 
-##### `category` - Optional
+- `url` (str): The base URL of the Staffbase instance.
+- `api_key_reference` (str): A reference to the API key used for authentication.
+- `channels` (List[str]): An array of channel IDs to fetch content from. Example: `[]` (empty array if no channels are specified).
+- `news_pages` (List[str]): An array of news page IDs to fetch content from. Example: `[]` (empty array if no news pages are specified).
+- `posts` (List[str]): An array of post IDs to fetch specific posts. Example: `[]` (empty array if no posts are specified).
+- `publish_filter` (str): A filter to specify which posts to publish.
+- `language` (str): The language code for the content. Possible values: `"de"` or `"en"`.
 
-The category of the data source. This is used to group the data sources in the frontend.
-
-If you don't want to use a category, you need to delete the `category` key from the configuration.
-
-#### Example
+#### Examples of each loader
 
 ```json
 [
@@ -108,6 +135,70 @@ If you don't want to use a category, you need to delete the `category` key from 
     "splitter": "standard",
     "config": {
       "url": "url of website built on docusaurus"
+    }
+  }
+  {
+    "loader": "magentainfos",
+    "splitter": "standard",
+    "config": {
+      "auth_url": "https://example.com/auth",
+      "api_url": "https://api.example.com",
+      "client_id": "your-client-id",
+      "secret_reference": "SECRET_ENV_VAR",
+      "categories": ["category1", "category2"],
+      "document_list": [
+        {
+          "id": "4711",
+          "type": "type"
+        },
+        {
+          "id": "4712",
+          "type": "type"
+        },
+      ],
+      "publish_date": "2023-10-01",
+      "rows": 10,
+      "page": 1,
+      "type": "type"
+    }
+  },
+  {
+    "loader": "magentainfos",
+    "splitter": "standard",
+    "config": {
+      "auth_url": "https://example.com/auth",
+      "api_url": "https://api.example.com",
+      "client_id": "your-client-id",
+      "secret_reference": "SECRET_ENV_VAR",
+      "categories": [],
+      "document_list": [
+        {
+          "id": "4711",
+          "type": "type"
+        },
+        {
+          "id": "4712",
+          "type": "type"
+        },
+      ],
+      "publish_date": null,
+      "rows": null,
+      "page": null,
+      "type": null
+    }
+  },
+  {
+    "loader": "staffbase",
+    "category": "mystaffbasedata",
+    "splitter": "standard",
+    "config": {
+        "url": "https://myown.staffbase.com",
+        "api_key_reference": "API_KEY",
+        "channels": [],
+        "news_pages": [],
+        "posts": ["123", "456"],
+        "publish_filter": "all",
+        "language": "de"
     }
   }
 ]
