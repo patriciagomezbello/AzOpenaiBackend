@@ -191,16 +191,15 @@ data_task:
 
 ticket_bot_task:
   stage: ticket_bot
-  image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy
+  image: mtr.devops.telekom.de/ccoe_azure/azd-jira
   needs:
     - ticket_bot_start
   <<: *auth
   script:
-    - make DIR=app/ticket-bot restore-packages
     - bash ./deploy/setup_env.sh
     - . $ENVIRONMENT
     - cd app/ticket-bot
-    - python3 main.py
+    - python main.py
   tags:
     - $RUNNER_TAG
   rules:
