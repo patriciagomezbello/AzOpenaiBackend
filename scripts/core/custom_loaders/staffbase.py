@@ -215,6 +215,7 @@ class StaffbaseAPIClient:
             for channel in channels:
                 channel_posts = self._get_formatted_channel_posts(channel, 100, publish_filter, language)
                 if channel_posts is not None:
+                    print(f"Found {len(channel_posts)} posts in channel {channel}")
                     all_posts.extend(channel_posts)
 
         if len(posts) > 0:
