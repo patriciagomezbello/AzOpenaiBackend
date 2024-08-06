@@ -19,8 +19,8 @@ def get_staffbase_map(posts: List[FormattedPost], base: str) -> List[tuple[str, 
         content = post.get("content")
         text = f"{content.get('title')} : {content.get('content')}"
         source = post.get("url")
+        map.append((source, base, text))
 
-    map.append((source, base, text))
     return map
 
 
@@ -38,6 +38,7 @@ def custom_load_staffbase(
 
     loader = StaffbaseAPIClient(url, api_key)
     all_posts = loader.get_posts(channels, posts, news_pages, publish_filter, language)
+
     return all_posts
 
 
