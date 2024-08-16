@@ -1,4 +1,4 @@
 [submodule "app/frontend"]
-	path = app/frontend
-	url = https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend.git
-	branch = main
+path = app/frontend
+url = https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend.git
+branch = dev
