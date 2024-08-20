@@ -12,7 +12,7 @@ param location string
 param appServicePlanName string = ''
 
 @allowed(['B1', 'B2', 'B3', 'S1', 'S2', 'S3', 'P0v3', 'P1v3', 'P2v3', 'P3v3'])
-param appServicePlanSku string = 'S1'
+param appServicePlanSku string = 'P0v3'
 
 param backendServiceName string = ''
 param resourceGroupName string = ''
@@ -36,7 +36,6 @@ param storageContainerNameDocs string = 'docs'
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 @description('Location for the OpenAI resource group')
-@allowed(['westeurope', 'francecentral', 'swedencentral', 'polandcentral'])
 @metadata({
   azd: {
     type: 'location'
@@ -52,18 +51,15 @@ param formRecognizerResourceGroupLocation string = location
 
 param formRecognizerSkuName string = 'S0'
 
-param chatGptDeploymentName string
-
-param gptCapacity string = '60'
+param chatGptDeploymentName string // = 'chat' as default, see main.parameters.json
+param gptCapacity string // = '60' as default, see main.parameters.json
 param chatGptDeploymentCapacity int = int(gptCapacity)
 
-param chatGptModelName string = 'gpt-35-turbo'
-
-param chatGptModelVersion string = '0613'
+param chatGptModelName string // = 'gpt-3.5-turbo' as default, see main.parameters.json
+param chatGptModelVersion string // = '1106' as default, see main.parameters.json
 
 param embeddingDeploymentName string = 'embedding'
-
-param embCapacity string = '100'
+param embCapacity string // = '100' as default, see main.parameters.json
 param embeddingDeploymentCapacity int = int(embCapacity)
 
 @allowed(['text-embedding-ada-002'])
@@ -80,9 +76,6 @@ param authRole string
 
 @description('Tenant where the user is authenticated, must be specified if the UI and backend tenants differ')
 param authTenant string
-
-@description('Redeploy OpenAI (must be set to false after first deployment)')
-param redeployOpenAI bool = true
 
 @description('List of cors allowed addresses for the api')
 param allowed_cors string
@@ -115,6 +108,8 @@ param icuClientId string
 param icuIssuerUrl string
 
 param apiBasePath string
+
+param ipSecurityRestrictionIp string
 
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'
@@ -176,6 +171,16 @@ module keyvault 'core/vault/keyvault.bicep' = {
   }
 }
 
+var hasPrefixes = contains(subnet_default.properties, 'addressPrefixes')
+
+var subnetDefaultAddressPrefix = hasPrefixes
+  ? subnet_default.properties.addressPrefixes[0]
+  : subnet_default.properties.addressPrefix
+
+var subnetAppServiceAddressPrefix = hasPrefixes
+  ? subnet_AppService.properties.addressPrefixes[0]
+  : subnet_AppService.properties.addressPrefix
+
 // service Endpoints required for VNET Integration of services
 module serviceEndpoints 'core/subnet/service-endpoints.bicep' = {
   name: 'serviceEndpoints'
@@ -186,10 +191,11 @@ module serviceEndpoints 'core/subnet/service-endpoints.bicep' = {
   ]
   params: {
     vnetName: vnet.name
+    hasPrefixes: hasPrefixes
     subnetDefaultName: subnet_default.name
-    subnetDefaultAddressPrefix: subnet_default.properties.addressPrefix
+    subnetDefaultAddressPrefix: subnetDefaultAddressPrefix
     subnetAppServiceName: subnet_AppService.name
-    subnetAppServiceAddressPrefix: subnet_AppService.properties.addressPrefix
+    subnetAppServiceAddressPrefix: subnetAppServiceAddressPrefix
   }
 }
 
@@ -257,6 +263,7 @@ module backend 'core/host/appservice.bicep' = {
     apiBasePath: apiBasePath
     allowedOrigins: allowed_cors_list
     virtualNetworkSubnetId_AppService: subnet_AppService.id
+    ipSecurityRestrictionIp: ipSecurityRestrictionIp
     appSettings: {
       AZURE_AUTH_ROLE: (!empty(authRole)) ? authRole : 'all'
       AZURE_AUTH_CLIENT: authClient
@@ -279,7 +286,7 @@ module backend 'core/host/appservice.bicep' = {
   }
 }
 
-module openAi 'core/ai/cognitiveservices.bicep' = if (redeployOpenAI) {
+module openAi 'core/ai/cognitiveservices.bicep' = {
   name: 'openai'
   scope: openAiResourceGroup
   dependsOn: [

@@ -48,18 +48,6 @@ done <<EOF
 $(azd env get-values)
 EOF
 
-# Check if DEV_ENV is set to "true", to be able to deploy the insecure variant
-if [ "$DEV_ENV" == "true" ]; then
-    # Delete all files and subdirectories in the "infra" folder
-    rm -r infra/*
-
-    echo "deleted secure infra folder"
-
-    # Copy the content of the "dev/infra_dev" folder to the "infra" folder
-    cp -R dev/infra_dev/* infra/
-
-    echo "replaced with old, insecure variant for development"
-fi  
 
 azd env get-values
 

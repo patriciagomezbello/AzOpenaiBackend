@@ -66,6 +66,32 @@ var tenantLogin = 'https://sts.windows.net/${tenantId}/v2.0'
 var excludedRoutes = ['/docs', '/redocs', '/openapi.json', '/openapi.yaml']
 var excludedPaths = [for route in excludedRoutes: '${basePath}${route}']
 
+param ipSecurityRestrictionIp string = ''
+
+var thirdLastChar = !empty(ipSecurityRestrictionIp)
+  ? substring(ipSecurityRestrictionIp, length(ipSecurityRestrictionIp) - 3, 1)
+  : null
+var secondLastChar = !empty(ipSecurityRestrictionIp)
+  ? substring(ipSecurityRestrictionIp, length(ipSecurityRestrictionIp) - 2, 1)
+  : null
+var isSecondLastCharSlash = (secondLastChar == '/')
+var isThirdLastCharSlash = (thirdLastChar == '/')
+
+var ip = isThirdLastCharSlash || isSecondLastCharSlash ? ipSecurityRestrictionIp : '${ipSecurityRestrictionIp}/32'
+
+var ipSecurityRestrictions = !empty(ipSecurityRestrictionIp)
+  ? [
+      {
+        ipAddress: ip
+        priority: 100
+        action: 'Allow'
+        tag: 'Default'
+        name: 'IP Gateway'
+        description: 'Allow IP Gateway'
+      }
+    ]
+  : []
+
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
   name: name
   location: location
@@ -87,6 +113,8 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
       cors: {
         allowedOrigins: union(['https://portal.azure.com', 'https://ms.portal.azure.com'], allowedOrigins)
       }
+      ipSecurityRestrictions: ipSecurityRestrictions
+      ipSecurityRestrictionsDefaultAction: !empty(ipSecurityRestrictions) ? 'Deny' : 'Allow'
     }
     clientAffinityEnabled: clientAffinityEnabled
     httpsOnly: true

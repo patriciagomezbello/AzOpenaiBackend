@@ -5,6 +5,7 @@ param subnetAppServiceName string
 param subnetDefaultAddressPrefix string
 param subnetAppServiceAddressPrefix string
 
+param hasPrefixes bool
 
 var serviceEndpoints = [
   {
@@ -17,6 +18,28 @@ var serviceEndpoints = [
     service: 'Microsoft.KeyVault'
   }
 ]
+
+var propertiesDefault = (hasPrefixes)
+  ? {
+      addressPrefixes: [subnetDefaultAddressPrefix]
+      serviceEndpoints: serviceEndpoints
+    }
+  : {
+      addressPrefix: subnetDefaultAddressPrefix
+      serviceEndpoints: serviceEndpoints
+    }
+
+var propertiesAppservice = (hasPrefixes)
+  ? {
+      addressPrefixes: [subnetAppServiceAddressPrefix]
+      serviceEndpoints: serviceEndpoints
+      delegations: delegations
+    }
+  : {
+      addressPrefix: subnetAppServiceAddressPrefix
+      serviceEndpoints: serviceEndpoints
+      delegations: delegations
+    }
 
 var delegations = [
   {
@@ -34,10 +57,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
 resource serviceEndpointDefault 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' = {
   name: subnetDefaultName
   parent: vnet
-  properties: { 
-    addressPrefix: subnetDefaultAddressPrefix
-    serviceEndpoints: serviceEndpoints
-  }
+  properties: propertiesDefault
 }
 
 resource serviceEndpointAppService 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' = {
@@ -46,9 +66,5 @@ resource serviceEndpointAppService 'Microsoft.Network/virtualNetworks/subnets@20
   dependsOn: [
     serviceEndpointDefault
   ]
-  properties: { 
-    addressPrefix: subnetAppServiceAddressPrefix
-    serviceEndpoints: serviceEndpoints
-    delegations: delegations
-  }
+  properties: propertiesAppservice
 }
