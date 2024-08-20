@@ -3,6 +3,7 @@
 To deploy your own instance of Mate, follow the steps below.
 
 - [Prerequisites](#prerequisites)
+- [Post-Deployment Steps](#post-deployment-steps)
 - [Configuration](#configuration)
   - [CI/CD Variables](#cicd-variables)
   - [File Variables](#file-variables)
@@ -16,12 +17,10 @@ To deploy your own instance of Mate, follow the steps below.
       - [Example](#example-2)
 - [Known Issues](#known-issues)
   - [Deployment Issues](#deployment-issues)
-    - [OpenAI Instance](#openai-instance)
     - [First Deployment](#first-deployment)
     - [Second Instance](#second-instance)
   - [Backend Issues](#backend-issues)
-  - [Frontend Issues](#frontend-issues)
-  - [Search Issues](#search-issues)
+  - [Changing OpenAI model](#changing-openai-model)
 
 ## Prerequisites
 
@@ -38,6 +37,10 @@ Before using your own instance of Mate, you need to have the following prerequis
 - If you deploy a second instance of Mate in the same subscription, these things are important:
     1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
     2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service, Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
+
+## Post-Deployment Steps
+
+- You need to create a ticket in our service desk to add the Search Service to our central DNS.
 
 ## Configuration
 
@@ -70,32 +73,30 @@ The environment file is a `.env` file that contains the environment variables fo
 ##### Variables
 <!-- markdownlint-enable MD024 -->
 
-| Variable                             | Description                                                                                          | Mandatory |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------- | --------- |
-| `AZURE_AUTH_CLIENT`                  | The client id of the app registration used for authentication                                        | X         |
-| `AZURE_ENV_NAME`                     | The name of the environment                                                                          | X         |
-| `AZURE_SUBSCRIPTION_ID`              | The id of the subscription                                                                           | X         |
-| `AZURE_TENANT_ID`                    | The tenant id                                                                                        | X         |
-| `AZURE_LOCATION`                     | The location of the resources                                                                        | X         |
-| `AZURE_VNET_RESOURCE_GROUP`          | The resource group of the existing VNet                                                              | X         |
-| `AZURE_VNET_NAME`                    | The name of the existing VNet                                                                        | X         |
-| `AZURE_SUBNET_NAME`                  | The name of the existing subnet inside the existing VNet                                             | X         |
-| `AZURE_SUBNET_NAME_APPSERVICE`       | The name of the existing subnet inside the existing VNet for the App Service                         | X         |
-| `AZURE_ALLOWED_CORS`                 | The list of allowed CORS origins                                                                     | X         |
-| `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the OpenAI ChatGPT model (e.g. `gpt-35-turbo`, `gpt-35-turbo-16k`, `gpt-4`, `gpt-4-32k`) |           |
-| `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the OpenAI ChatGPT model (e.g. `0613`, `0914`)                                        |           |
-| `AZURE_AUTH_ROLE`                    | The allowed Azure AD role (if not set all authenticated users can access)                            |           |
-| `AZURE_AUTH_TENANT`                  | The tenant ID of the Azure AD (only required if `AZURE_AUTH_ROLE` is set and another tenant is used) |           |
-| `AZURE_APPSERVICE_SKU`               | The SKU of the App Service (e.g. `B1`, `B2`, `B3`, `S1`,`S2`, `S3`, `P1`, `P2`, `P3`, `P4`)          |           |
-| `AZURE_SEARCH_SERVICE_SKU`           | The SKU of the Azure Search service (e.g. `basic`, `standard`, `standard2`, `standard3`)             |           |
-| `AZURE_REDEPLOY_OPENAI`              | Set to `true` to redeploy the OpenAI instance (temporary bugfix)                                     |           |
+| Variable                             | Description                                                                                                                                                                                | Mandatory |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| `AZURE_AUTH_CLIENT`                  | The client id of the app registration used for authentication                                                                                                                              | X         |
+| `AZURE_ENV_NAME`                     | The name of the environment                                                                                                                                                                | X         |
+| `AZURE_SUBSCRIPTION_ID`              | The id of the subscription                                                                                                                                                                 | X         |
+| `AZURE_TENANT_ID`                    | The tenant id                                                                                                                                                                              | X         |
+| `AZURE_LOCATION`                     | The location of the resources                                                                                                                                                              | X         |
+| `AZURE_VNET_RESOURCE_GROUP`          | The resource group of the existing VNet                                                                                                                                                    | X         |
+| `AZURE_VNET_NAME`                    | The name of the existing VNet                                                                                                                                                              | X         |
+| `AZURE_SUBNET_NAME`                  | The name of the existing subnet inside the existing VNet                                                                                                                                   | X         |
+| `AZURE_SUBNET_NAME_APPSERVICE`       | The name of the existing subnet inside the existing VNet for the App Service                                                                                                               | X         |
+| `AZURE_ALLOWED_CORS`                 | The list of allowed CORS origins                                                                                                                                                           | X         |
+| `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `gpt-35-turbo`, `gpt-4o`,)           |           |
+| `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `1106` for GPT35Turbo, `2024-05-13` for GPT40)                                                  |           |
+| `AZURE_AUTH_ROLE`                    | The allowed Azure AD role (if not set all authenticated users can access)                                                                                                                  |           |
+| `AZURE_AUTH_TENANT`                  | The tenant ID of the Azure AD (only required if `AZURE_AUTH_ROLE` is set and another tenant is used)                                                                                       |           |
+| `AZURE_APPSERVICE_SKU`               | The SKU of the App Service (e.g. `S1`,`S2`, `S3`, `P0v3`, `P1v3`)                                                                                                                          |           |
+| `AZURE_SEARCH_SERVICE_SKU`           | The SKU of the Azure Search service (e.g. `basic`, `standard`, `standard2`, `standard3`)                                                                                                   |           |
+| `AZURE_DEPLOY_KEY`                   | Deploy the keyvault key ( manually set to `false` if first deployment fails) (default: `true`)                                                                                             |           |
+| `AZURE_GATEWAY_RESTRICTION_IP`       | **FOR PRODUCTION USAGE:** Static IP Address of Applicaton Gateway or [Tardis Spacegate IP Range](https://developer.telekom.de/docs/src/tardis_customer_handbook/support/ip-addresses-env/) |           |
 
 ##### Example
 
 ```properties
-# Azure Configurations
-# https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md#file-environment
-
 AZURE_ENV_NAME="mate-env-name"
 AZURE_SUBSCRIPTION_ID="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_TENANT_ID="628242bd-7e70-4aa9-8ee1-72586b4540fe"
@@ -106,10 +107,8 @@ AZURE_SUBNET_NAME="sn-mate"
 AZURE_SUBNET_NAME_APPSERVICE="sn-mate-appservice"
 AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
 AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
-AZURE_OPENAI_CHATGPT_MODEL_VERSION="0613"
-AZURE_APPSERVICE_SKU="P0v3"
+AZURE_OPENAI_CHATGPT_MODEL_VERSION="1106"
 AZURE_SEARCH_SERVICE_SKU="standard"
-
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_AUTH_ROLE="all"
 ```
@@ -167,10 +166,6 @@ DT, Deutsche Telekom
 
 ### Deployment Issues
 
-#### OpenAI Instance
-
-If the OpenAI instance is not correctly deployed, set the `AZURE_REDEPLOY_OPENAI` variable to `true` in the `ENVIRONMENT` file. This will trigger a redeployment of the OpenAI instance.
-
 #### First Deployment
 
 If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, set the `AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file. This will prevent a deployment error related to the keyvault.
@@ -183,10 +178,6 @@ When deploying a second instance of mate to your subscription, set the `AZURE_DE
 
 If the backend is not working after deployment, try accessing the `/docs` endpoint to check if the backend is running. You can also check the Deployment Logs in the App Service. If the backend is still not working, try restarting or bumping the App Service Tier. Check the logs via the App Service in Azure, accessible through the Advanced Tools Menu. If the error message is `No module named 'main'`, consider redeploying the backend as the [deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
 
-### Frontend Issues
+### Changing OpenAI model
 
-If the frontend is returning unexpected errors, open the network tab in the browser developer tools and check the response of the API calls. This will provide more information about the error.
-
-### Search Issues
-
-If the search is returning an error, adjust one setting in the semantic ranker. This is a known bug in Microsoft's deployment.
+If you want to change your OpenAI model from for example GPT35Turbo to GPT4o, you need to change the `AZURE_OPENAI_CHATGPT_MODEL_NAME` and `AZURE_OPENAI_CHATGPT_MODEL_VERSION` in the `ENVIRONMENT` file. This will cause an error, if you do not delete the old model manually in the Azure OpenAI Studio. So option 1 is deleting it beforehand, option 2 is deleting it and creating it in the Azure OpenAI Studio, then it will be recognized by the deployment.

@@ -55,7 +55,7 @@ Before running the application locally, you need to set up the azure and mate co
 
 To be able to use the Azure services locally, you need to set up the Azure configuration.
 
-1. Make sure you or the service account you are using has the following access roles. In case your are using the 'infra_dev' environment you can skip this step.
+1. Make sure you or the service account you are using has the following access roles.
 
     - Cognitive Services OpenAI User
     - Cognitive Services User
@@ -196,17 +196,13 @@ In case you need another Open ID Connect Provider, you can open an [issue](https
 <summary>Example <code>.env</code> file</summary>
 
 ```properties
-# Mate Configurations
-# https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/tree/main/docs/dev#mate-configuration
-
-# General Configuration
 API_BASE_PATH=/
 CORS_DISABLED=false
 
 # Azure Services Configuration
 AZURE_OPENAI_SERVICE=
 AZURE_OPENAI_CHATGPT_DEPLOYMENT=
-AZURE_OPENAI_CHATGPT_MODEL=
+AZURE_OPENAI_CHATGPT_MODEL_NAME=
 AZURE_OPENAI_EMB_DEPLOYMENT=
 
 AZURE_SEARCH_SERVICE=

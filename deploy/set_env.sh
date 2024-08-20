@@ -3,9 +3,6 @@
 # Define variables
 CI_VARIABLE_NAME="ENVIRONMENT"
 
-# set redeploy to false automatically (after initial deployment)
-azd env set AZURE_REDEPLOY_OPENAI false
-
 # set keyvault
 azd env set AZURE_DEPLOY_KEY false
 

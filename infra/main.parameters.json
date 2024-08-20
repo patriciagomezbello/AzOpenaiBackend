@@ -54,13 +54,13 @@
       "value": "${AZURE_OPENAI_CHATGPT_MODEL_NAME=gpt-35-turbo}"
     },
     "chatGptModelVersion": {
-      "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=0613}"
+      "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=1106}"
     },
     "embCapacity": {
       "value": "${AZURE_OPENAI_EMBEDDING_CAPACITY=100}"
     },
     "gptCapacity": {
-      "value": "${AZURE_OPENAI_GPT_CAPACITY=60}"
+      "value": "${AZURE_OPENAI_CHATGPT_CAPACITY=60}"
     },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
@@ -74,9 +74,6 @@
     "authTenant": {
       "value": "${AZURE_AUTH_TENANT}"
     },
-    "redeployOpenAI": {
-      "value": "${AZURE_REDEPLOY_OPENAI=true}"
-    },
     "allowed_cors": {
       "value": "${AZURE_ALLOWED_CORS}"
     },
@@ -87,7 +84,7 @@
       "value": "${AZURE_AUTH_PROVIDER='microsoft'}"
     },
     "appServicePlanSku": {
-      "value": "${AZURE_APPSERVICE_SKU=B1}"
+      "value": "${AZURE_APPSERVICE_SKU=P0v3}"
     },
     "searchServiceSkuName": {
       "value": "${AZURE_SEARCH_SERVICE_SKU=standard}"
@@ -121,6 +118,9 @@
     },
     "apiBasePath": {
       "value": "${API_BASE_PATH}"
+    },
+    "ipSecurityRestrictionIp": {
+      "value": "${AZURE_GATEWAY_RESTRICTION_IP}"
     }
   }
 }
