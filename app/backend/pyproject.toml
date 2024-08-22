@@ -38,6 +38,7 @@ pytest = "^8.2.0"
 flake8 = "*"
 black = "*"
 pre-commit = "*"
+reorder-python-imports = "*"
 
 [build-system]
 requires = ["poetry-core"]

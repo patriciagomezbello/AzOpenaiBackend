@@ -117,12 +117,18 @@ include:
 
 all_start:
   stage: auto_start
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   <<: *runner_start
   allow_failure: false
   when: manual
 
 app_start:
   stage: auto_start
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   <<: *runner_start
   allow_failure: false
   when: manual
@@ -132,9 +138,11 @@ data_start:
   <<: *runner_start
   allow_failure: false
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "trigger"'
+    - if: $CI_PIPELINE_SOURCE == "trigger"
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "DataLoad"
-    - if: '$CI_PIPELINE_SOURCE != "trigger"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
       when: manual
 
 ticket_bot_start:
@@ -155,6 +163,9 @@ all_task:
   needs:
     - all_start
   <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   script:
     - bash ./deploy/setup_env.sh
     - azd up
@@ -171,6 +182,9 @@ app_task:
   needs:
     - app_start
   <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   script:
     - bash ./deploy/setup_env.sh
     - azd deploy
@@ -183,6 +197,9 @@ data_task:
   needs:
     - data_start
   <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
@@ -210,6 +227,9 @@ ticket_bot_task:
 all_terminate:
   stage: all
   <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   needs:
     - all_start
     - all_task
@@ -217,6 +237,9 @@ all_terminate:
 app_terminate:
   stage: app
   <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   needs:
     - app_start
     - app_task
@@ -224,6 +247,9 @@ app_terminate:
 data_terminate:
   stage: data
   <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
   needs:
     - data_start
     - data_task
@@ -236,3 +262,21 @@ ticket_bot_terminate:
     - ticket_bot_task
   rules:
     - if: $JIRA_SERVER
+
+
+# CI
+build-and-test:
+  stage: test
+  image: 
+    name: mtr.devops.telekom.de/community/python:3.11
+    docker:
+      user: root
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - apk add make gcc python3-dev musl-dev linux-headers git
+    - make setup-base
+    - make lint
+    # - make mate-test
+  tags:
+    - otc_run_sysbox_s
