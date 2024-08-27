@@ -1,110 +1,96 @@
-# LangChain Integration<!-- omit in toc -->
+# LangChain Data Loader<!-- omit in toc -->
 
-The LangChain integration allows you to load data from different sources into Mate. A list of our supported langchain data integrations can be found in [here](./README.md).
+The LangChain Data Loader enables you to import data from various web sources into Mate. For a list of supported LangChain data integrations, refer to [this document](./README.md). You can also extend these integrations with [other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.
 
-These can be extended with [other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.
+## Table of Contents<!-- omit in toc -->
 
 - [Available Variables](#available-variables)
   - [`LC_MODE`](#lc_mode)
   - [`LANGCHAIN_CONFIG`](#langchain_config)
-    - [Values](#values)
+    - [Configuration Options](#configuration-options)
       - [`loader` - Mandatory](#loader---mandatory)
-      - [`splitter` - Optional](#splitter---optional)
       - [`category` - Optional](#category---optional)
       - [`config` - Mandatory](#config---mandatory)
-    - [Examples of each loader](#examples-of-each-loader)
+    - [Loader Examples](#loader-examples)
 
 ## Available Variables
 
-The following variables are available for the LangChain integration:
-
 ### `LC_MODE`
 
-The mode of the LangChain integration. Available values are:
+This variable sets the mode for the LangChain integration. The available options are:
 
-- `create` (default): Create and update the index. This will also cleanup the old index.
-- `delete`: Delete the indexed sections.
+- `create` (default): Creates and updates the index. It also cleans up the old index.
+- `delete`: Deletes the indexed sections.
 
 ### `LANGCHAIN_CONFIG`
 
-The configuration for the LangChain integration. The behavior of this variable depends on the mode set in the `LC_MODE` variable.
+This variable configures the LangChain integration based on the mode set in `LC_MODE`. You must set this as a `file` variable.
 
-You need to set this as `file` variable.
-
-#### Values
-
-(for examples in json format for each loader, see [Examples of each loader](#examples-of-each-loader))
+#### Configuration Options
 
 ##### `loader` - Mandatory
 
-Defines which loader you want to use. The following loaders are available:
+Specifies the loader to use. The available options are:
 
-- `confluence`: Load data from Confluence.
-- `docusaurus`: Load data from Docusaurus.
-- `rurl`: Load data from a URL.
-- `magentainfos`: Load data from magentainfos.
-- `staffbase`: Load data from Staffbase.
-
-##### `splitter` - Optional
-
-The splitter to use. The following splitters are available:
-
-- `standard` (default): Use the standard splitter. (Microsoft splitting)
-- `recursive`: Use the recursive splitter. (LangChain splitting)
+- `confluence`: Loads data from Confluence.
+- `docusaurus`: Loads data from Docusaurus.
+- `rurl`: Loads data from a URL.
+- `magentainfos`: Loads data from Magentainfos.
+- `staffbase`: Loads data from Staffbase.
 
 ##### `category` - Optional
 
-The category of the data source. This is used to group the data sources in the frontend.
-
-If you don't want to use a category, you need to delete the `category` key from the configuration.
+Groups the data source into a category for frontend organization. If you do not wish to use a category, remove the `category` key from the configuration.
 
 ##### `config` - Mandatory
 
-The configuration for the loader that you have [chosen](#loader---mandatory).
+Specifies the configuration settings for the selected loader. Below are the configurations for each loader:
 
 **Confluence:**
 
-- `url`: The base URL of the Confluence instance.
-- `username`: The email address of the user.
-- `token_ref`: The name of the variable where the API key of the user is stored. **Do not put the API key directly into the config.**
-- `space_key`: The space key of the Confluence/Wiki space that you want to load.
-- `include_att`: Whether to include attachments or not. This can cause issues with uncommon file types.
-- `limit`: The number of pages to load.
-- `max_pages`: The maximum number of pages to load.
+- `url`: Base URL of the Confluence instance.
+- `username`: User’s email address.
+- `token_ref`: Variable name where the API key is stored. **Do not include the API key directly in the config.**
+- `space_key`: Space key of the Confluence/Wiki space to load.
+- `include_att`: Option to include attachments (Note: May cause issues with uncommon file types).
+- `limit`: Number of pages to load.
+- `max_pages`: Maximum number of pages to load.
 
 **Docusaurus:**
 
-- `url`: The base URL of the Docusaurus website.
+- `url`: Base URL of the Docusaurus website.
 
 **RURL:**
 
-- `url`: The base URL of the website.
-- `max_depth`: The maximum link recursion depth.
+- `url`: Base URL of the website.
+- `max_depth`: Maximum link recursion depth.
 
 **Magentainfos:**
 
-- `auth_url` (str): The URL used for authentication.
-- `api_url` (str): The base URL for the API.
-- `client_id` (str): The client ID for authentication.
-- `secret_reference` (str): The environment variable name where the client secret is stored.
-- `categories` (List[str]): A list of categories to filter the documents. Example: `["category1", "category2"]`.
-- `document_list` (List[DocumentRequest]): A list of document requests.
-- `publish_date` (PublishDate | None): The publish date filter for the documents. Can be `None`.
-- `rows` (int | None): The number of rows to fetch. Can be `None`.
-- `page` (int | None): The page number to fetch. Can be `None`.
-- `type` (DocumentType | None): The type of documents to fetch. Can be `None`.
+- `auth_url`: URL used for authentication.
+- `api_url`: Base URL for the API.
+- `client_id`: Client ID for authentication.
+- `secret_reference`: Environment variable name where the client secret is stored.
+- `categories`: List of categories to filter documents (e.g., `["category1", "category2"]`).
+- `document_list`: List of document requests.
+- `publish_date`: Publish date filter for documents (can be `null`).
+- `rows`: Number of rows to fetch (can be `null`).
+- `page`: Page number to fetch (can be `null`).
+- `type`: Document type to fetch (can be `null`).
 
 **Staffbase:**
 
-- `url` (str): The base URL of the Staffbase instance.
-- `api_key_reference` (str): A reference to the API key used for authentication.
-- `channels` (List[str]): An array of channel IDs to fetch content from. Example: `[]` (empty array if no channels are specified).
-- `news_pages` (List[str]): An array of news page IDs to fetch content from. Example: `[]` (empty array if no news pages are specified).
-- `posts` (List[str]): An array of post IDs to fetch specific posts. Example: `[]` (empty array if no posts are specified).
-- `publish_filter` (str): A filter to specify which posts to publish.
-- `language` (str): The language code for the content. Possible values: `"de"` or `"en"`.
+- `url`: Base URL of the Staffbase instance.
+- `api_key_reference`: Reference to the API key for authentication.
+- `channels`: Array of channel IDs to fetch content from (e.g., `[]` for none).
+- `news_pages`: Array of news page IDs to fetch content from (e.g., `[]` for none).
+- `posts`: Array of post IDs to fetch specific posts (e.g., `[]` for none).
+- `publish_filter`: Filter specifying which posts to publish.
+- `language`: Language code for the content (`"de"` or `"en"`).
 
-#### Examples of each loader
+#### Loader Examples
+
+Below are example configurations for different loaders:
 
 ```json
 [
@@ -113,10 +99,10 @@ The configuration for the loader that you have [chosen](#loader---mandatory).
     "category": "wiki",
     "splitter": "standard",
     "config": {
-      "url": "url of confluence, (e.g wiki.telekom.de)",
-      "username": "email of user",
-      "token_ref": "name of variable where api_key of user is put",
-      "space_key": "space from wiki/confluence",
+      "url": "url of confluence, (e.g., wiki.telekom.de)",
+      "username": "user@example.com",
+      "token_ref": "API_KEY_VARIABLE",
+      "space_key": "space_key",
       "include_att": false,
       "limit": 10,
       "max_pages": 10
@@ -134,9 +120,9 @@ The configuration for the loader that you have [chosen](#loader---mandatory).
     "loader": "docusaurus",
     "splitter": "standard",
     "config": {
-      "url": "url of website built on docusaurus"
+      "url": "url of Docusaurus site"
     }
-  }
+  },
   {
     "loader": "magentainfos",
     "splitter": "standard",
@@ -154,37 +140,12 @@ The configuration for the loader that you have [chosen](#loader---mandatory).
         {
           "id": "4712",
           "type": "type"
-        },
+        }
       ],
       "publish_date": "2023-10-01",
       "rows": 10,
       "page": 1,
       "type": "type"
-    }
-  },
-  {
-    "loader": "magentainfos",
-    "splitter": "standard",
-    "config": {
-      "auth_url": "https://example.com/auth",
-      "api_url": "https://api.example.com",
-      "client_id": "your-client-id",
-      "secret_reference": "SECRET_ENV_VAR",
-      "categories": [],
-      "document_list": [
-        {
-          "id": "4711",
-          "type": "type"
-        },
-        {
-          "id": "4712",
-          "type": "type"
-        },
-      ],
-      "publish_date": null,
-      "rows": null,
-      "page": null,
-      "type": null
     }
   },
   {

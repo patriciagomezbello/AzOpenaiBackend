@@ -39,6 +39,10 @@ scripts: ### Run the scripts
 bot: ### Run the jira ticket bot
 	@$(MAKE) -s DIR=app/ticket-bot start
 
+.PHONY: data-loader
+data-loader: ### Run the data loader
+	@$(MAKE) -s DIR=app/dataloader start
+
 .PHONY: test
 test: mate-test scripts-test ### Run tests for the mate application and scripts
 

@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "dataloader"
+version = "0.1.0"
+description = "This library provides a data loader that can load various data sources into the knowledge base."
+authors = [
+    "Leander Kunstmann <leander.kunstmann@telekom.de>",
+    "Matthias Nega <m.nega@telekom.de>",
+    "Tom Vendolsky <tom.vendolsky@telekom.de>",
+]
+package-mode = true
+
+[tool.poetry.dependencies]
+python = "^3.11"
+azure-ai-formrecognizer = "^3.3.3"
+azure-identity = "^1.17.1"
+azure-search-documents = "^11.5.1"
+azure-storage-blob = "^12.22.0"
+beautifulsoup4 = "^4.12.3"
+langchain = "^0.2.12"
+langchain-community = "^0.2.11"
+lingua-language-detector = "^2.0.2"
+openai = "^1.40.2"
+pycountry = "^24.6.1"
+pydantic = "^2.8.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+flake8 = "*"
+black = "*"
+pre-commit = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

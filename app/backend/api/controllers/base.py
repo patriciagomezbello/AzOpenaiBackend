@@ -1,4 +1,5 @@
 from typing import Any
+
 from api.models import ErrorMessage
 from config import Config
 from quart import jsonify
