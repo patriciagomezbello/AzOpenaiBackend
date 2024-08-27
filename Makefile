@@ -2,6 +2,7 @@
 SHELL := /bin/sh
 
 HAS_POETRY := $(shell command -v poetry 2> /dev/null)
+HAS_PIPX := $(shell command -v pipx 2> /dev/null)
 DIR := app/backend
 VENV_DIR := .venv
 START_SCRIPT := start.sh
@@ -130,6 +131,35 @@ restore-packages: create-venv ### Restore python packages in [DIR]
 		echo "Failed to restore python packages in $(DIR)"; \
 		exit $$?; \
 	fi
+
+.PHONY: setup-base
+setup-base: ### Minimal setup in order to start development or a CI run (installs poetry and restores packages)
+	@if [ -z "$(HAS_PIPX)" ]; then \
+		echo 'pip'; \
+		pip install poetry pre-commit; \
+	else \
+		echo 'pipx'; \
+		pipx install poetry pre-commit; \
+	fi
+	@$(MAKE) restore-packages
+
+	
+.PHONY: setup-pre-commit
+setup-pre-commit: ### Setup pre-commit (a commit linting tool) in this repository
+	@cd app/backend; poetry run pre-commit install
+
+.PHONY: setup
+setup: setup-base setup-pre-commit ### Setup you development environment
+
+.PHONY: lint
+lint: setup-base ### Lint all projects manually
+	@pre-commit run -a
+
+.PHONY: format
+format: ### Format all code
+	@find . -type f -not -path "*.venv*" -not -path "*node_modules*" -name '*.py' | xargs -I {} reorder-python-imports --py38-plus {} || true
+	@black ./ --config pyproject.toml
+	@find . -type f -not -path "*.venv*" -not -path "*node_modules*" -name '*.py' | xargs -I {} autoflake -v {} --in-place --remove-all-unused-imports
 
 .PHONY: remove-pycache
 remove-pycache: ### Remove __pycache__ and .pytest_cache directories except in [VENV_DIR]
