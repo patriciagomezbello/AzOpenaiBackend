@@ -41,29 +41,3 @@ For more information on the available CI/CD variables for the data loading proce
 
 For more information on the LangChain integration, see the [LangChain Integration](langchain.md) page.
 
-## Technical Overview
-
-```mermaid
-flowchart TD
-    Documents --> language_detection["Local Language Detection"]
-    language_detection --> index
-    Documents --> sectioning["Sectioning Documents"]
-    sectioning --> Langchain["Unstrukturierte Daten"]
-    sectioning --> file["Dateien (pdf, markdown, docx)"]
-
-    file --> TextSplitter
-    file --> LangchainTextSplitter
-    Langchain --> TextSplitter
-    Langchain --> LangchainTextSplitter
-    LangchainTextSplitter --> ChunkedText
-    TextSplitter --> ChunkedText
-    ChunkedText --> embedding["Embedding"]
-    embedding --> aisearch["AI Search Index"]
-
-    subgraph Build AI Search Index
-    aisearch --> index["Index Data"]
-    index --> index_delete["Delete old data"]
-    end
-
-    index_delete --> role_update["Update Roles"]
-```
