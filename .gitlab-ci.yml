@@ -143,17 +143,19 @@ data_start:
   allow_failure: false
   rules:
     - if: $CI_PIPELINE_SOURCE == "trigger"
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "DataLoad"
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "DataLoad"
+      when: always
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
-    - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
+    - if: '$CI_PIPELINE_SOURCE != "merge_request_event"'
       when: manual
+  when: manual
 
 ticket_bot_start:
   stage: auto_start
   <<: *runner_start
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "ticket_bot" && $JIRA_SERVER
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "ticket_bot" && $JIRA_SERVER
       allow_failure: false
     - if: $CI_PIPELINE_SOURCE != "schedule" && $JIRA_SERVER
       allow_failure: false
@@ -273,27 +275,26 @@ ticket_bot_terminate:
   rules:
     - if: $JIRA_SERVER
 
-
 # CI
-build-and-test:
+lint:
   stage: test
-  image: 
+  image:
     name: mtr.devops.telekom.de/community/python:3.12
     docker:
       user: root
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
-    # Woraround for installation of python3-dev, keep as long as this is not merged:
+    # Workaround for installation of python3-dev, keep as long as this is not merged:
     # https://gitlab.devops.telekom.de/mcc/secured-containerimages/community-images/-/merge_requests/497
     - apk add python3 python3-dev
-    # Install tools needed for package installation, 
+    # Install tools needed for package installation,
     # as well as pipx to be able to install global tools without provoking an error: externally-managed-environment
     - apk add make gcc musl-dev linux-headers git py3-pip pipx bash
     - pipx ensurepath
     - export PATH="$PATH:/root/.local/bin"
     - make setup-base
     - make lint
-    # - make mate-test
+    # - make mate-test, if test is added, rename job to lint_test
   tags:
     - otc_run_sysbox_s
