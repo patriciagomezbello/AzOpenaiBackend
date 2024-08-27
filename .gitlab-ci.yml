@@ -117,12 +117,22 @@ include:
 
 all_start:
   stage: auto_start
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
+      when: manual
   <<: *runner_start
   allow_failure: false
   when: manual
 
 app_start:
   stage: auto_start
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
+      when: manual
   <<: *runner_start
   allow_failure: false
   when: manual
@@ -132,9 +142,11 @@ data_start:
   <<: *runner_start
   allow_failure: false
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "trigger"'
+    - if: $CI_PIPELINE_SOURCE == "trigger"
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SECHEDULED_TASK == "DataLoad"
-    - if: '$CI_PIPELINE_SOURCE != "trigger"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
       when: manual
 
 ticket_bot_start:
@@ -155,6 +167,10 @@ all_task:
   needs:
     - all_start
   <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
   script:
     - bash ./deploy/setup_env.sh
     - azd up
@@ -171,6 +187,10 @@ app_task:
   needs:
     - app_start
   <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
   script:
     - bash ./deploy/setup_env.sh
     - azd deploy
@@ -183,6 +203,10 @@ data_task:
   needs:
     - data_start
   <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
@@ -210,6 +234,10 @@ ticket_bot_task:
 all_terminate:
   stage: all
   <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
   needs:
     - all_start
     - all_task
@@ -217,6 +245,10 @@ all_terminate:
 app_terminate:
   stage: app
   <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
   needs:
     - app_start
     - app_task
@@ -224,6 +256,10 @@ app_terminate:
 data_terminate:
   stage: data
   <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
   needs:
     - data_start
     - data_task
@@ -236,3 +272,28 @@ ticket_bot_terminate:
     - ticket_bot_task
   rules:
     - if: $JIRA_SERVER
+
+
+# CI
+build-and-test:
+  stage: test
+  image: 
+    name: mtr.devops.telekom.de/community/python:3.12
+    docker:
+      user: root
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    # Woraround for installation of python3-dev, keep as long as this is not merged:
+    # https://gitlab.devops.telekom.de/mcc/secured-containerimages/community-images/-/merge_requests/497
+    - apk add python3 python3-dev
+    # Install tools needed for package installation, 
+    # as well as pipx to be able to install global tools without provoking an error: externally-managed-environment
+    - apk add make gcc musl-dev linux-headers git py3-pip pipx bash
+    - pipx ensurepath
+    - export PATH="$PATH:/root/.local/bin"
+    - make setup-base
+    - make lint
+    # - make mate-test
+  tags:
+    - otc_run_sysbox_s
