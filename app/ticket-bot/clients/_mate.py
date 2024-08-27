@@ -84,7 +84,7 @@ class MateClient:
         message = {
             "approach": "rrr",
             "history": [{"bot": bot, "user": message_text[:openai_max_tokens]}],
-            "overrides": None,
+            "overrides": overrides,
         }
         if token:
             headers = {"Authorization": "Bearer " + token}
