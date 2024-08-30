@@ -17,6 +17,8 @@ class TextSplitter(Enum):
     """Default splitter."""
     RECURSIVE = "recursive"
     """Recursive splitter."""
+    DYNAMIC = "dynamic"
+    """Dynamic splitter. Chose the best splitter based on the document content."""
 
     def __str__(self) -> str:
         return self.value

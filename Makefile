@@ -55,6 +55,10 @@ mate-test: ### Run tests for the mate application
 scripts-test: ### Run tests for the scripts
 	@$(MAKE) -s DIR=scripts run-test
 
+.PHONY: data-loader-test
+data-loader-test: ### Run tests for the data loader
+	@$(MAKE) -s DIR=app/dataloader run-test
+
 .PHONY: cleanup
 cleanup: cleanup-mate cleanup-scripts ### Clean up the virtual environments and cache directories
 
