@@ -32,6 +32,7 @@ from dataloader.indexer.models import DocumentInfo
 from dataloader.indexer.models import IndexerConfig
 from dataloader.indexer.models import TextSplitter
 from dataloader.indexer.utils import aenumerate
+from langchain_text_splitters import CharacterTextSplitter
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import AsyncAzureOpenAI
 
@@ -236,6 +237,8 @@ class DocumentChunker(ClientManager):
                 return self._split_text
             case TextSplitter.RECURSIVE:
                 return self._split_text_recursive
+            case TextSplitter.DYNAMIC:
+                return self._split_dynamically
             case _:
                 raise ValueError(f"Unknown splitter {self.config.splitter=}")
 
@@ -313,6 +316,30 @@ class DocumentChunker(ClientManager):
         )
 
         for section in splitter.split_text(page.text):
+            yield section
+
+    def _split_dynamically(self, page: Page, /, **kwargs: Any) -> Generator[str, None, None]:
+        """Split the text into sections dynamically based on the content type"""
+        if "<table" in page.text:
+            logger.debug("Dynamic splitter picked the table splitter")
+            return self._split_page_with_tables(page, **kwargs)
+        logger.debug("Dynamic splitter picked the default splitter")
+        return self._split_text(page, **kwargs)
+
+    def _split_page_with_tables(self, page: Page, /, **kwargs: Any) -> Generator[str, None, None]:
+        """Split the page into sections with tables."""
+        all_text = page.text
+
+        text_splitter = CharacterTextSplitter(
+            separator="<table>.+</table>",
+            chunk_size=kwargs.get("max_section_length", 1100),
+            chunk_overlap=kwargs.get("section_overlap", 100),
+            keep_separator=True,
+            is_separator_regex=True,
+        )
+        for section in text_splitter.split_text(all_text):
+            if section.count("<table") != section.count("</table"):
+                logger.error("Table was split! This should not happen.")
             yield section
 
     @staticmethod
