@@ -35,8 +35,6 @@ logger = new_logger(__name__)
 class InvalidConfigError(Exception):
     """InvalidConfigError is an error that is raised when the configuration is invalid."""
 
-    pass
-
 
 @dataclass
 class GPTConfig:
@@ -220,6 +218,7 @@ class Config:
 
     def __init__(self):
         self.api_path: str = os.getenv("API_BASE_PATH", "/")
+        self.health_secret: str = os.getenv("API_HEALTH_SECRET", "")
         self.azure = AzureConfig()
         self.chat = ChatConfig()
         self.auth = AuthConfig()

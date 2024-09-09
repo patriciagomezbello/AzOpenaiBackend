@@ -13,7 +13,8 @@ param authTenant string
 
 // API variables
 param apiBasePath string
-var basePath = !empty(apiBasePath) && apiBasePath != '/' ? '${apiBasePath}/v1' : ''
+
+var basePath = !empty(apiBasePath) && apiBasePath != '/' ? '${apiBasePath}' : ''
 
 // OIDC variables
 // param authProvider string = 'microsoft' // 'oidc' or 'microsoft'
@@ -63,7 +64,7 @@ param tenantId string = ''
 var commonLogin = 'https://login.microsoftonline.com/common/v2.0'
 var tenantLogin = 'https://sts.windows.net/${tenantId}/v2.0'
 
-var excludedRoutes = ['/docs', '/redocs', '/openapi.json', '/openapi.yaml']
+var excludedRoutes = ['/docs', '/redocs', '/openapi.json', '/openapi.yaml', '/openapi.yml', '/health']
 var excludedPaths = [for route in excludedRoutes: '${basePath}${route}']
 
 param ipSecurityRestrictionIp string = ''

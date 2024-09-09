@@ -5,9 +5,6 @@ from typing import List
 from typing import Optional
 
 
-ChatMessageDict = dict[str, Optional[str]]
-
-
 @dataclass
 class ErrorMessage:
     """ErrorMessage represents an error message."""
@@ -25,35 +22,6 @@ class ErrorResponse:
     """ErrorResponse represents an error response."""
 
     error: ErrorMessage
-
-
-@dataclass
-class ChatMessage:
-    """ChatMessage represents a chat message.
-    A chat message always contains a user message and may contain a bot response
-    to that message.
-    It can also contain the model used to generate the bot response.
-    """
-
-    user: str
-    bot: Optional[str] = None
-    model: Optional[str] = None
-
-    def to_dict(self) -> ChatMessageDict:
-        """to_dict converts the dataclass to a dictionary."""
-        return {
-            "user": self.user,
-            "bot": self.bot,
-            "model": self.model,
-        }
-
-
-@dataclass
-class DataPoint:
-    """DataPoint represents a citation data point."""
-
-    docName: str
-    page: Optional[int]
 
 
 class SearchMode(Enum):

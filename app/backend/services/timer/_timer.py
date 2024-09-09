@@ -57,7 +57,11 @@ def timer(log_level: int = logging.DEBUG) -> Callable[[T], T]:
         is_async = inspect.iscoroutinefunction(func)
 
         def log_execution_time(name: str, rtt: float, exception: Optional[Exception] = None):
-            args = {"name": name, "rtt": rtt, "error": str(exception) if exception else None}
+            args = {
+                "name": name,
+                "rtt": rtt,
+                "error": str(exception) if exception else None,
+            }
             if exception:
                 logger.warning("Execution time", args)
                 return

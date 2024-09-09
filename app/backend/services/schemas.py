@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-from enum import auto
-from enum import Enum
 from io import BytesIO
 from typing import Any
 from typing import Dict
@@ -28,11 +26,10 @@ __all__ = [
     "LLMOptions",
     "Model",
     "Message",
-    "File",
+    "FileWrapper",
     "Facet",
     "Facets",
     "Document",
-    "ServiceName",
 ]
 
 FacetValue: TypeAlias = Union[str, int]
@@ -114,7 +111,7 @@ class ChatData:
             "language": lang,
             "promptlang": lang,
             "noidea": self.no_idea_message,
-            "injected_prompt": self.injected_instructions if self.injected_instructions else "",
+            "injected_prompt": (self.injected_instructions if self.injected_instructions else ""),
         }
 
 
@@ -185,7 +182,9 @@ class Document:
     EmbeddingType = Optional[List[str]]
     CaptionsType = List[dict[str, Any]]
 
-    def to_dict(self) -> dict[str, Union[str, float, EmbeddingType, CaptionsType, None]]:
+    def to_dict(
+        self,
+    ) -> dict[str, Union[str, float, EmbeddingType, CaptionsType, None]]:
         """to_dict returns the document as a dictionary."""
         return {
             "id": self.id,
@@ -337,25 +336,10 @@ class Message:
         return {"role": self.USER_ROLE, "content": self.content()}
 
 
-class File:
+class FileWrapper:
     """File is a class that holds the file data."""
 
     def __init__(self, name: str, mimetype: str, data: BytesIO):
         self.name = name
         self.mimetype = mimetype
         self.data = data
-
-
-class ServiceName(Enum):
-    """ServiceName is an enumeration of all available service implementations."""
-
-    OPEN_AI_SERVICE = auto()
-    OAUTH_SERVICE = auto()
-    FACET_CATEGORY_SERVICE = auto()
-    REGEX_CITATION_SERVICE = auto()
-    AZURE_BLOB_CONTENT_SERVICE = auto()
-    FEEDBACK_LOGGER = auto()
-    LANGUAGE_PROCESSING_SERVICE = auto()
-    AZURE_SEARCH_SERVICE = auto()
-    AZURE_EXTENDED_SEARCH_SERVICE = auto()
-    AZURE_FULL_SEARCH_SERVICE = auto()

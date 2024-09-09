@@ -37,5 +37,10 @@
   ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
+  "python.analysis.extraPaths": [
+    "./app/backend",
+    "./scripts",
+    "./app/ticket-bot"
+  ],
   "python.terminal.activateEnvironment": false
 }

@@ -57,13 +57,9 @@ class AuthenticatedToken:
 class InvalidTokenError(Exception):
     """InvalidTokenError is an exception that is raised when a token is invalid."""
 
-    pass
-
 
 class UnknownProviderError(Exception):
     """UnknownProviderError is an exception that is raised when the token provider is not recognized."""
-
-    pass
 
 
 class AuthClient(ABC):
@@ -71,9 +67,6 @@ class AuthClient(ABC):
 
     @abstractmethod
     def decode_token(self, token: str) -> AuthenticatedToken: ...
-
-    async def close(self) -> None:
-        return
 
 
 @dataclass
@@ -112,7 +105,8 @@ class TokenProvider(ABC):
 
 class Provider(Enum):
     """Provider is an enumeration that represents the different token providers.
-    The token provider is used to identify the type of token and decode it accordingly."""
+    The token provider is used to identify the type of token and decode it accordingly.
+    """
 
     AZURE = "azure"
     ICU = "icu"
@@ -181,7 +175,10 @@ class OpenIDClient(AuthClient):
         try:
             public_key = self._get_public_key(token, self._get_openid_keys(spec.url))
             if spec.verify_token:
-                return AuthenticatedToken(token=spec.verify_token(token, public_key), allowed_roles=spec.allowed_roles)
+                return AuthenticatedToken(
+                    token=spec.verify_token(token, public_key),
+                    allowed_roles=spec.allowed_roles,
+                )
 
             return AuthenticatedToken(
                 token=jwt.decode(
@@ -197,7 +194,10 @@ class OpenIDClient(AuthClient):
         except Exception as e:
             if isinstance(e, jwt.exceptions.InvalidTokenError) or isinstance(e, requests.HTTPError):
                 if retry:
-                    logger.debug("Error while decoding and verifying token, retrying with refreshed keys", exc_info=True)
+                    logger.debug(
+                        "Error while decoding and verifying token, retrying with refreshed keys",
+                        exc_info=True,
+                    )
                     return self._decode_and_verify_jwt(token, spec, retry=False)
 
                 logger.warning("Could not decode and verify token after retry", exc_info=True)

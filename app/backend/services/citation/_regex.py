@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from api.models.common import DataPoint
+from chats.interfaces import DataPoint
 from services.citation._interface import CitationService
 from services.logger import new_logger
 from services.timer import timer

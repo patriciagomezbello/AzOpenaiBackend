@@ -1,10 +1,10 @@
-from abc import ABC
 from abc import abstractmethod
 from typing import Awaitable
 
 from azure.identity.aio import ChainedTokenCredential
 from azure.identity.aio import get_bearer_token_provider
 from config import OpenAIConfig
+from dependency_injector import resources
 from openai import AsyncAzureOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.create_embedding_response import CreateEmbeddingResponse
@@ -16,7 +16,7 @@ from services.schemas import CreateEmbeddingOptions
 logger = new_logger(__name__)
 
 
-class LLMClient(ABC):
+class LLMClient(resources.AsyncResource):
     """LLMClient provides an interface for interacting with the large language model."""
 
     @abstractmethod
@@ -40,14 +40,6 @@ class LLMClient(ABC):
         """config returns the LLM client configuration."""
         ...
 
-    @abstractmethod
-    async def close(self) -> None:
-        """close closes the LLM client's connection.
-
-        After calling this method, the client is no longer usable.
-        """
-        ...
-
 
 class OpenAIClient(LLMClient):
     """OpenAIClient is a client for the (Azure) OpenAI API.
@@ -57,7 +49,7 @@ class OpenAIClient(LLMClient):
     # API_VERSION is the version of the OpenAI API to use.
     API_VERSION = "2023-07-01-preview"
 
-    def __init__(self, config: OpenAIConfig, credentials: ChainedTokenCredential):
+    async def init(self, config: OpenAIConfig, credentials: ChainedTokenCredential):
         endpoint = f"https://{config.service}.openai.azure.com"
         token_provider = get_bearer_token_provider(
             credentials,
@@ -70,6 +62,7 @@ class OpenAIClient(LLMClient):
             azure_ad_token_provider=token_provider,
         )
         self.cfg = config
+        return self
 
     def create_completion(self, opts: ChatCompletionsOptions) -> Awaitable[ChatCompletion]:
         """create_completion generates a response based on the provided options."""
@@ -115,8 +108,8 @@ class OpenAIClient(LLMClient):
         """config returns the OpenAI client configuration."""
         return self.cfg
 
-    async def close(self) -> None:
-        """close closes the OpenAI client's connection.
+    async def shutdown(self, _: None) -> None:
+        """shutdown closes the OpenAI client's connection.
 
         After calling this method, the client is no longer usable.
         """

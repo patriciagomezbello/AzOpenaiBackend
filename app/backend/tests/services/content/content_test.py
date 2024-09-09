@@ -3,7 +3,7 @@ from io import BytesIO
 from unittest.mock import AsyncMock
 from unittest.mock import patch
 
-from backend.services.content import AzureBlobContentService
+from services.content import AzureBlobContentService
 
 
 class TestContentService(unittest.IsolatedAsyncioTestCase):

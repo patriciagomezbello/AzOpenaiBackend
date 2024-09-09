@@ -19,13 +19,9 @@ logger = new_logger(__name__)
 class NoAuthHeaderError(Exception):
     """NoAuthHeaderError is an error that is raised when the Authorization header is missing."""
 
-    pass
-
 
 class NoRolesConfiguredError(Exception):
     """NoRolesConfiguredError is an error that is raised when no roles are configured."""
-
-    pass
 
 
 class OAuthService(AuthService):

@@ -4,7 +4,7 @@ from io import BytesIO
 from clients import StorageClient
 from services.content._interface import ContentService
 from services.logger import new_logger
-from services.schemas import File
+from services.schemas import FileWrapper
 from services.timer import timer
 
 
@@ -18,7 +18,7 @@ class AzureBlobContentService(ContentService):
         self.client = client
 
     @timer()
-    async def get_file(self, path: str) -> File:
+    async def get_file(self, path: str) -> FileWrapper:
         """get_file returns the file at the specified path from the blob storage."""
 
         try:
@@ -37,4 +37,4 @@ class AzureBlobContentService(ContentService):
         content = BytesIO()
         await downloader.readinto(content)
         content.seek(0)
-        return File(name=path, mimetype=mimetype, data=content)
+        return FileWrapper(name=path, mimetype=mimetype, data=content)
