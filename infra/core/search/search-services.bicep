@@ -12,7 +12,15 @@ param authOptions object = {}
 
 param virtualNetworkSubnetId string
 
-resource search 'Microsoft.Search/searchServices@2024-03-01-preview' = {
+param deployNewResource bool = true
+
+// Use existing resources
+resource searchExisting 'Microsoft.Search/searchServices@2024-03-01-preview' existing = if (!deployNewResource) {
+  name: name
+}
+
+// Create a new resources
+resource searchNew 'Microsoft.Search/searchServices@2024-03-01-preview' = if (deployNewResource) {
   name: name
   location: location
   tags: tags
@@ -37,7 +45,7 @@ resource search 'Microsoft.Search/searchServices@2024-03-01-preview' = {
   sku: sku
 }
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = if (deployNewResource) {
   name: 'PE-${name}'
   location: vnetLocation
   properties: {
@@ -47,7 +55,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
     privateLinkServiceConnections: [
       {
         properties: {
-          privateLinkServiceId: search.id
+          privateLinkServiceId: searchNew.id
           groupIds: [
             'searchService'
           ]
@@ -58,7 +66,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   }
 }
 
-resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2020-04-01' = {
+resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2020-04-01' = if (deployNewResource) {
   parent: privateEndpoint
   name: 'peDNSZoneGroup'
   properties: {
@@ -73,6 +81,6 @@ resource privateEndpointDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
   }
 }
 
-output id string = search.id
+output id string = deployNewResource ? searchNew.id : searchExisting.id
 output endpoint string = 'https://${name}.search.windows.net/'
-output name string = search.name
+output name string = deployNewResource ? searchNew.name : searchExisting.name

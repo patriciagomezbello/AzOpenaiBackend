@@ -28,6 +28,9 @@ param searchServiceLocation string
 
 param searchIndexName string = 'gptkbindex'
 
+@description('Deploy new Search Service resource. If set to false the existing one will be used')
+param searchServiceDeployNewResource bool = true
+
 param storageAccountName string = ''
 param storageResourceGroupName string = ''
 param storageResourceGroupLocation string = location
@@ -50,6 +53,10 @@ param formRecognizerResourceGroupName string = ''
 param formRecognizerResourceGroupLocation string = location
 
 param formRecognizerSkuName string = 'S0'
+
+@description('Deploy new Form Recognizer resource. If set to false the existing one will be used')
+param formRecognizerDeployNewResource bool = true
+
 
 param chatGptDeploymentName string // = 'chat' as default, see main.parameters.json
 param gptCapacity string // = '60' as default, see main.parameters.json
@@ -76,6 +83,9 @@ param authRole string
 
 @description('Tenant where the user is authenticated, must be specified if the UI and backend tenants differ')
 param authTenant string
+
+@description('Deploy new OpenAI resource. If set to false the existing one will be used')
+param openAiDeployNewResource bool = true
 
 @description('List of cors allowed addresses for the api')
 param allowed_cors string
@@ -302,6 +312,7 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
     sku: {
       name: openAiSkuName
     }
+    deployNewResource: openAiDeployNewResource
     deployments: [
       {
         name: chatGptDeploymentName
@@ -349,6 +360,7 @@ module formRecognizer 'core/ai/cognitiveservices.bicep' = {
     sku: {
       name: formRecognizerSkuName
     }
+    deployNewResource: formRecognizerDeployNewResource
   }
 }
 
@@ -362,6 +374,7 @@ module searchService 'core/search/search-services.bicep' = {
     tags: tags
     virtualNetworkSubnetId: subnet_default.id
     privateDNSZoneId: searchDNSZone.outputs.privateDNSZoneId
+    deployNewResource: searchServiceDeployNewResource
     authOptions: {
       aadOrApiKey: {
         aadAuthFailureMode: 'http401WithBearerChallenge'

@@ -32,6 +32,9 @@
     "formRecognizerSkuName": {
       "value": "S0"
     },
+    "formRecognizerDeployNewResource":{
+      "value": "${AZURE_FORMRECOGNIZER_DEPLOY_NEW_RESOURCE='true'}"
+    },
     "searchIndexName": {
       "value": "${AZURE_SEARCH_INDEX=gptkbindex}"
     },
@@ -40,6 +43,9 @@
     },
     "searchServiceResourceGroupName": {
       "value": "${AZURE_SEARCH_SERVICE_RESOURCE_GROUP}"
+    },
+    "searchServiceDeployNewResource":{ 
+      "value": "${AZURE_SEARCH_SERVICE_DEPLOY_NEW_RESOURCE='true'}"
     },
     "storageAccountName": {
       "value": "${AZURE_STORAGE_ACCOUNT}"
@@ -73,6 +79,9 @@
     },
     "authTenant": {
       "value": "${AZURE_AUTH_TENANT}"
+    },
+    "openAiDeployNewResource":{ 
+      "value": "${AZURE_OPENAI_DEPLOY_NEW_RESOURCE='true'}"
     },
     "allowed_cors": {
       "value": "${AZURE_ALLOWED_CORS}"
