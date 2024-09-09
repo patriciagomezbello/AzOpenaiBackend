@@ -1,21 +1,48 @@
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
-from typing import List
-from typing import Optional
 
-from api.models.common import ChatMessage
-from api.models.common import DataPoint
-from api.models.common import Overrides
+from api.models.common_models import Overrides
+
+ChatMessageDict = dict[str, str | None]
+
+
+@dataclass
+class ChatMessageDTO:
+    """ChatMessage represents a chat message.
+    A chat message always contains a user message and may contain a bot response
+    to that message.
+    It can also contain the model used to generate the bot response.
+    """
+
+    user: str
+    bot: str | None = None
+    model: str | None = None
+
+    def to_dict(self) -> ChatMessageDict:
+        """to_dict converts the dataclass to a dictionary."""
+        return {
+            "user": self.user,
+            "bot": self.bot,
+            "model": self.model,
+        }
+
+
+@dataclass
+class DataPointDTO:
+    """DataPoint represents a citation data point."""
+
+    docName: str
+    page: int | None
 
 
 @dataclass
 class ChatRequest:
     """ChatRequest represents the chat request data."""
 
-    history: List[ChatMessage] = field(default_factory=list)
+    history: list[ChatMessageDTO] = field(default_factory=list)
     approach: str = "rrr"
-    overrides: Optional[Overrides] = None
+    overrides: Overrides | None = None
 
     def __post_init__(self):
         """__post_init__ is responsible for the deep conversion of the dataclass fields."""
@@ -24,7 +51,7 @@ class ChatRequest:
             # fmt: off
             # Disabled formatting for better readability
             self.history = [
-                ChatMessage(**item) if isinstance(item, dict) else item
+                ChatMessageDTO(**item) if isinstance(item, dict) else item
                 for item in self.history
             ]
             # fmt: on
@@ -52,4 +79,4 @@ class ChatResponse:
 
     answer: str
     keywords: str
-    data_points: List[DataPoint]
+    data_points: list[DataPointDTO]

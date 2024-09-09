@@ -1,4 +1,4 @@
-from api.models import FeedbackRequest
+from services.feedback._interface import Feedback
 from services.feedback._interface import FeedbackService
 from services.logger import new_logger
 from services.timer import timer
@@ -11,7 +11,7 @@ class FeedbackLogger(FeedbackService):
     """FeedbackLogger provides a service for sending feedback."""
 
     @timer()
-    async def send_feedback(self, feedback: FeedbackRequest) -> None:
+    async def send_feedback(self, feedback: Feedback) -> None:
         """send_feedback sends the feedback to the service."""
 
         # This indirectly sends the feedback to the application insights service of azure

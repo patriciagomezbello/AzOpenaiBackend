@@ -1,18 +1,13 @@
-from typing import List
-from typing import Optional
-
-from api.models import ChatMessage
-from api.models import ChatResponse
 from api.models import Overrides
 from api.models import SearchMode
 from chats.interfaces import ChatApproach
-from chats.interfaces import ChatResponseType
+from chats.interfaces import ChatMessage
+from chats.interfaces import ChatResponse
 from config import Config
 from lingua import Language
 from services.citation import CitationService
-from services.factory import ServiceFactory
-from services.factory import ServiceName
 from services.language import LanguageService
+from services.language._service import LanguageProcessingService
 from services.llm import LLMService
 from services.logger import LOG_SENSITIVE_DATA
 from services.logger import new_logger
@@ -24,6 +19,9 @@ from services.schemas import LLMOptions
 from services.schemas import Message
 from services.schemas import Model
 from services.search import SearchService
+from services.search._azure_search import AzureExtendedSearchService
+from services.search._azure_search import AzureFullSearchService
+from services.search._azure_search import AzureSearchService
 from services.timer import timer
 
 
@@ -55,24 +53,33 @@ class ChatReadRetrieveRead(ChatApproach):
         search_mode=SearchMode.DEFAULT,
     )
 
-    def __init__(self, cfg: Config, svc_factory: ServiceFactory):
+    def __init__(
+        self,
+        cfg: Config,
+        azure_search_service: AzureSearchService,
+        azure_extended_service: AzureExtendedSearchService,
+        azure_full_search_service: AzureFullSearchService,
+        language_service: LanguageProcessingService,
+        llm_service: LLMService,
+        citation_service: CitationService,
+    ):
         self.config = cfg
         self.search_svcs: dict[SearchMode, SearchService] = {
-            SearchMode.DEFAULT: svc_factory.get_service(ServiceName.AZURE_SEARCH_SERVICE),
-            SearchMode.EXTENDED: svc_factory.get_service(ServiceName.AZURE_EXTENDED_SEARCH_SERVICE),
-            SearchMode.FULL: svc_factory.get_service(ServiceName.AZURE_FULL_SEARCH_SERVICE),
+            SearchMode.DEFAULT: azure_search_service,
+            SearchMode.EXTENDED: azure_extended_service,
+            SearchMode.FULL: azure_full_search_service,
         }
-        self.lang_svc: LanguageService = svc_factory.get_service(ServiceName.LANGUAGE_PROCESSING_SERVICE)
-        self.llm_svc: LLMService = svc_factory.get_service(ServiceName.OPEN_AI_SERVICE)
-        self.citation_service: CitationService = svc_factory.get_service(ServiceName.REGEX_CITATION_SERVICE)
+        self.lang_svc: LanguageService = language_service
+        self.llm_svc: LLMService = llm_service
+        self.citation_service: CitationService = citation_service
 
     @timer()
     async def run(
         self,
-        history: List[ChatMessage],
-        overrides: Optional[Overrides],
-        roles: Optional[List[str]],
-    ) -> ChatResponseType:
+        history: list[ChatMessage],
+        overrides: Overrides | None,
+        roles: list[str] | None,
+    ) -> ChatResponse:
         """run runs the chat approach for the 'read-retrieve-read' approach.
         It uses the cognitive search to enhance the context for the LLM.
         """
@@ -89,7 +96,8 @@ class ChatReadRetrieveRead(ChatApproach):
             # Build the (optimized) search query for the cognitive search
             search_query = await search_svc.build_query_prompt(msgs, data)
             logger.debug(
-                "Built search query & used temperature", {"search_query": search_query, "temperature": overrides.temperature}
+                "Built search query & used temperature",
+                {"search_query": search_query, "temperature": overrides.temperature},
             )
 
             # Perform the cognitive search to get the enhanced context for the LLM (RAG data)
@@ -112,7 +120,10 @@ class ChatReadRetrieveRead(ChatApproach):
             )
 
         except Exception as e:
-            logger.error("Error while running read-retrieve-read chat approach", {"error": str(e)})
+            logger.error(
+                "Error while running read-retrieve-read chat approach",
+                {"error": str(e)},
+            )
             raise
 
         citations = self.citation_service.get_citations(answer)
@@ -124,7 +135,7 @@ class ChatReadRetrieveRead(ChatApproach):
         )
 
     @timer()
-    def _convert_history_to_messages(self, history: List[ChatMessage], max_tokens: int) -> List[Message]:
+    def _convert_history_to_messages(self, history: list[ChatMessage], max_tokens: int) -> list[Message]:
         """_convert_history_to_messages converts the history to the internal message format.
         It also truncates the messages to the max token limit.
         """
@@ -147,11 +158,14 @@ class ChatReadRetrieveRead(ChatApproach):
             builder.add_message(Message({"role": Message.USER_ROLE, "content": msg.user}))
             current_tokens += user_tokens
 
-        logger.debug("Converted history to messages", {"num_messages": len(builder.get_messages()), "tokens": current_tokens})
+        logger.debug(
+            "Converted history to messages",
+            {"num_messages": len(builder.get_messages()), "tokens": current_tokens},
+        )
         return builder.get_messages()[::-1]
 
     @timer()
-    async def _get_chat_data(self, msgs: List[Message]) -> ChatData:
+    async def _get_chat_data(self, msgs: list[Message]) -> ChatData:
         """_get_chat_data gets the chat data from the messages of the conversation."""
 
         detected_lang = self.lang_svc.detect(msgs[-1].content())
@@ -167,11 +181,21 @@ class ChatReadRetrieveRead(ChatApproach):
                 },
             )
         else:
-            logger.debug("Retrieved chat data", {"detected_lang": detected_lang.name, "no_idea_message": no_idea_message})
+            logger.debug(
+                "Retrieved chat data",
+                {
+                    "detected_lang": detected_lang.name,
+                    "no_idea_message": no_idea_message,
+                },
+            )
 
-        return ChatData(language=detected_lang, no_idea_message=no_idea_message, injected_instructions=None)
+        return ChatData(
+            language=detected_lang,
+            no_idea_message=no_idea_message,
+            injected_instructions=None,
+        )
 
-    def _fill_overrides(self, overrides: Optional[Overrides]) -> Overrides:
+    def _fill_overrides(self, overrides: Overrides | None) -> Overrides:
         """_fill_overrides fills the overrides with the default values."""
         if overrides is None:
             return self.DEFAULT_OVERRIDES

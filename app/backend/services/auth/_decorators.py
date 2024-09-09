@@ -3,50 +3,49 @@ from typing import Any
 from typing import Awaitable
 from typing import Callable
 from typing import cast
-from typing import Optional
 from typing import TypeVar
 
-from quart import Request
+from quart import request
 from quart import ResponseReturnValue
-from services.auth._interface import AuthService
 from services.auth._oauth import NoAuthHeaderError
+from services.auth._oauth import OAuthService
 from services.logger import new_logger
-
 
 T = TypeVar("T", bound=Callable[..., Awaitable[ResponseReturnValue]])
 logger = new_logger(__name__)
 
 
-def auth(func: T) -> T:
-    """auth is a decorator that checks if the request is authenticated and authorized."""
-    from api.controllers.base import Controller
-    from api.controllers.base import ErrorProvider
+def secure_endpoint(func: T) -> T:
+    """Decorator to check if the user is authenticated and authorized.
+
+    This decorator is used to check if the user is authenticated and authorized.
+    It is used to protect the endpoints from unauthorized access.
+    """
+    from dependency_injector.wiring import Provide, inject
+    from api.errors import ErrorProvider
+    from containers import DIContainer
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> ResponseReturnValue:
-        self: Controller = args[0]
-        request: Request = args[1]
-
-        auth: Optional[AuthService] = getattr(self, "auth", None)
-        if auth is None:
-            raise AttributeError(
-                f"{self.__class__.__name__} does not have the 'auth' attribute, which is required for the auth decorator"
-            )
-
+    @inject
+    async def wrapper(
+        *args: Any,
+        oauth_service: OAuthService = Provide[DIContainer.oauth_service],
+        **kwargs: Any,
+    ) -> ResponseReturnValue:
         try:
-            if not auth.is_authenticated(request):
-                return self.error_response_with_message(ErrorProvider.AUTHENTICATION)
+            if not oauth_service.is_authenticated(request):
+                return ErrorProvider.error_response_with_message(ErrorProvider.AUTHENTICATION)
 
-            if not auth.is_authorized(request):
-                return self.error_response_with_message(ErrorProvider.AUTHORIZATION)
+            if not oauth_service.is_authorized(request):
+                return ErrorProvider.error_response_with_message(ErrorProvider.AUTHORIZATION)
 
             return await func(*args, **kwargs)
 
         except Exception as e:
             if isinstance(e, NoAuthHeaderError):
-                return self.error_response_with_message(ErrorProvider.AUTHENTICATION)
+                return ErrorProvider.error_response_with_message(ErrorProvider.AUTHENTICATION)
 
             logger.exception("Error while authenticating or authorizing", {"error": str(e)})
-            return self.error_response(str(e.args[0]), 500)
+            return ErrorProvider.error_response(str(e.args[0]), 500)
 
     return cast(T, wrapper)

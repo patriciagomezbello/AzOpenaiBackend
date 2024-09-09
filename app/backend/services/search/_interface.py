@@ -31,7 +31,11 @@ class SearchService(ABC):
 
     @abstractmethod
     async def cognitive_search(
-        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+        self,
+        search_query: str,
+        overrides: Overrides,
+        lang: Language,
+        roles: Optional[List[str]],
     ) -> List[Document]:
         """cognitive_search performs a cognitive search based on the provided query and overrides.
 

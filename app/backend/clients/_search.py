@@ -1,4 +1,3 @@
-from abc import ABC
 from abc import abstractmethod
 from typing import Awaitable
 from typing import Dict
@@ -8,6 +7,7 @@ from azure.identity.aio import ChainedTokenCredential
 from azure.search.documents.aio import AsyncSearchItemPaged
 from azure.search.documents.aio import SearchClient as Searcher
 from config import SearchConfig
+from dependency_injector import resources
 from services.logger import new_logger
 from services.schemas import SearchOptions
 
@@ -15,7 +15,7 @@ from services.schemas import SearchOptions
 logger = new_logger(__name__)
 
 
-class SearchClient(ABC):
+class SearchClient(resources.AsyncResource):
     """SearchClient provides an interface for interacting with the search service."""
 
     @abstractmethod
@@ -29,11 +29,8 @@ class SearchClient(ABC):
         ...
 
     @abstractmethod
-    async def close(self) -> None:
-        """close closes the search client's connection.
-
-        After calling this method, the client is no longer usable.
-        """
+    async def get_document_count(self) -> int:
+        """get_document_count retrieves the amount of documents indexed."""
         ...
 
 
@@ -42,12 +39,13 @@ class AzureSearchClient(SearchClient):
     It implements the SearchClient interface.
     """
 
-    def __init__(self, config: SearchConfig, credentials: ChainedTokenCredential):
+    async def init(self, config: SearchConfig, credentials: ChainedTokenCredential):
         self.client = Searcher(
             endpoint=f"https://{config.service}.search.windows.net",
             index_name=config.index,
             credential=credentials,
         )
+        return self
 
     def search(self, opts: SearchOptions) -> Awaitable[AsyncSearchItemPaged[Dict]]:
         """search searches the index for the provided options."""
@@ -68,8 +66,12 @@ class AzureSearchClient(SearchClient):
         """get_documents retrieves the documents with the provided keys."""
         return [await self.client.get_document(key) for key in keys]
 
-    async def close(self) -> None:
-        """close closes the search client's connection.
+    async def get_document_count(self) -> int:
+        """get_document_count retrieves the amount of documents indexed."""
+        return await self.client.get_document_count()
+
+    async def shutdown(self, _: None) -> None:
+        """shutdown closes the search client's connection.
 
         After calling this method, the client is no longer usable.
         """

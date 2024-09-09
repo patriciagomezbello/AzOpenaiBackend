@@ -90,7 +90,11 @@ class AzureSearchService(SearchService):
 
     @timer()
     async def cognitive_search(
-        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+        self,
+        search_query: str,
+        overrides: Overrides,
+        lang: Language,
+        roles: Optional[List[str]],
     ) -> List[Document]:
         """cognitive_search performs a search using the provided query and overrides.
         It returns the search results as a formatted string.
@@ -240,7 +244,10 @@ class AzureSearchService(SearchService):
 
         logger.debug(
             "Found search results",
-            {"count": len(documents), "documents": ([doc.to_dict() for doc in documents] if LOG_SENSITIVE_DATA else "REDACTED")},
+            {
+                "count": len(documents),
+                "documents": ([doc.to_dict() for doc in documents] if LOG_SENSITIVE_DATA else "REDACTED"),
+            },
         )
         return documents
 
@@ -272,7 +279,11 @@ class AzureExtendedSearchService(AzureSearchService):
         super().__init__(cfg, search_client, llm_svc, lang_svc)
 
     async def cognitive_search(
-        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+        self,
+        search_query: str,
+        overrides: Overrides,
+        lang: Language,
+        roles: Optional[List[str]],
     ) -> List[Document]:
         """cognitive_search performs a search using the provided query and overrides.
         It returns the search results as a formatted string.
@@ -293,7 +304,11 @@ class AzureExtendedSearchService(AzureSearchService):
 
             logger.debug(
                 "Found nearby chunks",
-                {"initial_chunk": doc.id, "nearby_chunks": [id for id in ids], "returned_chunks": len(items)},
+                {
+                    "initial_chunk": doc.id,
+                    "nearby_chunks": [id for id in ids],
+                    "returned_chunks": len(items),
+                },
             )
             augmented.extend(
                 [doc]
@@ -317,7 +332,10 @@ class AzureExtendedSearchService(AzureSearchService):
             )
         logger.debug(
             "Augmented search results with nearby chunks",
-            {"count": len(augmented), "documents": ([doc.to_dict() for doc in augmented] if LOG_SENSITIVE_DATA else "REDACTED")},
+            {
+                "count": len(augmented),
+                "documents": ([doc.to_dict() for doc in augmented] if LOG_SENSITIVE_DATA else "REDACTED"),
+            },
         )
 
         return augmented
@@ -340,7 +358,10 @@ class AzureExtendedSearchService(AzureSearchService):
             chunk = int(parts[-1])
         except Exception as e:
             if isinstance(e, ValueError):
-                logger.warning("Failed to parse chunk number", {"chunk": parts[-1].split(".")[0], "sourcepage": id})
+                logger.warning(
+                    "Failed to parse chunk number",
+                    {"chunk": parts[-1].split(".")[0], "sourcepage": id},
+                )
                 return []
             logger.exception("Failed to parse sourcepage", {"sourcepage": id})
             return []
@@ -369,7 +390,11 @@ class AzureFullSearchService(AzureSearchService):
         super().__init__(cfg, search_client, llm_svc, lang_svc)
 
     async def cognitive_search(
-        self, search_query: str, overrides: Overrides, lang: Language, roles: Optional[List[str]]
+        self,
+        search_query: str,
+        overrides: Overrides,
+        lang: Language,
+        roles: Optional[List[str]],
     ) -> List[Document]:
         """cognitive_search performs a search using the provided query and overrides.
         It returns the search results as a formatted string.
@@ -392,7 +417,10 @@ class AzureFullSearchService(AzureSearchService):
                     )
                 )
             except Exception as e:
-                logger.exception("Failed to get all chunks", {"sourcefile": doc.sourcefile, "error": str(e)})
+                logger.exception(
+                    "Failed to get all chunks",
+                    {"sourcefile": doc.sourcefile, "error": str(e)},
+                )
                 continue
 
             docs = await self._process_search_results(items)

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List
 
 from clients import LLMClient
@@ -19,6 +20,7 @@ from services.timer import timer
 logger = new_logger(__name__)
 
 
+@dataclass(kw_only=True, slots=True)
 class OpenAIService(LLMService):
     """OpenAIService provides an implementation of the AI service interface.
 
@@ -26,8 +28,7 @@ class OpenAIService(LLMService):
         client (AIClient): The OpenAI client to use for interacting with the API.
     """
 
-    def __init__(self, client: LLMClient):
-        self.client = client
+    client: LLMClient
 
     async def generate(self, msgs: List[Message], options: LLMOptions) -> str:
         """generate generates a response based on the provided messages and options.
@@ -105,7 +106,10 @@ class OpenAIService(LLMService):
             raise ValueError("No response generated")
 
         if resp.usage:
-            logger.debug("Response generated", {"model": resp.model, "usage": resp.usage.model_dump()})
+            logger.debug(
+                "Response generated",
+                {"model": resp.model, "usage": resp.usage.model_dump()},
+            )
 
         return resp.choices[0].message.content
 
@@ -164,7 +168,10 @@ class OpenAIService(LLMService):
             raise ValueError("Total message or document tokens cannot be zero")
 
         msg_truncation_ratio, doc_truncation_ratio = self._calculate_truncation_ratios(total_msg_tokens, total_doc_tokens)
-        logger.debug("Truncation ratios", {"messages": msg_truncation_ratio, "documents": doc_truncation_ratio})
+        logger.debug(
+            "Truncation ratios",
+            {"messages": msg_truncation_ratio, "documents": doc_truncation_ratio},
+        )
 
         builder, remaining_tokens = self._truncate_messages(builder, msg_tokens, int(excess_tokens * msg_truncation_ratio))
         excess_tokens = excess_tokens - (int(excess_tokens * msg_truncation_ratio) - remaining_tokens)
@@ -177,7 +184,11 @@ class OpenAIService(LLMService):
         builder.add_documents(truncated_docs)
         logger.debug(
             "Added documents to the builder",
-            {"num_documents": len(truncated_docs), "num_messages": len(builder.get_messages()), "tokens": builder.tokens()},
+            {
+                "num_documents": len(truncated_docs),
+                "num_messages": len(builder.get_messages()),
+                "tokens": builder.tokens(),
+            },
         )
 
         return builder
@@ -202,7 +213,10 @@ class OpenAIService(LLMService):
         # We go through the messages in reverse order to preserve the last user message
         for msg_token in reversed(msg_tokens):
             if msg_tokens_to_truncate <= 0:
-                logger.debug("No more tokens to truncate", {"remaining_tokens": msg_tokens_to_truncate})
+                logger.debug(
+                    "No more tokens to truncate",
+                    {"remaining_tokens": msg_tokens_to_truncate},
+                )
                 break
 
             if len(builder.get_messages()) <= 2:

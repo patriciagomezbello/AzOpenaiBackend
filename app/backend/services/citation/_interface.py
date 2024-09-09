@@ -2,7 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import List
 
-from api.models.common import DataPoint
+from chats.interfaces import DataPoint
 
 
 __all__ = ["CitationService"]
