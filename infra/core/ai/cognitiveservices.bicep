@@ -15,7 +15,15 @@ param virtualNetworkSubnetId_AppService string
 
 param embedding_capacity int = 100
 
-resource account 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
+param deployNewResource bool = true
+
+// Use existing resource
+resource accountExisting 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = if (!deployNewResource) {
+  name: name
+}
+
+// Create new resource
+resource accountNew 'Microsoft.CognitiveServices/accounts@2023-05-01' = if (deployNewResource) {
   name: name
   location: location
   tags: tags
@@ -42,8 +50,8 @@ resource account 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
 
 @batchSize(1)
 resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = [
-  for deployment in deployments: {
-    parent: account
+  for deployment in deployments: if (deployNewResource) {
+    parent: accountNew
     name: deployment.name
     properties: {
       model: deployment.model
@@ -58,6 +66,6 @@ resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01
   }
 ]
 
-output endpoint string = account.properties.endpoint
-output id string = account.id
-output name string = account.name
+output endpoint string = deployNewResource ? accountNew.properties.endpoint : accountExisting.properties.endpoint
+output id string = deployNewResource ? accountNew.id : accountExisting.id
+output name string = deployNewResource ? accountNew.name : accountExisting.name
