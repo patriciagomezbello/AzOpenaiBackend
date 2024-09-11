@@ -24,6 +24,12 @@ Merge requests are the best way to propose changes to the codebase. We actively 
 3. If you've changed APIs, have a look at the document functionality of our api package (quart)
 4. Issue that merge request!
 
+## Versioning
+
+Guideline for versioning -> [Semantic Versioning](https://semver.org/)
+
+If you are unsure, just ask in the MR or issue.
+
 ## Any contributions you make will be under the [Software License](LICENSE)
 
 In short, when you submit code changes, your submissions are understood to be under the same [Software License](LICENSE) that covers the project. Feel free to contact the maintainers if that's a concern.

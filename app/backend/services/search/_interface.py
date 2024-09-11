@@ -56,3 +56,8 @@ class SearchService(ABC):
     def initialize_search_index(self, doclangs: List[Facet]) -> None:
         """initialize_search_index sets the local facets based on the provided facets."""
         ...
+
+    @abstractmethod
+    async def get_indexed_content(self, roles: Optional[List[str]], max_count: int = 0) -> List[Facet]:
+        """get_indexed_content gets the indexed content for the given roles."""
+        ...
