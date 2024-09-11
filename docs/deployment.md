@@ -29,10 +29,11 @@ Before using your own instance of Mate, you need to have the following prerequis
 - **A subscription on the DTIT Azure Tenant (no sandbox allowed)**
 - **Contributor access to the Azure Subscription** for the service principal
 - **A resource group in the subscription named `rg-<AZURE_ENV_NAME>`** (e.g. `rg-mate`)
+- **A location policy exemption for your resource group, for example if you want to use `swedencentral`, can be asked for via [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906)**
 - **A private GitLab Runner for CI/CD**:
   - You can find our GitLab Runner package [here](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
   - You need to create two subnets in your existing VNet (`vnet_dtit_cix00xx` of your subscription):
-    1. One with the prefix `/27` (e.g. `sn-mate`)
+    1. One with at least the prefix `/28` (e.g. `sn-mate`)
     2. The other with at least `/28` (e.g. `sn-mate-appservice`)
 - If you deploy a second instance of Mate in the same subscription, these things are important:
     1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
@@ -40,7 +41,7 @@ Before using your own instance of Mate, you need to have the following prerequis
 
 ## Post-Deployment Steps
 
-- You need to create a ticket in our service desk to add the Search Service to our central DNS.
+- You need to create a [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906) in our service desk to add the Search Service to our central DNS.
 
 ## Configuration
 
@@ -50,7 +51,7 @@ Before deploying Mate, you need to set the variables below in your GitLab projec
 
 | Variable              | Description                                                                                                                                                          |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OpenAILocation`      | Available regions are: `francecentral`, `swedencentral`, `westeurope`                                                                                                |
+| `OpenAILocation`      | Available regions are: `francecentral`, `swedencentral`, `westeurope` (Exemption required for any location besides westeurope)                                       |
 | `REPO_URL`            | The URL of the data repository (e.g. `https://gitlab.devops.telekom.de/red-october/ccoe-data`)                                                                       |
 | `ACCESS_TOKEN`        | The access token for the data repository ([How-To Guide](https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html#create-a-project-access-token)) |
 | `AZURE_CLIENT_ID`     | The service principal id                                                                                                                                             |
@@ -85,14 +86,18 @@ The environment file is a `.env` file that contains the environment variables fo
 | `AZURE_SUBNET_NAME`                  | The name of the existing subnet inside the existing VNet                                                                                                                                   | X         |
 | `AZURE_SUBNET_NAME_APPSERVICE`       | The name of the existing subnet inside the existing VNet for the App Service                                                                                                               | X         |
 | `AZURE_ALLOWED_CORS`                 | The list of allowed CORS origins                                                                                                                                                           | X         |
-| `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `gpt-35-turbo`, `gpt-4o`,)           |           |
-| `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `1106` for GPT35Turbo, `2024-05-13` for GPT40)                                                  |           |
-| `AZURE_AUTH_ROLE`                    | The allowed Azure AD role (if not set all authenticated users can access)                                                                                                                  |           |
+| `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `gpt-35-turbo`, `gpt-4o`,)                                          |           |
+| `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `1106` for GPT35Turbo, `2024-05-13` for GPT40)                   |           |
+| `AZURE_OPENAI_CHATGPT_CAPACITY`      | The capacity of the Chat model (60 is default)                                                                                                                                             |           |
+| `AZURE_OPENAI_EMBEDDING_CAPACITY`    | The capacity of the Embedding model (100 is default)                                                                                                                                       |           |
+| `AZURE_AUTH_ROLE`                    | The allowed Azure AD role (if not set all authenticated users can access), naming convention -> Role_Name. User                                                                            |           |
 | `AZURE_AUTH_TENANT`                  | The tenant ID of the Azure AD (only required if `AZURE_AUTH_ROLE` is set and another tenant is used)                                                                                       |           |
 | `AZURE_APPSERVICE_SKU`               | The SKU of the App Service (e.g. `S1`,`S2`, `S3`, `P0v3`, `P1v3`)                                                                                                                          |           |
 | `AZURE_SEARCH_SERVICE_SKU`           | The SKU of the Azure Search service (e.g. `basic`, `standard`, `standard2`, `standard3`)                                                                                                   |           |
 | `AZURE_DEPLOY_KEY`                   | Deploy the keyvault key ( manually set to `false` if first deployment fails) (default: `true`)                                                                                             |           |
 | `AZURE_GATEWAY_RESTRICTION_IP`       | **FOR PRODUCTION USAGE:** Static IP Address of Applicaton Gateway or [Tardis Spacegate IP Range](https://developer.telekom.de/docs/src/tardis_customer_handbook/support/ip-addresses-env/) |           |
+
+Check the [Parameter File](./infra/parameters.json) for more variables, please only use them if you are proficient with bicep.
 
 ##### Example
 
@@ -110,7 +115,7 @@ AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
 AZURE_OPENAI_CHATGPT_MODEL_VERSION="1106"
 AZURE_SEARCH_SERVICE_SKU="standard"
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
-AZURE_AUTH_ROLE="all"
+AZURE_AUTH_ROLE="MyRole.User"
 ```
 
 #### File: `CONTEXT`

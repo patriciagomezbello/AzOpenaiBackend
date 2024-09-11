@@ -1,5 +1,4 @@
 import os
-import platform
 
 from api.errors import ErrorProvider
 from api.routes import api_bp
@@ -22,7 +21,7 @@ from werkzeug.exceptions import HTTPException
 
 logger = new_logger(__name__)
 
-API_VERSION = "1.0.0"
+API_VERSION = "2.1.0"
 
 
 @inject
@@ -43,7 +42,7 @@ def new_app(
 
     blueprint = api_bp
     # TODO: Move to config
-    if platform.system() == "Darwin" or os.getenv("CORS_DISABLED", "false").lower() == "true":
+    if os.getenv("CORS_DISABLED", "false").lower() == "true":
         logger.warning("CORS middleware is disabled.")
         blueprint = cors(blueprint, allow_origin="*")
     app.register_blueprint(blueprint, url_prefix=config.api_path)

@@ -2,15 +2,17 @@
 # <span style="color: #e20074">Mate as a Service by CCOE DTIT</span><!-- omit from toc -->
 <!-- markdownlint-enable MD033 -->
 
-> :warning: **Important Notice** :warning:
+> :warning: **CHANGELOG.md** :warning:
 >
-> Upgrading your Mate by executing the `all_start` command after May 24, 2024, may result in answers without your integrated data. To prevent this, please initiate the `data_start` task beforehand. This will automatically migrate your data to the new index format. If you have already run the `all_start` command, you can solve any issues by running the `data_start` command afterwards.
+> You can now find the latest changes in the [CHANGELOG.md](./CHANGELOG.md) file.
+> In case of any issues after updating, first check the changelog for breaking changes or new features.
+> It is your responsibility to keep up with the changes in the project.
 
 - [What is Mate?](#what-is-mate)
 - [Documentation](#documentation)
   - [Deployment](#deployment)
   - [Data Integration](#data-integration)
-- [Roadmap](#roadmap)
+- [Roadmap and Information](#roadmap-and-information)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -34,17 +36,9 @@ To deploy Mate, you can follow the instructions in the [deployment guide](./docs
 
 To integrate your data into Mate, you can follow the instructions in the [data integration guide](./docs/data-integration/README.md).
 
-## Roadmap
+## Roadmap and Information
 
-- [x] Role-based Access Control (May 2024)
-- [x] Runner costsaving waiting on running jobs, multiple mate per group support (April 2024)
-- [x] Mate Jira Integration (March 2024)
-- [x] Direct File Blob Data Integration (Feburary 2024)
-- [x] Standardized OpenID Connect Auth (February 2024)
-- [x] Langchain Data Integration (January 2024)
-- [x] Feedback and Application Insights (November 2023)
-- [x] Language Support (October 2023)
-- [x] Initial Release (October 2023)
+You can find the roadmap and more information about the project on our [YAM page](https://yam-united.telekom.com/pages/azure-dtit-cloud/apps/content/mate).
 
 ## Contributing
 

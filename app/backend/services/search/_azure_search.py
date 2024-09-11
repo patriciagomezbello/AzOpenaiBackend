@@ -24,6 +24,7 @@ from services.schemas import ContextPrompt
 from services.schemas import CreateEmbeddingOptions
 from services.schemas import Document
 from services.schemas import Facet
+from services.schemas import Facets
 from services.schemas import LLMOptions
 from services.schemas import Message
 from services.schemas import SearchOptions
@@ -146,6 +147,23 @@ class AzureSearchService(SearchService):
             return False
 
         return False
+
+    async def get_indexed_content(self, roles: Optional[List[str]], max_count: int = 0) -> List[Facet]:
+        """get_indexed_content gets the indexed content for the given roles."""
+        try:
+            search = await self.client.search(
+                opts=SearchOptions(
+                    filter=self._build_role_filter(roles),
+                    facets=[f"sourcefile,sort:count,count:{max_count}"],
+                )
+            )
+            res: Optional[Facets] = await search.get_facets()
+            if not res:
+                return []
+            return res["sourcefile"]
+        except Exception as e:
+            logger.exception("Failed to get indexed content", {"error": str(e)})
+            raise ValueError("Failed to get indexed content")
 
     def _build_filter(self, overrides: Overrides, lang: Language, roles: Optional[List[str]]) -> Optional[str]:
         """_build_filter builds a filter based on the provided overrides and language.
