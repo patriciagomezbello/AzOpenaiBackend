@@ -5,7 +5,6 @@ from typing import Union
 from clients import AuthClient
 from clients import AuthenticatedToken
 from clients import InvalidTokenError
-from clients import UnknownProviderError
 from quart import Request
 from services.auth._interface import AuthService
 from services.category import CategoryService
@@ -37,7 +36,7 @@ class OAuthService(AuthService):
         try:
             _ = self.client.decode_token(token)
         except Exception as e:
-            if isinstance(e, InvalidTokenError) or isinstance(e, UnknownProviderError):
+            if isinstance(e, InvalidTokenError):
                 logger.warning("Authentication failed", {"error": str(e)})
                 return False
             raise
@@ -52,7 +51,7 @@ class OAuthService(AuthService):
         except Exception as e:
             # Even though is_authorized should always be called after is_authenticated,
             # we should still handle the case to avoid potential security issues.
-            if isinstance(e, InvalidTokenError) or isinstance(e, UnknownProviderError):
+            if isinstance(e, InvalidTokenError):
                 logger.warning("Authorization failed", {"error": str(e)})
                 return False
             raise
@@ -65,7 +64,7 @@ class OAuthService(AuthService):
         try:
             decoded = self.client.decode_token(token)
         except Exception as e:
-            if isinstance(e, InvalidTokenError) or isinstance(e, UnknownProviderError):
+            if isinstance(e, InvalidTokenError):
                 logger.warning("Invalid Token", {"error": str(e)})
                 return []
             raise

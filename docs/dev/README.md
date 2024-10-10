@@ -176,6 +176,8 @@ The authentication configuration is used to set up the authentication for the ap
 | `AZURE_AUTH_ICU_CLIENT`     | The client ID of the ICU OpenID Connect client.                                                                     |               |           |
 | `AZURE_AUTH_ICU_ISSUER_URL` | The issuer URL of the ICU OpenID Connect realm.                                                                     |               |           |
 
+> Note: Setting `AZURE_AUTH_ICU_CLIENT` and `AZURE_AUTH_ICU_ISSUER_URL` will enable ICU as the sole auth provider for Mate. For this you have to manually remove the authentication client after each deployment in the Azure Portal.
+
 In case you need another Open ID Connect Provider, you can open an [issue](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/issues) to discuss your requirements or append your own provider to the [authentication client](/app/backend/clients/_auth.py) and open a merge request.
 
 #### Logging Configuration

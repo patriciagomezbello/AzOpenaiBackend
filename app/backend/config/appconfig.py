@@ -193,6 +193,10 @@ class ICUConfig:
     client_id: str = os.getenv("AZURE_AUTH_ICU_CLIENT", "")
     url: str = os.getenv("AZURE_AUTH_ICU_ISSUER_URL", "")
 
+    def is_enabled(self) -> bool:
+        """is_enabled checks if the ICU identity provider is enabled."""
+        return self.client_id != "" and self.url != ""
+
 
 @dataclass
 class AuthConfig:

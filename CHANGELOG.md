@@ -2,6 +2,13 @@
 
 This file includes all the changes made to the Mate as a Service project.
 
+## 2.1.1 *(2024-10-10)*
+
+**Bug Fixes:**
+
+- Fix an issue with using ICU and Azure Auth Provider simultaneously. Now setting ICU variables will enable ICU as the sole provider for Mate, else Azure will be used.
+- Fix an issue with an edge case for the role filter, where the role filter was not working as expected with only one role.
+
 ## 2.1.0 *(2024-09-11)*
 
 **Features:**

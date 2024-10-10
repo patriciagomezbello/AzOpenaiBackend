@@ -210,11 +210,14 @@ class AzureSearchService(SearchService):
 
         return filter[:-4]
 
-    def _build_role_filter(self, roles: Optional[List[str]]) -> str:
+    def _build_role_filter(self, roles: Optional[List[str]] | Optional[str]) -> str:
         """_build_role_filter builds a role filter based on the provided roles."""
 
         if not roles or len(roles) == 0:
             return "roles/any(r:search.in(r, 'public'))"
+
+        if isinstance(roles, str):
+            roles = [roles]  # edge case, can only happen with dumb users
 
         return f"""roles/any(r:search.in(r, 'public, {", ".join(roles)}'))"""
 
@@ -227,6 +230,7 @@ class AzureSearchService(SearchService):
         For more information, see: https://learn.microsoft.com/en-us/azure/search/search-query-odata-filter
         """
         filter = ""
+
         for f in filters:
             if f is not None:
                 filter += f"({f}) and "
