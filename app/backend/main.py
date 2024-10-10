@@ -21,7 +21,7 @@ from werkzeug.exceptions import HTTPException
 
 logger = new_logger(__name__)
 
-API_VERSION = "2.1.0"
+API_VERSION = "2.1.1"
 
 
 @inject

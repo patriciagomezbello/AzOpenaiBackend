@@ -33,7 +33,6 @@ __all__ = [
     "AllowedRoles",
     "AuthenticatedToken",
     "InvalidTokenError",
-    "UnknownProviderError",
 ]
 
 
@@ -46,20 +45,16 @@ class AllowedRoles:
 
 @dataclass
 class AuthenticatedToken:
-    """DecodedToken is a data class that represents a decoded JWT token along with additional information."""
+    """AuthenticatedToken is a data class that represents a decoded JWT token along with additional information."""
 
-    # token is the decoded token
     token: Token
-    # allowed_roles are the roles that are allowed to access
+    """The decoded token."""
     allowed_roles: AllowedRoles
+    """The roles that are allowed to access."""
 
 
 class InvalidTokenError(Exception):
     """InvalidTokenError is an exception that is raised when a token is invalid."""
-
-
-class UnknownProviderError(Exception):
-    """UnknownProviderError is an exception that is raised when the token provider is not recognized."""
 
 
 class AuthClient(ABC):
@@ -73,24 +68,23 @@ class AuthClient(ABC):
 class ProviderSpec:
     """ProviderSpec is a data class that represents the specification of an OpenID provider."""
 
-    # The URL of the OpenID provider
     url: str
-    # The client ID of the OpenID provider
+    """The URL of the OpenID provider."""
+
     client_id: str
-    # allowed_roles are the roles that are allowed to access the service
-    # It is mapped to the OIDC field that contains the roles claim
-    # This may differ depending on the provider
-    # If all roles are allowed, the value is None
+    """The client ID of the OpenID provider."""
+
     allowed_roles: AllowedRoles
-    # issuer is the OpenID provider issuer URL
-    # This may differ from the URL depending on the provider
+    """The roles that are allowed to access the service. It is mapped to the OIDC field that contains the roles claim. This may differ depending on the provider. If all roles are allowed, the value is None."""  # noqa: E501
+
     issuer: str
-    # verify_token is a callback function that verifies the token
-    # If not provided, the token is verified by the audience, issuer and public key
+    """The OpenID provider issuer URL. This may differ from the URL depending on the provider."""
+
     verify_token: Optional[Callable[[str, bytes], Token]]
-    # same_tenant is a flag that indicates if the tenant is the same as the client
-    # This may only be relevant for Azure Managed Identity
+    """A callback function that verifies the token. If not provided, the token is verified by the audience, issuer, and public key."""  # noqa: E501
+
     same_tenant: bool = False
+    """A flag that indicates if the tenant is the same as the client. This may only be relevant for Azure Managed Identity. Default is False."""  # noqa: E501
 
 
 class TokenProvider(ABC):
@@ -121,10 +115,11 @@ class Provider(Enum):
 
 class OpenIDClient(AuthClient):
     def __init__(self, cfg: AuthConfig):
-        self.providers: dict[Provider, TokenProvider] = {
-            Provider.AZURE: Azure(cfg.azure.tenant, cfg.azure.client_id, cfg.allowed_roles),
-            Provider.ICU: ICU(cfg.icu.url, cfg.icu.client_id, cfg.allowed_roles),
-        }
+        self.provider = (
+            ICU(cfg.icu.url, cfg.icu.client_id, cfg.allowed_roles)
+            if cfg.icu.is_enabled()
+            else Azure(cfg.azure.tenant, cfg.azure.client_id, cfg.allowed_roles)
+        )
         self.cache: TTLCache[str, Token] = TTLCache(maxsize=Provider.len(), ttl=3600)
         self.mutex = Lock()
 
@@ -140,9 +135,8 @@ class OpenIDClient(AuthClient):
             DecodedToken: The decoded token if the token is valid
         """
         try:
-            provider = self.providers[self._identify_provider(token)]
-            spec = provider.get_spec()
-            if spec.same_tenant:
+            spec = self.provider.get_spec()
+            if spec.same_tenant:  # for ICU this is always false by default
                 return AuthenticatedToken(
                     token=jwt.decode(
                         jwt=token,
@@ -155,19 +149,9 @@ class OpenIDClient(AuthClient):
             return self._decode_and_verify_jwt(token=token, spec=spec, retry=True)
 
         except Exception as e:
-            if isinstance(e, UnknownProviderError) or isinstance(e, InvalidTokenError):
+            if isinstance(e, InvalidTokenError):
                 raise
             raise Exception(f"Error while decoding token: {e.args[0]}")
-
-    def _identify_provider(self, token: str) -> Provider:
-        """_identify_provider identifies the token provider based on the issuer URL."""
-
-        tk: Token = jwt.decode(jwt=token, algorithms=["RS256"], options={"verify_signature": False})
-        issuer = self._get_issuer(tk)
-        for p in Provider:
-            if self.providers[p].matches_issuer(issuer):
-                return p
-        raise UnknownProviderError("Invalid token type")
 
     def _decode_and_verify_jwt(self, token: str, spec: ProviderSpec, retry: bool) -> AuthenticatedToken:
         """_decode_and_verify_jwt decodes and verifies a JWT token using the OpenID keys."""
@@ -203,6 +187,9 @@ class OpenIDClient(AuthClient):
                 logger.warning("Could not decode and verify token after retry", exc_info=True)
                 raise InvalidTokenError("Could not decode and verify token")
 
+            if isinstance(e, InvalidTokenError):
+                raise
+
             logger.exception("Error while decoding and verifying token", {"error": str(e)})
             raise Exception("Error while decoding and verifying token")
 
@@ -210,7 +197,11 @@ class OpenIDClient(AuthClient):
         """_get_public_key gets the public key from the decoded token."""
 
         kid = jwt.get_unverified_header(token)["kid"]
-        pk = RSAAlgorithm.from_jwk(json.dumps(decoded_token[kid]))
+        try:
+            pk = RSAAlgorithm.from_jwk(json.dumps(decoded_token[kid]))
+        except KeyError:
+            raise InvalidTokenError("No valid key found in token")
+
         if not isinstance(pk, RSAPublicKey):
             raise ValueError("The JWK does not represent a public key")
 
