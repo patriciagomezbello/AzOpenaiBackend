@@ -11,9 +11,9 @@ stages:
 ### declare image to use in all stages, using mtr azd-deploy from azure team
 image: mtr.devops.telekom.de/ccoe_azure/azd-deploy
 
-### declare private runner name to use in relevant stages (can be parameterized in a todo)
+### default runner (can be overridden by setting the variable in the pipeline)
 variables:
-  DEFAULT_RUNNER: otc_run_docker_m
+  DEFAULT_RUNNER: otc_run_sysbox_m
 
 ### auth setup for each step to login and logout before and after
 .auth_template: &auth
@@ -282,4 +282,4 @@ lint:
     - make lint
     # - make mate-test, if test is added, rename job to lint_test
   tags:
-    - otc_run_sysbox_s
+    - $DEFAULT_RUNNER

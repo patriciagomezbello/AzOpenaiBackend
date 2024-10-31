@@ -2,6 +2,12 @@
 # <span style="color: #e20074">Mate as a Service by CCOE DTIT</span><!-- omit from toc -->
 <!-- markdownlint-enable MD033 -->
 
+> :warning: **PIPELINE STUCK issue** :warning:
+>
+> The newest update contains a new default runner, to fix old versions, just set the variable `DEFAULT_RUNNER` to `otc_run_sysbox_m` or another new one.
+
+---
+
 > :warning: **CHANGELOG.md** :warning:
 >
 > You can now find the latest changes in the [CHANGELOG.md](./CHANGELOG.md) file.
