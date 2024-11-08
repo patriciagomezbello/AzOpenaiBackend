@@ -11,11 +11,12 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
-azure-identity = "1.16.0"
+azure-identity = "1.17.1"
 jira = "3.8.0"
 msal = "1.28.0"
-openai = "1.23.2"
+openai = "1.40.2"
 requests = "2.31.0"
+dataloader = {path = "../dataloader"}
 
 [build-system]
 requires = ["poetry-core"]

@@ -9,7 +9,8 @@ from collections.abc import Generator
 from collections.abc import Sequence
 from typing import Any
 from typing import Protocol
-from urllib.parse import urlparse
+from typing import TypedDict
+from typing import Unpack
 
 from azure.identity.aio import ChainedTokenCredential
 from azure.identity.aio import get_bearer_token_provider
@@ -70,8 +71,20 @@ class Indexer(ClientManager):
             raise TypeError("Extractor must be a coroutine function that takes a Document and returns a list of Pages")
         self.extractors[typ] = extractor
 
-    async def index_documents(self, documents: Sequence[Document], **kwargs: Any) -> list[Document]:
-        """Index the documents in the search index. Returns a list of documents that failed to index.
+    class IndexOptions(TypedDict, total=False):
+        index_name: str
+        reset: bool
+        max_section_length: int
+        section_overlap: int
+        sentence_search_limit: int
+
+    async def index_documents(
+        self,
+        documents: Sequence[Document],
+        **kwargs: Unpack[IndexOptions],
+    ) -> dict[str, int]:
+        """Index the documents in the search index. Returns a summary of the indexed documents
+        where the key is the document name (sourcefile) and the value is the count of indexed chunks.
 
         If the no extractor for the document type is found, a ValueError is raised.
 
@@ -84,41 +97,38 @@ class Indexer(ClientManager):
             section_overlap(int): The overlap between sections. Defaults to 100.
             sentence_search_limit(int): The limit for searching for the end of a sentence. Defaults to 100.
         """  # noqa: E501
-        index_name = str(kwargs.pop("index_name", self.config.index))
-        if bool(kwargs.pop("reset", False)):
+        index_name = kwargs.pop("index_name", self.config.index)
+        if kwargs.pop("reset", False):
             await self.delete_index(index_name)
-            logger.info(f"Index '{index_name}' was reset")
+            logger.info(f"Index '{index_name}' was reset.")
         await self.ensure_index(index_name)
 
-        failed: list[Document] = []
+        summary: dict[str, int] = {}
         for document in documents:
             try:
                 pages = await self.extractors[type(document)](document)
                 doclang = Counter(self.language_detector.detect(page.text) for page in pages).most_common(1)[0][0]
                 document.metadata.language = self.language_detector.get_lang_code(doclang)
-
-                logger.info(
-                    f"Extracted {len(pages)} pages for document {document.metadata.name}. "
-                    f"Detected language: {doclang.name.capitalize()}"
-                )
-                await self._bulk_indexing(pages, document.metadata, **kwargs)
+                logger.info(f"Processed '{document.metadata.name}' ({len(pages)} pages, Language: {doclang.name.capitalize()})")
+                summary[document.metadata.name] = await self._bulk_indexing(pages, document.metadata, **kwargs)
             except Exception as e:
                 if isinstance(e, KeyError):
                     raise ValueError(
                         f"Unsupported document type '{type(document).__name__}', please provide an extractor for this type"
                     ) from e
 
-                failed.append(document)
                 logger.exception(f"Failed to index document {document.metadata.name}: {e}")
                 continue
-        return failed
+        return summary
 
-    async def _bulk_indexing(self, pages: list[Page], metadata: DocumentInfo, **kwargs: Any) -> None:
-        """Bulk index the pages in the search index."""
+    async def _bulk_indexing(self, pages: list[Page], metadata: DocumentInfo, **kwargs: Any) -> int:
+        """Bulk index the pages in the search index. Returns the count of indexed chunks."""
         BATCH_SIZE = 1000
         batch: list[DocumentChunk] = []
+        count = 0
         async for i, chunk in aenumerate(self.chunker.chunk_document(pages, metadata, **kwargs)):
             batch.append(chunk)
+            count += 1
             if i % BATCH_SIZE == 0:
                 _ = await self.searcher.upload_documents([section.model_dump() for section in batch])
                 batch.clear()
@@ -126,10 +136,13 @@ class Indexer(ClientManager):
         if len(batch) > 0:
             _ = await self.searcher.upload_documents([section.model_dump() for section in batch])
 
+        logger.info(f"Indexed {count} chunks for '{metadata.get_name()}'.")
+        return count
+
     async def delete_document(self, document: DocumentInfo) -> None:
         try:
             while True:
-                sourcefile = DocumentChunker.build_sourcefile(document.name)
+                sourcefile = DocumentChunker.build_sourcefile(document.get_name())
                 result = await self.searcher.search(
                     search_text="*",
                     filter=f"sourcefile eq '{sourcefile}'",
@@ -222,7 +235,7 @@ class DocumentChunker(ClientManager):
                     continue
                 yield DocumentChunk(
                     id=self.generate_chunk_id(doc_id, page.document, i),
-                    sourcefile=self.build_sourcefile(page.document),
+                    sourcefile=self.build_sourcefile(metadata.get_name()),
                     sourcepage=self.build_sourcepage(page),
                     content=section,
                     embedding=embed.data[0].embedding,
@@ -354,10 +367,10 @@ class DocumentChunker(ClientManager):
 
     @staticmethod
     def build_sourcefile(document_name: str) -> str:
-        if is_url(document_name):
-            url = urlparse(document_name)
-            return f"{url.scheme}://{url.netloc}"
-        return os.path.basename(document_name)
+        # if is_url(document_name):
+        #     return document_name
+        # return os.path.basename(document_name)
+        return document_name
 
     @staticmethod
     def build_sourcepage(page: Page) -> str:

@@ -1,5 +1,3 @@
-import base64
-import binascii
 import inspect
 from collections.abc import AsyncGenerator
 from collections.abc import Callable
@@ -22,12 +20,3 @@ async def defer(
         error_handler(e)
     finally:
         await func()
-
-
-def is_url_encoded(s: str) -> bool:
-    """Check if the string is base64 URL encoded."""
-    try:
-        base64.urlsafe_b64decode(s.encode())
-        return True
-    except (binascii.Error, ValueError):
-        return False

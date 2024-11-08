@@ -1,8 +1,10 @@
 import logging
+from typing import Iterable
 
 from azure.identity.aio import DefaultAzureCredential
 from azure.identity.aio import get_bearer_token_provider
 from openai import AsyncAzureOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
 
 class OpenAIClient:
@@ -27,7 +29,7 @@ class OpenAIClient:
     def __init__(
         self,
         azure_openai_service,
-        model="gpt-4",
+        model,
         api_version="2023-09-15-preview",
     ):
         """
@@ -78,11 +80,14 @@ class OpenAIClient:
                 logging.warning(f"{e}")
                 logging.warning(f"Reducing length of the message to {openai_max_message_length} characters and try it again")
                 shortened_text = message_text[: int(openai_max_message_length)]
-                message = [{"role": "system", "content": system_message}, {"role": "user", "content": shortened_text}]
+                messages: Iterable[ChatCompletionMessageParam] = [
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": shortened_text},
+                ]
 
                 response = await self.openaiClient.chat.completions.create(
                     model=self.model,
-                    messages=message,
+                    messages=messages,
                     temperature=0.7,
                     max_tokens=800,
                     top_p=0.95,

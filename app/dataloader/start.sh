@@ -16,8 +16,13 @@ if [ $? -ne 0 ]; then
   exit $?
 fi
 
-./.venv/bin/python ./cli.py \
-  -wc langchain_config.json \
+if [ -d "./.venv" ]; then
+  PYTHON_CMD="./.venv/bin/python"
+else
+  PYTHON_CMD="python"
+fi
+
+$PYTHON_CMD ./cli.py \
+  -wc webloader_config.json \
   -ic indexer_config.json \
-  -rc role_config.json \
-  -v
+  -rc role_config.json

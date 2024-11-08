@@ -1,14 +1,28 @@
 import logging
 from abc import ABC
 from abc import abstractmethod
+from typing import cast
+from typing import Optional
+from typing import Sequence
 
 import requests
+from azure.identity.aio import DefaultAzureCredential
+from dataloader.cli.core.parser import ParsedArgs
+from dataloader.cli.core.service import Service
+from dataloader.cli.core.utils import defer
+from dataloader.cli.models.config import CLIConfig
+from dataloader.dataloader.indexer import Indexer
+from dataloader.dataloader.indexer.models.document import DocumentInfo
+from dataloader.dataloader.loaders.blob import BlobInteractor
+from jira import Issue
 from jira import JIRA
+from jira.client import ResultList
+from jira.resources import Comment
 
 
 class Jira(ABC):
     @abstractmethod
-    def read_ticket(self, ticket_id): ...
+    def read_ticket(self, ticket_id, with_last_comment): ...
 
     @abstractmethod
     def get_issues(self, jql_str): ...
@@ -64,7 +78,7 @@ class JiraClient(Jira):
             logging.error(f"An error occurred: {e}")
             raise
 
-    def read_ticket(self, ticket_id):
+    def read_ticket(self, ticket_id) -> tuple[str, str, str, str, list[Comment]]:
         """
         Reads the details of a specific Jira ticket.
 
@@ -79,15 +93,16 @@ class JiraClient(Jira):
             issue = self.jira.issue(ticket_id)
             return (
                 issue.fields.summary,
-                issue.fields.description,
-                issue.fields.status.name,
-                issue.fields.assignee,
+                issue.fields.description or "",
+                cast(str, issue.fields.status.name),
+                cast(str, issue.fields.assignee),
+                issue.fields.comment.comments,
             )
         except Exception as e:
             logging.error(f"Ein Fehler ist aufgetreten: {e}")
             raise
 
-    def get_issues(self, jql_str):
+    def get_issues(self, jql_str: str):
         """
         Executes a JQL query and returns the resulting issues.
 
@@ -177,7 +192,7 @@ class JiraClient(Jira):
             logging.error(f"An error occurred while adding the comment: {e}")
             raise
 
-    def get_last_comment(self, issue_id):
+    def get_last_comment(self, issue_id: str) -> Optional[str]:
         """
         Retrieves the last comment from an issue.
 
@@ -244,4 +259,81 @@ class JiraClient(Jira):
         except Exception as e:
             logging.error("An error occurred while downloading and reading the attachment:")
             logging.error(e)
+            raise
+
+    def identify_answered_tickets(self, keyword: str) -> list[str]:
+        """
+        Identifies if a ticket has been answered by checking the last comment.
+
+        Input parameters:
+        ticket_id: The ID of the ticket to be checked.
+
+        Output parameters:
+        Returns True if the ticket has been answered, False otherwise.
+        """
+        try:
+            answered_tickets = []
+            jql_query = "updated >= startOfDay(-1) AND updated <= endOfDay()"
+            issues = self.get_issues(jql_str=jql_query)
+            issues = cast(ResultList[Issue], issues)
+
+            for issue in issues:
+                last_comment = self.get_last_comment(issue.id)
+                if last_comment is None:
+                    continue
+                if keyword not in last_comment:
+                    continue
+                logging.info(f"Identified answered ticket: {issue.key}")
+                answered_tickets.append(issue.id)
+
+        except Exception as e:
+            logging.error(f"An error occurred while identifying the answered ticket: {e}")
+        finally:
+            return answered_tickets
+
+    async def index_answered_tickets(self, answered_tickets: list[str], args: ParsedArgs) -> None:
+        """
+        Indexes the answered tickets.
+
+        Input parameters:
+        answered_tickets: A list of ticket IDs to be indexed.
+
+        Output parameters:
+        None.
+        """
+        try:
+            credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
+            config = CLIConfig.load(args)
+
+            service = Service(
+                BlobInteractor(account=config.storage_account, container=config.docs_container, credential=credential),
+                Indexer(config=config.indexer_config, credential=credential),
+                config,
+            )
+
+            async with defer(service.close, lambda e: logging.exception(f"An error occurred while running the data loader: {e}")):
+                documents: Sequence[DocumentInfo] = []
+                summary: dict[str, int] = {}
+
+                docs, sum = await service.load_lc_mode()
+                documents.extend(docs)
+                summary.update(sum)
+
+                await service.purge_chunk_corpses(summary=summary)
+
+            documents = []
+            for ticket_id in answered_tickets:
+                summary, description, status, assignee, comments = self.read_ticket(ticket_id)
+                document = {
+                    "ticket_id": ticket_id,
+                    "summary": summary,
+                    "description": description,
+                    "status": status,
+                    "assignee": assignee,
+                    "last_comment": comments[-1].body,
+                }
+                documents.append(DocumentInfo(**document))
+                await service.indexer.index_documents(documents=documents)
+        except Exception as e:
+            logging.error(f"An error occurred while indexing the answered tickets: {e}")
             raise

@@ -139,10 +139,8 @@ restore-packages: create-venv ### Restore python packages in [DIR]
 .PHONY: setup-base
 setup-base: ### Minimal setup in order to start development or a CI run (installs poetry and restores packages)
 	@if [ -z "$(HAS_PIPX)" ]; then \
-		echo 'pip'; \
 		pip install poetry pre-commit; \
 	else \
-		echo 'pipx'; \
 		pipx install poetry pre-commit; \
 	fi
 	@$(MAKE) restore-packages

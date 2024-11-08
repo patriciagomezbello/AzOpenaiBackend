@@ -26,7 +26,7 @@ _parser.add_argument(
     "-wc",
     "--webloader-config",
     type=str,
-    default="langchain_config.json",
+    default="webloader_config.json",
     help="Path to the langchain config file (default: %(default)s)",
 )
 _parser.add_argument(

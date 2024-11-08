@@ -34,6 +34,7 @@ bp = Blueprint("content", __name__)
 @inject
 async def content(
     path: str,
+    retry: bool = True,
     content_service: ContentService = Provide[DIContainer.azure_blob_content_service],
     search_service: SearchService = Provide[DIContainer.azure_search_service],
     auth_service: AuthService = Provide[DIContainer.oauth_service],
@@ -45,7 +46,6 @@ async def content(
     """
 
     try:
-
         if not await search_service.has_file_access(path, auth_service.get_roles(request)):
             return ErrorProvider.error_response_with_message(ErrorProvider.AUTHORIZATION)
 
@@ -63,6 +63,9 @@ async def content(
     except Exception as e:
         if isinstance(e, FileNotFoundError):
             logger.debug("File not found", {"path": path, "error": str(e)})
+            if "_" in path and retry:
+                # TODO: maybe find cleaner way to catch both data formats
+                return await content(path.replace("_", "/", 1), retry=False)
             return ErrorProvider.error_response_with_message(ErrorProvider.DOC_NOT_FOUND)
         logger.exception("Error while getting file", {"path": path, "error": str(e)})
         return ErrorProvider.error_response("error while getting file", 500, error=e)

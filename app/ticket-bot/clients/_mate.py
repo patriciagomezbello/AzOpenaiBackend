@@ -54,7 +54,7 @@ class MateClient:
                 logging.info("No suitable token exists in cache. Let's get a new one from Azure AD.")
                 result = self.app.acquire_token_for_client(scopes=self.config["scope"])
 
-            if "access_token" in result:
+            if result and "access_token" in result:
                 return result["access_token"]
             else:
                 return None
@@ -62,22 +62,20 @@ class MateClient:
             print(e)
             raise
 
-    def get_mate_categories(self):
+    def get_mate_categories(self) -> str:
         token = self.get_token()
-        if token:
-            headers = {"Authorization": "Bearer " + token}
-            print(self.config["mate_backend_url"])
-            response = requests.get(str(self.config["mate_backend_url"]) + "/categories", headers=headers)
-            return response.text
-        else:
-            return None
+        if not token:
+            raise Exception("Failed to get token")
+        headers = {"Authorization": "Bearer " + token}
+        print(self.config["mate_backend_url"])
+        response = requests.get(str(self.config["mate_backend_url"]) + "/categories", headers=headers)
+        return response.text
 
     def get_answer(
         self,
         message_text,
         overrides=None,
         bot=None,
-        max_message_text_length=3096,
         openai_max_tokens=2048,
     ):
         token = self.get_token()
