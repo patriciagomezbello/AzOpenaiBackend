@@ -26,6 +26,7 @@ backup/
 deploy/local.sh
 
 langchain_config.json
+webloader_config.json
 role_config.json
 
 scripts/test/*

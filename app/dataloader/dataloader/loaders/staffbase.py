@@ -4,11 +4,15 @@ from datetime import datetime
 
 import dataloader.loaders.models.staffbase as StaffbaseModels
 import requests
+from dataloader.base import new_logger
 from dataloader.indexer.models import DocumentInfo
 from dataloader.loaders.base import WebDocumentLoader
 from dataloader.loaders.models import LoaderConfig
 from dataloader.loaders.models import StaffbaseConfig
 from dataloader.loaders.models import WebDocument
+
+
+logger = new_logger(__name__)
 
 
 class StaffbaseLoader(WebDocumentLoader):
@@ -38,7 +42,7 @@ class StaffbaseLoader(WebDocumentLoader):
 
 
 class StaffbaseAPIClient:
-    def __init__(self, base_url, api_key):
+    def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url
         self.api_key = api_key
 
@@ -76,19 +80,19 @@ class StaffbaseAPIClient:
     def _build_url(self, post_id: str) -> str:
         return f"{self.base_url}/content/news/article/{post_id}"
 
-    def _get_posts_by_channel(self, channel_id: str, limit=100, offset=0) -> list[StaffbaseModels.Post]:
+    def _get_posts_by_channel(self, channel_id: str, limit: int = 100, offset: int = 0) -> list[StaffbaseModels.Post]:
         url = f"{self.base_url}/api/channels/{channel_id}/posts"
         headers = {"Authorization": f"Basic {self.api_key}"}
         params = {"limit": limit, "offset": offset}
 
-        response = requests.get(url, params=params, headers=headers)
+        response = requests.get(url, params=params, headers=headers, timeout=30)
         if response.status_code != 200:
             raise Exception(f"Failed to get posts. Status code: {response.status_code}")
 
         res: StaffbaseModels.ChannelApiResponse = response.json()
         return res.get("data", [])
 
-    def _get_posts_by_news_channel(self, news_page_id: str, limit=100) -> list[StaffbaseModels.Post]:
+    def _get_posts_by_news_channel(self, news_page_id: str, limit: int = 100) -> list[StaffbaseModels.Post]:
         initial_url = f"{self.base_url}/api/client/newspages/{news_page_id}/posts"
         headers = {"Authorization": f"Basic {self.api_key}"}
         params = {"limit": limit}
@@ -96,7 +100,7 @@ class StaffbaseAPIClient:
         all_posts = []
         url = initial_url  # Start with the initial URL
         while url:
-            response = requests.get(url, params=params, headers=headers)
+            response = requests.get(url, params=params, headers=headers, timeout=30)
             response.raise_for_status()
             data: StaffbaseModels.NewsApiResponse = response.json()
             all_posts.extend(data.get("data", []))
@@ -112,11 +116,11 @@ class StaffbaseAPIClient:
     def _get_post_by_id(self, post_id: str):
         url = f"{self.base_url}/api/posts/{post_id}"
         headers = {"Authorization": f"Basic {self.api_key}"}
-        response = requests.get(url=url, headers=headers)
+        response = requests.get(url=url, headers=headers, timeout=30)
         if response.status_code != 200:
             raise Exception(f"Failed to get post from url {url}. Status code: {response.status_code}")
 
-        print(f"indexed data from url {url}.")
+        logger.debug(f"Indexed data from url {url}.")
         return response.json()
 
     def _get_formatted_channel_posts(
@@ -150,7 +154,7 @@ class StaffbaseAPIClient:
             try:
                 formatted_posts.append(self._format_post(language, post))
             except Exception as e:
-                print(f"Skipping post ID: {post['id']} because of error {e}")
+                logger.exception(f"Error while formatting post '{post['id']}': {e}")
         return formatted_posts
 
     def _get_formatted_news_pages_posts(
@@ -167,7 +171,7 @@ class StaffbaseAPIClient:
             try:
                 formatted_posts.append(self._format_post(language, post))
             except Exception as e:
-                print(f"Skipping post ID: {post['id']} because of error {e}")
+                logger.exception(f"Error while formatting post '{post['id']}': {e}")
         return formatted_posts
 
     def _get_formatted_posts(self, post_ids: list[str], language: str) -> list[StaffbaseModels.FormattedPost] | None:
@@ -181,7 +185,7 @@ class StaffbaseAPIClient:
             try:
                 formatted_posts.append(self._format_post(language, post))
             except Exception as e:
-                print(f"Skipping post ID: {post['id']} because of error {e}")
+                logger.exception(f"Error while formatting post '{post['id']}': {e}")
         return formatted_posts
 
     def get_posts(
@@ -202,7 +206,7 @@ class StaffbaseAPIClient:
             for channel in channels:
                 channel_posts = self._get_formatted_channel_posts(channel, 100, publish_filter, language)
                 if channel_posts is not None:
-                    print(f"Found {len(channel_posts)} posts in channel {channel}")
+                    logger.info(f"Found {len(channel_posts)} posts in channel {channel}")
                     all_posts.extend(channel_posts)
 
         if len(posts) > 0:

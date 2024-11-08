@@ -39,7 +39,7 @@ class TardisClient:
             "client_secret": self.client_secret,
             "scope": "openid",
         }
-        response = requests.post(url, data=payload)
+        response = requests.post(url, data=payload, timeout=30)
         if response.status_code != 200:
             raise Exception("Failed to fetch access token")
         token_info: AccessTokenResponse = response.json()
@@ -62,7 +62,7 @@ class TardisClient:
             endpoint = f"/{endpoint}"
         url_with_endpoint = f"{url}{endpoint}"
 
-        response = requests.request(method, url_with_endpoint, **kwargs)
+        response = requests.request(method, url_with_endpoint, timeout=30, **kwargs)
         response.raise_for_status()
         return response
 

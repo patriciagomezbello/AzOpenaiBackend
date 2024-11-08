@@ -30,7 +30,14 @@ class CustomLogger(logging.Logger):
     ) -> logging.LogRecord:
         rc = self.factory(name, level, fn, lno, msg, args, exc_info, func, sinfo)
         if extra is not None:
-            rc.msg = f"{rc.msg} - {extra}"
+            if not self.isEnabledFor(logging.DEBUG):
+                rc.msg = f"{rc.msg}\n"
+                return rc
+
+            rc.msg = f"{rc.msg} - {extra}\n"
+            return rc
+
+        rc.msg = f"{rc.msg}\n"
         return rc
 
 
@@ -52,7 +59,9 @@ def new_logger(name: str | None) -> logging.Logger:
         level = os.getenv("LOG_LEVEL", "INFO").upper()
         logger.setLevel(level)
 
-        fmt = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", "%H:%M:%S")
+        fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", "%H:%M:%S")
+        if level == "DEBUG":
+            fmt = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", "%H:%M:%S")
         if not has_handler(logger, logging.StreamHandler):
             console_handler = logging.StreamHandler()
             console_handler.setLevel(level)

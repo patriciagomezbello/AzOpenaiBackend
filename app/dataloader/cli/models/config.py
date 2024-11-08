@@ -6,9 +6,9 @@ from typing import Any
 from typing import TypeVar
 
 from cli.core.parser import ParsedArgs
+from dataloader.indexer.models import AccessModel
 from dataloader.indexer.models import IndexerConfig
 from dataloader.indexer.models import TextSplitter
-from dataloader.loaders.models import AccessModel
 from dataloader.loaders.models import ConfluenceConfig
 from dataloader.loaders.models import DocusaurusConfig
 from dataloader.loaders.models import GitConfig
@@ -71,8 +71,6 @@ class CLIConfig(BaseModel):
     """The mode for the data."""
     file_mode: str = Field("file", alias="file_mode")
     """The mode for the files."""
-    lc_mode: str = Field("create", alias="lc_mode")
-    """The mode for the langchain."""
     reset_index: bool = Field(False, alias="reset_index")
     """Whether to reset the index."""
     storage_account: str = Field(..., alias="storage_account")
@@ -83,11 +81,13 @@ class CLIConfig(BaseModel):
     """The name of the blob container where the documents are stored."""
     local_files: str = Field("data", alias="files")
     """The path to the local files."""
+    max_section_length: int = Field(1100, alias="max_section_length")
+    """The maximum length of a section in the search index."""
 
     @classmethod
     def load(cls, args: ParsedArgs) -> CLIConfig:
         """Loads the configuration from the config files."""
-        webloader_data = cls.read_config(args.webloader_config, list[dict[str, Any]], fail_silently=False)
+        webloader_data = cls.read_config(args.webloader_config, list[dict[str, Any]])
         indexer_data = cls.read_config(args.indexer_config, dict[str, Any])
         role_data = cls.read_config(args.roles_config, dict[str, Any])
 
@@ -119,12 +119,12 @@ class CLIConfig(BaseModel):
             indexer_config=cls.load_indexer_config(indexer_data),
             data_mode=os.getenv("DATA_MODE", "file"),
             file_mode=os.getenv("FILE_MODE", "blob"),
-            lc_mode=os.getenv("LC_MODE", "create"),
             reset_index=os.getenv("RESET_INDEX", "false").lower() in ["true", "1"],
             storage_account=storage_account,
             containerdata=os.getenv("AZURE_STORAGE_CONTAINER_DATA", "data"),
             containerdocs=os.getenv("AZURE_STORAGE_CONTAINER_DOCS", "docs"),
             files=os.getenv("LOCAL_FILES", "data"),
+            max_section_length=int(os.getenv("MAX_SECTION_LENGTH", "1100")),
         )
 
     @classmethod

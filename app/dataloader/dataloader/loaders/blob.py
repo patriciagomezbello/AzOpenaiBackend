@@ -35,11 +35,12 @@ class BlobInteractor(ClientManager):
     ) -> AsyncGenerator[BlobProperties, None]:
         """List blobs in the container. Yields the BlobProperties.
         To use another container as the default, pass the container name as a keyword argument.
+        You can also pass the keyword argument 'ensure_exists' to ensure the container exists before listing blobs.
 
         You can pass additional keyword arguments to the list_blobs method.
         For more information, see the [Azure Blob Storage SDK docs](https://learn.microsoft.com/en-us/python/api/azure-storage-blob/azure.storage.blob.containerclient?view=azure-python#azure-storage-blob-containerclient-list-blobs).
         """  # noqa: E501
-        async with self._container_manager(kwargs.pop("container", None), ensure_exists=False):
+        async with self._container_manager(kwargs.pop("container", None), ensure_exists=kwargs.pop("ensure_exists", False)):
             async for blob in self.container_client.list_blobs(include=include, name_starts_with=name_starts_with, **kwargs):
                 yield blob
 
@@ -80,7 +81,7 @@ class BlobInteractor(ClientManager):
                     roles=access.roles,
                     language=metadata.get("language"),
                 ),
-                content=downloader.readall(),
+                content=await downloader.readall(),  # type: ignore # Azure Storage SDK typing issue
                 mimetype=mimetype,
             )
 
@@ -232,7 +233,8 @@ class BlobInteractor(ClientManager):
 
     def _merge_metadata(self, file: File, additional_metadata: Any | None) -> dict[str, Any]:
         metadata: dict[str, str] = {
-            "name": file.metadata.name,
+            # name must be str() to avoid serialization issues, TODO: only on metadata save in blob, not on load
+            "name": str(file.metadata.name),
             "rbac": AccessModel(category=file.metadata.category, roles=file.metadata.roles).model_dump_json(),
         }
         if file.metadata.language:

@@ -39,6 +39,9 @@ class LoaderName(Enum):
     STAFFBASE = "staffbase"
     """Staffbase loader."""
 
+    def __str__(self) -> str:
+        return self.value
+
 
 _LANGCHAIN_LOADER_CONFIGS: dict[
     LoaderName,
@@ -54,7 +57,9 @@ _LANGCHAIN_LOADER_CONFIGS: dict[
 class LoaderConfig(AccessModel):
     name: LoaderName = Field(..., alias="name")
     """The name of the loader."""
-    config: DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig = Field(..., alias="config")
+    config: DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig = Field(
+        ..., alias="config"
+    )
     """The configuration of the loader."""
 
     def new_langchain_loader(self) -> BaseLoader:
@@ -84,14 +89,26 @@ class LoaderConfig(AccessModel):
         return self.config
 
 
+class WebDocumentInfo(DocumentInfo):
+    """The metadata of a web document."""
+
+    url: str = Field(..., alias="url")
+    """The base url of the document."""
+
+    def get_name(self) -> str:
+        """Get the name of the document."""
+        return self.url
+
+
 class WebDocument(Document):
     @classmethod
     def from_langchain(cls, doc: LangchainDocument, cfg: LoaderConfig) -> WebDocument:
         # This is necessary as the base url can vary between different langchain loaders
         base_url = cfg.config.get_url()
         return cls(
-            metadata=DocumentInfo(
-                name=urljoin(base_url, str(doc.metadata["source"]).lstrip(base_url)),
+            metadata=WebDocumentInfo(
+                url=base_url,
+                name=urljoin(base_url, str(doc.metadata["source"])),
                 category=cfg.category,
                 roles=cfg.roles,
             ),

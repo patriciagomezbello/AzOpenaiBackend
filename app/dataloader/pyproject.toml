@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dataloader"
-version = "0.1.0"
+version = "0.2.0"
 description = "This library provides a data loader that can load various data sources into the knowledge base."
 authors = [
     "Leander Kunstmann <leander.kunstmann@telekom.de>",
@@ -22,7 +22,7 @@ lingua-language-detector = "^2.0.2"
 openai = "^1.40.2"
 pycountry = "^24.6.1"
 pydantic = "^2.8.2"
-atlassian-python-api = "^3.41.14"
+atlassian-python-api = "^3.41.15"
 lxml = "^5.3.0"
 
 [tool.poetry.group.dev.dependencies]

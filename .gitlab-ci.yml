@@ -16,6 +16,7 @@ variables:
   DEFAULT_RUNNER: otc_run_sysbox_m
 
 ### auth setup for each step to login and logout before and after
+# TODO: remove az from the auth template and only use azd auth
 .auth_template: &auth
   before_script:
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
@@ -77,7 +78,7 @@ variables:
                 #echo "Curl result: ${PIPELINE}";
                 STATUS=$(echo "${PIPELINE}"| jq ".status");
                 echo "Pipeline status: ${STATUS}";
-                if [ "${STATUS}" = "\"failed\"" ] || [ "${STATUS}" = "\"success\"" ] || [ "${STATUS}" = "null" ] || [ "${STATUS}" = "\"canceled\"" ]; then
+                if [ "${STATUS}" = "\"failed\"" ] || [ "${STATUS}" = "\"success\"" ] || [ "${STATUS}" = "\"manual\"" ] || [ "${STATUS}" = "null" ] || [ "${STATUS}" = "\"canceled\"" ]; then
                   echo "Removing Tag from Runner";
                   az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags.gitlab_pipeline_${i} > /dev/null;
                 fi
@@ -193,7 +194,25 @@ data_task:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
-    - when: always
+    - if: '$DATA_PROCESS != "v2"'
+      when: always
+  script:
+    - bash ./deploy/setup_env.sh
+    - bash ./deploy/setup_data.sh
+  tags:
+    - $RUNNER_TAG
+
+data_task-v2:
+  stage: data
+  image: mtr.devops.telekom.de/ccoe_azure/azd-data-deploy-v3
+  needs:
+    - data_start
+  <<: *auth
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$DATA_PROCESS == "v2"'
+      when: always
   script:
     - bash ./deploy/setup_env.sh
     - bash ./deploy/setup_data.sh
@@ -246,10 +265,25 @@ data_terminate:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
+    - if: '$DATA_PROCESS == "v2"'
+      when: never
     - when: always
   needs:
     - data_start
     - data_task
+
+data_terminate-v2:
+  stage: data
+  <<: *runner_stop
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$DATA_PROCESS != "v2"'
+      when: never
+    - when: always
+  needs:
+    - data_start
+    - data_task-v2
 
 ticket_bot_terminate:
   stage: ticket_bot
@@ -260,7 +294,6 @@ ticket_bot_terminate:
   rules:
     - if: $JIRA_SERVER
 
-# CI
 lint:
   stage: test
   image:
@@ -280,6 +313,5 @@ lint:
     - export PATH="$PATH:/root/.local/bin"
     - make setup-base
     - make lint
-    # - make mate-test, if test is added, rename job to lint_test
   tags:
     - $DEFAULT_RUNNER

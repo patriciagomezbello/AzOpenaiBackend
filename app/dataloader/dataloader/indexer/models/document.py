@@ -35,6 +35,10 @@ class DocumentInfo(AccessModel):
             return f"url-{id}"
         return f"""file-{re.sub(r"[^a-zA-Z0-9]", "_", self.name)}-{id}"""
 
+    def get_name(self) -> str:
+        """Get the name of the document."""
+        return self.name
+
 
 class Document(BaseModel):
     metadata: DocumentInfo = Field(..., alias="metadata")
