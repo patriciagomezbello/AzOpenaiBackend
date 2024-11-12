@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from dataloader.loaders.models.webloader import LoaderConfig
     from dataloader.loaders.models.webloader import LoaderName
     from dataloader.loaders.models.webloader import WebDocument
+    from dataloader.loaders.models.llamaindex import JiraConfig
 
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "LoaderConfig",
     "LoaderName",
     "WebDocument",
+    "JiraConfig",
 ]
 
 
@@ -46,6 +48,7 @@ _module_lookup = {
     "LoaderConfig": "dataloader.loaders.models.webloader",
     "LoaderName": "dataloader.loaders.models.webloader",
     "WebDocument": "dataloader.loaders.models.webloader",
+    "JiraConfig": "dataloader.loaders.models.llamaindex",
 }
 
 

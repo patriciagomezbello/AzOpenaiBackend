@@ -12,6 +12,7 @@ from dataloader.indexer.models import TextSplitter
 from dataloader.loaders.models import ConfluenceConfig
 from dataloader.loaders.models import DocusaurusConfig
 from dataloader.loaders.models import GitConfig
+from dataloader.loaders.models import JiraConfig
 from dataloader.loaders.models import LoaderConfig
 from dataloader.loaders.models import LoaderName
 from dataloader.loaders.models import WebsiteConfig
@@ -44,7 +45,7 @@ class WebLoaderConfig(BaseModel):
     """The name of the loader."""
     category: str = Field("", alias="category")
     """Which category the resulting documents should be in."""
-    config: DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig = Field(..., alias="config")
+    config: DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | JiraConfig = Field(..., alias="config")
     """The configuration of the loader."""
     splitter: str = Field("", alias="splitter", deprecated=True)
     """The splitter for the loader.

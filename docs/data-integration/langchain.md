@@ -1,6 +1,8 @@
 # LangChain Data Loader<!-- omit in toc -->
 
-The LangChain Data Loader enables you to import data from various web sources into Mate. For a list of supported LangChain data integrations, refer to [this document](./README.md). You can also extend these integrations with [other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.
+The LangChain Data Loader enables you to import data from various web sources into Mate. For a list of supported LangChain data integrations, refer to [this document](./README.md). You can also extend these integrations with [other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.  
+It also possible to extend integration with [LlamaIndex readers](https://docs.llamaindex.ai/en/stable/api_reference/readers/).
+
 
 ## Table of Contents<!-- omit in toc -->
 
@@ -37,6 +39,7 @@ Specifies the loader to use. The available options are:
 - `rurl`: Loads data from a URL.
 - `magentainfos`: Loads data from Magentainfos.
 - `staffbase`: Loads data from Staffbase.
+- `jira`: Loads data from Jira.
 
 ##### `category` - Optional
 
@@ -88,6 +91,12 @@ Specifies the configuration settings for the selected loader. Below are the conf
 - `publish_filter`: Filter specifying which posts to publish.
 - `language`: Language code for the content (`"de"` or `"en"`).
 
+**Jira**
+- `url`: Base URL of Jira instance
+- `username`: User’s email address.
+- `token_ref`: Variable name where the API key is stored. **Do not include the API key directly in the config.**
+- `project_key`: Project key in Jira
+  
 #### Loader Examples
 
 Below are example configurations for different loaders:
@@ -161,6 +170,15 @@ Below are example configurations for different loaders:
         "publish_filter": "all",
         "language": "de"
     }
-  }
+  },
+    {
+        "loader": "jira",
+        "config": {
+            "username": "user.name@example.com",
+            "token_ref": "JIRA_API_TOKEN",
+            "url": "https://jira.example.com",
+            "project_key": "PROJECT_KEY"
+        }
+    }
 ]
 ```
