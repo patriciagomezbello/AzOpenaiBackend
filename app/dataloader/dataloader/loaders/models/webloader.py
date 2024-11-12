@@ -14,6 +14,7 @@ from dataloader.loaders.models.langchain import ConfluenceConfig
 from dataloader.loaders.models.langchain import DocusaurusConfig
 from dataloader.loaders.models.langchain import GitConfig
 from dataloader.loaders.models.langchain import WebsiteConfig
+from dataloader.loaders.models.llamaindex import JiraConfig
 from dataloader.loaders.models.magentainfos import MagentaInfosConfig
 from dataloader.loaders.models.staffbase import StaffbaseConfig
 from langchain_community.document_loaders.base import BaseLoader
@@ -38,27 +39,27 @@ class LoaderName(Enum):
     """Magenta Infos loader."""
     STAFFBASE = "staffbase"
     """Staffbase loader."""
-
-    def __str__(self) -> str:
-        return self.value
+    JIRA = "jira"
+    """Jira loader."""
 
 
 _LANGCHAIN_LOADER_CONFIGS: dict[
     LoaderName,
-    type[DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig],
+    type[DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig | JiraConfig],
 ] = {
     LoaderName.DOCUSAURUS: DocusaurusConfig,
     LoaderName.CONFLUENCE: ConfluenceConfig,
     LoaderName.WEBSITE: WebsiteConfig,
     LoaderName.GIT: GitConfig,
+    LoaderName.JIRA: JiraConfig,
 }
 
 
 class LoaderConfig(AccessModel):
     name: LoaderName = Field(..., alias="name")
     """The name of the loader."""
-    config: DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig = Field(
-        ..., alias="config"
+    config: DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig | JiraConfig = (
+        Field(..., alias="config")
     )
     """The configuration of the loader."""
 
@@ -80,10 +81,15 @@ class LoaderConfig(AccessModel):
     def _ensure_config(self, cls: type[MagentaInfosConfig]) -> MagentaInfosConfig: ...
     @overload
     def _ensure_config(self, cls: type[StaffbaseConfig]) -> StaffbaseConfig: ...
+    @overload
+    def _ensure_config(self, cls: type[JiraConfig]) -> JiraConfig: ...
 
     def _ensure_config(
-        self, cls: type[DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig]
-    ) -> DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig:
+        self,
+        cls: type[
+            DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig | JiraConfig
+        ],
+    ) -> DocusaurusConfig | ConfluenceConfig | WebsiteConfig | GitConfig | MagentaInfosConfig | StaffbaseConfig | JiraConfig:
         if not isinstance(self.config, cls):
             raise TypeError(f"Expected {cls.__name__} but got {type(self.config).__name__}")
         return self.config

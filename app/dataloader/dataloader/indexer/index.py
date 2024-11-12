@@ -269,6 +269,13 @@ class DocumentChunker(ClientManager):
         length = len(all_text)
         start = 0
         end = length
+
+        if (
+            length < max_section_length
+        ):  # otherwise documents with text shorter than max_section_length are dropped, and won't appear in the index
+            yield all_text
+            return
+
         while start + section_overlap < length:
             last_word = -1
             end = start + max_section_length
