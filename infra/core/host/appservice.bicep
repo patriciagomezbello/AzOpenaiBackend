@@ -55,7 +55,6 @@ param minimumElasticInstanceCount int = -1
 param numberOfWorkers int = -1
 param scmDoBuildDuringDeployment bool = false
 param use32BitWorkerProcess bool = false
-param ftpsState string = 'FtpsOnly'
 param healthCheckPath string = ''
 param clientId string = ''
 param tenantId string = ''
@@ -93,7 +92,7 @@ var ipSecurityRestrictions = !empty(ipSecurityRestrictionIp)
     ]
   : []
 
-resource appService 'Microsoft.Web/sites@2022-09-01' = {
+resource appService 'Microsoft.Web/sites@2024-04-01' = {
   name: name
   location: location
   tags: tags
@@ -103,11 +102,13 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     siteConfig: {
       linuxFxVersion: linuxFxVersion
       alwaysOn: alwaysOn
-      ftpsState: ftpsState
+      ftpsState: !empty(ipSecurityRestrictionIp) ? 'Disabled' : 'FtpsOnly'
       appCommandLine: appCommandLine
       numberOfWorkers: numberOfWorkers != -1 ? numberOfWorkers : null
       minimumElasticInstanceCount: minimumElasticInstanceCount != -1 ? minimumElasticInstanceCount : null
-      minTlsVersion: '1.2'
+      minTlsVersion: '1.3'
+      scmMinTlsVersion: '1.3'
+      minTlsCipherSuite: 'TLS_RSA_WITH_AES_256_CBC_SHA256'
       use32BitWorkerProcess: use32BitWorkerProcess
       functionAppScaleLimit: functionAppScaleLimit != -1 ? functionAppScaleLimit : null
       healthCheckPath: healthCheckPath
