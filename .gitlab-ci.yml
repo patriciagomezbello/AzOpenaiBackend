@@ -103,7 +103,7 @@ variables:
 all_start:
   stage: auto_start
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
       when: manual
@@ -114,7 +114,7 @@ all_start:
 app_start:
   stage: auto_start
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "chat" || $CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "pipeline"
       when: manual
@@ -128,6 +128,7 @@ data_start:
   allow_failure: false
   rules:
     - if: $CI_PIPELINE_SOURCE == "trigger"
+      when: always
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULED_TASK == "DataLoad"
       when: always
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -155,7 +156,7 @@ all_task:
     - all_start
   <<: *auth
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - when: always
   script:
@@ -175,7 +176,7 @@ app_task:
     - app_start
   <<: *auth
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - when: always
   script:
@@ -222,7 +223,7 @@ all_terminate:
   stage: all
   <<: *runner_stop
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - when: always
   needs:
@@ -233,7 +234,7 @@ app_terminate:
   stage: app
   <<: *runner_stop
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "trigger"'
       when: never
     - when: always
   needs:
