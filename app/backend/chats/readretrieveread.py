@@ -12,6 +12,7 @@ from services.llm import LLMService
 from services.logger import LOG_SENSITIVE_DATA
 from services.logger import new_logger
 from services.messages.builder import Builder
+from services.prompts._azure_blob import AzurePromptService
 from services.schemas import ChatCompletionsOptions
 from services.schemas import ChatData
 from services.schemas import ContextPrompt
@@ -62,6 +63,7 @@ class ChatReadRetrieveRead(ChatApproach):
         language_service: LanguageProcessingService,
         llm_service: LLMService,
         citation_service: CitationService,
+        prompt_service: AzurePromptService,
     ):
         self.config = cfg
         self.search_svcs: dict[SearchMode, SearchService] = {
@@ -72,6 +74,7 @@ class ChatReadRetrieveRead(ChatApproach):
         self.lang_svc: LanguageService = language_service
         self.llm_svc: LLMService = llm_service
         self.citation_service: CitationService = citation_service
+        self.prompt_service: AzurePromptService = prompt_service
 
     @timer()
     async def run(
@@ -103,6 +106,13 @@ class ChatReadRetrieveRead(ChatApproach):
             # Perform the cognitive search to get the enhanced context for the LLM (RAG data)
             search_res = await search_svc.cognitive_search(search_query, overrides, data.language, roles)
 
+            system_prompt = self.config.chat.settings.answer.system_prompt
+            logger.debug(f"System prompt before override: {system_prompt}")
+
+            if overrides.prompt_id is not None:
+                system_prompt = await self.prompt_service.get_prompt(str(overrides.prompt_id))
+                logger.debug(f"System prompt after override: {system_prompt}")
+
             # Generate the answer with the LLM using the enhanced context
             answer = await self.llm_svc.generate(
                 msgs,
@@ -112,7 +122,7 @@ class ChatReadRetrieveRead(ChatApproach):
                         max_tokens=self.config.chat.settings.answer.max_tokens,
                     ),
                     context_prompt=ContextPrompt(
-                        template=self.config.chat.settings.answer.system_prompt,
+                        template=system_prompt,
                         data=data,
                     ),
                     enhanced_context=search_res,

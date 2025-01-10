@@ -18,6 +18,7 @@ class ErrorProvider:
     )
     AUTHORIZATION = ErrorMessage(403, "you are not authorized to access this resource")
     DOC_NOT_FOUND = ErrorMessage(404, "document not found or not available")
+    PROMPT_NOT_FOUND = ErrorMessage(404, "prompt not found or not available")
     INVALID_JSON = ErrorMessage(415, "request must be json")
     RATE_LIMIT = ErrorMessage(429, "rate limit exceeded")
 

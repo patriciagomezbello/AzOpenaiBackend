@@ -10,6 +10,7 @@ from config.appconfig import OpenAIConfig
 from config.appconfig import SearchConfig
 from config.appconfig import SearchSettings
 from config.appconfig import StorageConfig
+from config.appconfig import TableConfig
 
 __all__ = [
     "GPTConfig",
@@ -24,4 +25,5 @@ __all__ = [
     "AuthConfig",
     "Config",
     "InvalidConfigError",
+    "TableConfig",
 ]
