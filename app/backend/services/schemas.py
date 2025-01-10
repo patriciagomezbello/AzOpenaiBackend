@@ -345,3 +345,46 @@ class FileWrapper:
         self.name = name
         self.mimetype = mimetype
         self.data = data
+
+
+class SavedPrompt:
+    """SavedPrompt represents a saved prompt."""
+
+    def __init__(
+        self,
+        key: str,
+        name: str,
+        prompt: str,
+    ):
+        self.key = key
+        self.name = name
+        self.prompt = prompt
+
+    def __to_dict__(self) -> list[dict]:
+        """__to_dict__ returns the dict representation of the saved prompt."""
+        return [{"key": self.key, "name": self.name, "prompt": self.prompt}]
+
+
+class NewPrompt:
+    """NewPrompt is a model for creating new prompts."""
+
+    name: str
+    prompt: str
+
+    def __init__(
+        self,
+        name: str,
+        prompt: str,
+    ):
+        self.name = name
+        self.prompt = prompt
+
+    def to_dict(self) -> dict:
+        """to_dict converts the dataclass to a dictionary."""
+        return {"name": self.name, "prompt": self.prompt}
+
+    def is_valid(self) -> bool:
+        """is_valid returns whether the new prompt is valid."""
+        if not self.name or not self.prompt:
+            return False
+        return True

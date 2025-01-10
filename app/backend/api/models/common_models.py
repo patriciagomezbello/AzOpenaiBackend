@@ -60,6 +60,10 @@ class Overrides:
     """search_span is the search span for the search service.
     This is only used for the extended search mode.
     """
+    prompt_id: Optional[str] = None
+    """prompt_id is the prompt ID which sets the system prompt.
+    This is only used when the user want to use a prompt from the prompt library.
+    """
 
     def __post_init__(self):
         self.retrieval_mode = self.retrieval_mode or ""
@@ -74,6 +78,7 @@ class Overrides:
         except ValueError:
             self.search_mode = SearchMode.DEFAULT
         self.search_span = self.search_span or None
+        self.prompt_id = self.prompt_id or None
 
     def fill_defaults(self, defaults: "Overrides") -> "Overrides":
         """fill_defaults can be used to fill in the missing values with the default values."""
@@ -101,4 +106,5 @@ class Overrides:
             "multilingual_search": self.multilingual_search,
             "search_mode": self.search_mode.value,
             "search_span": self.search_span,
+            "prompt_id": self.prompt_id,
         }

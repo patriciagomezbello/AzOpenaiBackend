@@ -33,6 +33,7 @@ tiktoken = "^0.7.0"
 uvicorn = { extras = ["standard"], version = "^0.29.0" }
 pyyaml = "^6.0.1"
 dependency-injector = "^4.42.0b1"
+azure-data-tables = "^12.6.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

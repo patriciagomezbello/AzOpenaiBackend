@@ -22,6 +22,7 @@ from services.auth import secure_endpoint
 from services.auth._interface import AuthService
 from services.logger import new_logger
 from services.logger._custom import LOG_SENSITIVE_DATA
+from services.prompts._azure_blob import PromptNotFoundError
 
 
 logger = new_logger(__name__)
@@ -89,6 +90,9 @@ async def chat(
         if isinstance(e, ResourceNotFoundError):
             logger.warning("Resource not found", {"error": str(e)})
             return ErrorProvider.error_response(e.message, e.status_code if e.status_code else 503)
+        if isinstance(e, PromptNotFoundError):
+            logger.warning("Invalid request. Prompt could not be found", {"error": str(e)})
+            return ErrorProvider.error_response_with_message(ErrorProvider.PROMPT_NOT_FOUND)
 
         logger.exception("Error while processing chat request", {"error": str(e)})
         return ErrorProvider.error_response("error while processing chat request", 500, error=e)

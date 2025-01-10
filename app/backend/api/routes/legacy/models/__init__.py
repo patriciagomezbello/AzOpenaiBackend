@@ -7,6 +7,9 @@ from .content_models import ContentQueryString
 from .content_models import ContentResponse
 from .feedback_models import FeedbackRequest
 from .feedback_models import FeedbackResponse
+from .prompt_models import PromptCreationResponse
+from .prompt_models import PromptRequest
+from .prompt_models import PromptResponse
 
 __all__ = [
     "CategoryResponse",
@@ -18,4 +21,7 @@ __all__ = [
     "DataPointDTO",
     "ContentResponse",
     "ContentQueryString",
+    "PromptResponse",
+    "PromptCreationResponse",
+    "PromptRequest",
 ]

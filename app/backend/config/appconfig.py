@@ -101,18 +101,33 @@ class StorageConfig:
 
 
 @dataclass
+class TableConfig:
+    """TableConfig is a class that holds the configuration for the Azure tables."""
+
+    table_name: str = "promptTable"
+    account: str = os.getenv("AZURE_STORAGE_ACCOUNT", "")
+
+    def validate(self) -> None:
+        """validate validates the configuration."""
+        if self.account == "":
+            raise InvalidConfigError("AZURE_STORAGE_ACCOUNT is required")
+
+
+@dataclass
 class AzureConfig:
     """AzureConfig is a class that holds the configuration for the Azure services."""
 
     openai: OpenAIConfig = field(default_factory=OpenAIConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
+    table: TableConfig = field(default_factory=TableConfig)
 
     def validate(self) -> None:
         """validate validates the configuration."""
         self.openai.validate()
         self.search.validate()
         self.storage.validate()
+        self.table.validate()
 
 
 @dataclass
