@@ -5,10 +5,9 @@ from dataclasses import dataclass
 class Prompt:
     """Prompt represents the prompt data stored in the azure storage table."""
 
-    PartitionKey: str
-    RowKey: str
-    Prompt: str
-    PromptName: str
+    key: str
+    name: str
+    prompt: str
 
 
 @dataclass
