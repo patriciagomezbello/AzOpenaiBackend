@@ -360,9 +360,9 @@ class SavedPrompt:
         self.name = name
         self.prompt = prompt
 
-    def __to_dict__(self) -> list[dict]:
+    def __to_dict__(self) -> dict:
         """__to_dict__ returns the dict representation of the saved prompt."""
-        return [{"key": self.key, "name": self.name, "prompt": self.prompt}]
+        return {"key": self.key, "name": self.name, "prompt": self.prompt}
 
 
 class NewPrompt:
