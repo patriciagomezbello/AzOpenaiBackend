@@ -1,4 +1,5 @@
 #!/bin/sh
+set -euo pipefail
 
 echo ""
 echo "Loading azd .env file from current environment"

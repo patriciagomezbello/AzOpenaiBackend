@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 function prepareLocalFiles {
   # Setup git credentials to be able to authenticate with the repository

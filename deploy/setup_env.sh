@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -euo pipefail
 
 # extract ENV_NAME from Environment (.env)
 line=$(grep "AZURE_ENV_NAME=" "$ENVIRONMENT")
