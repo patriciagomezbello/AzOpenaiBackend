@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Define variables
 CI_VARIABLE_NAME="ENVIRONMENT"

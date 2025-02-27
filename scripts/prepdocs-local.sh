@@ -1,4 +1,5 @@
 #!/bin/sh
+set -euo pipefail
 
 # Unfortunately, the environment variables cannot be exported by the Makefile
 # so we need this script to load the environment variables from the azd environment
