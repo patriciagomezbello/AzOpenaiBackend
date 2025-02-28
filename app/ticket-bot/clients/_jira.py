@@ -1,23 +1,26 @@
+import base64
 import logging
+import os
 from abc import ABC
 from abc import abstractmethod
 from typing import cast
+from typing import Generator
+from typing import List
 from typing import Optional
-from typing import Sequence
 
+import pycountry
 import requests
+from _openai import OpenAIClient
 from azure.identity.aio import DefaultAzureCredential
-from dataloader.cli.core.parser import ParsedArgs
-from dataloader.cli.core.service import Service
-from dataloader.cli.core.utils import defer
-from dataloader.cli.models.config import CLIConfig
-from dataloader.dataloader.indexer import Indexer
-from dataloader.dataloader.indexer.models.document import DocumentInfo
-from dataloader.dataloader.loaders.blob import BlobInteractor
+from azure.search.documents.aio import SearchClient
 from jira import Issue
 from jira import JIRA
 from jira.client import ResultList
 from jira.resources import Comment
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from lingua import Language
+from lingua import LanguageDetector
+from lingua import LanguageDetectorBuilder
 
 
 class Jira(ABC):
@@ -53,11 +56,13 @@ class Jira(ABC):
 
 
 class JiraClient(Jira):
-    def __init__(self, server, username, token):
+    def __init__(self, server: str, username: str, token: str, openai_client: OpenAIClient, simulate: bool):
         self.server = server
         self.username = username
         self.token = token
         self.jira = self._authenticate()
+        self.openai_client = openai_client
+        self.simulate = simulate
 
     def _authenticate(self):
         """
@@ -291,7 +296,42 @@ class JiraClient(Jira):
         finally:
             return answered_tickets
 
-    async def index_answered_tickets(self, answered_tickets: list[str], args: ParsedArgs) -> None:
+    def _url_to_id(self, url: str, counter_dict: dict[str, int]):
+        # check if url is already in counter_dict, if not, add it and initialize with 0
+        if counter_dict.get(url) is not None:
+            counter_dict[url] += 1
+        else:
+            counter_dict[url] = 0
+
+        # add counter value and increase counter in counter_dict for the source
+
+        url_hash = base64.b16encode(url.encode("utf-8")).decode("ascii")
+        return f"url-{url_hash}-{str(counter_dict[url])}"
+
+    def _split_text(
+        self, document_map: List[tuple[str, str, str]], section_overlap=100, max_section_length=1500
+    ) -> Generator[tuple[str, str, str]]:
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=max_section_length,
+            chunk_overlap=section_overlap,
+        )
+
+        for val in document_map:
+            s_text = splitter.split_text(val[2])
+            for text in s_text:
+                yield (val[0], val[1], text)
+
+    def _detect_lang(self, text: str, detector, defaultLang="de"):
+        try:
+            lang = str(detector.detect_language_of(text))
+            language = lang.split(".")[1].capitalize()
+            iso_lang = pycountry.languages.get(name=language).alpha_2
+            return iso_lang
+        except Exception as e:
+            print(e)
+            return defaultLang
+
+    async def index_answered_tickets(self, answered_tickets: list[str], search_service: str, search_index: str) -> None:
         """
         Indexes the answered tickets.
 
@@ -302,38 +342,84 @@ class JiraClient(Jira):
         None.
         """
         try:
-            credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
-            config = CLIConfig.load(args)
+            if len(answered_tickets) == 0:
+                logging.info("No answered tickets found.")
+                return
 
-            service = Service(
-                BlobInteractor(account=config.storage_account, container=config.docs_container, credential=credential),
-                Indexer(config=config.indexer_config, credential=credential),
-                config,
+            credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
+            search_client = SearchClient(
+                endpoint=f"https://{search_service}.search.windows.net/",
+                index_name=search_index,
+                credential=credential,
             )
 
-            async with defer(service.close, lambda e: logging.exception(f"An error occurred while running the data loader: {e}")):
-                documents: Sequence[DocumentInfo] = []
-                summary: dict[str, int] = {}
-
-                docs, sum = await service.load_lc_mode()
-                documents.extend(docs)
-                summary.update(sum)
-
-                await service.purge_chunk_corpses(summary=summary)
-
-            documents = []
+            documents: list[tuple[str, str, str]] = []
             for ticket_id in answered_tickets:
-                summary, description, status, assignee, comments = self.read_ticket(ticket_id)
-                document = {
-                    "ticket_id": ticket_id,
-                    "summary": summary,
-                    "description": description,
-                    "status": status,
-                    "assignee": assignee,
-                    "last_comment": comments[-1].body,
-                }
-                documents.append(DocumentInfo(**document))
-                await service.indexer.index_documents(documents=documents)
+                summary, description, _, _, comments = self.read_ticket(ticket_id)
+
+                link = f"{self.server}/browse/{ticket_id}"  # TODO: check correct link
+
+                document: tuple[str, str, str] = (
+                    link,
+                    f"{self.server}/browse",
+                    f" Issue: {description} \n\n, Summary: {summary} \n\n Solution and comments: {comments}",
+                )
+
+                documents.append(document)
+
+            for doc in documents:
+                exists = await search_client.get_document(key=self._url_to_id(doc[0], {}))
+                if not exists:
+                    logging.info("Document already exists in the index, will be removed for indexing")
+                    documents.remove(doc)
+
+            # build languages for usage
+            detector: LanguageDetector = LanguageDetectorBuilder.from_languages(
+                Language.ENGLISH,
+                Language.GERMAN,
+            ).build()
+
+            counter_dict: dict[str, int] = {}
+
+            for _, (source, base, section) in enumerate(
+                self._split_text(
+                    document_map=documents,
+                )
+            ):
+
+                id = self._url_to_id(source, counter_dict)
+
+                # Attempt to create an OpenAI Embedding for the input text section
+                if self.simulate:
+                    logging.info(f"Simulating indexing section {id} from source {source} with content: \n\n {section}")
+                    break
+
+                emb = await self.openai_client.create_embedding(text=section)
+
+                if emb is not None:
+                    # Return a dictionary with the processed section details, like id, content, embedding, etc.
+                    # if category is None or role_config is None:
+                    #     roles = ["public"]
+                    # else:
+                    #     roles = role_config.get(category, ["public"])
+                    roles = ["public"]
+                    category = os.getenv("JIRA_CATEGORY", None)  # TODO: check to get ticket category
+
+                    section = {
+                        "id": id,
+                        "content": section,
+                        "embedding": emb,
+                        "doclang": self._detect_lang(text=section, detector=detector),
+                        "category": category,
+                        "roles": roles,
+                        "sourcepage": source,
+                        "sourcefile": base,
+                    }
+                else:
+                    raise ValueError("No embedding was created")
+
+                await search_client.upload_documents(documents=[section])
+
         except Exception as e:
             logging.error(f"An error occurred while indexing the answered tickets: {e}")
             raise

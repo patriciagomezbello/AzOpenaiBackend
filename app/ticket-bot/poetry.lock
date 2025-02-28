@@ -276,13 +276,13 @@ typing-extensions = ">=4.0.0"
 
 [[package]]
 name = "azure-search-documents"
-version = "11.5.1"
+version = "11.5.2"
 description = "Microsoft Azure Cognitive Search Client Library for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "azure_search_documents-11.5.1-py3-none-any.whl", hash = "sha256:132738195aa7a6d602a6ac1c52cc3cbc9d64edf401f75153cec2f6b0b8c9fe46"},
-    {file = "azure_search_documents-11.5.1.tar.gz", hash = "sha256:573e493807ec98db954871986f6105bc66e4ad7e2e7477c5ba2127f8fbf8546b"},
+    {file = "azure_search_documents-11.5.2-py3-none-any.whl", hash = "sha256:c949d011008a4b0bcee3db91132741b4e4d50ddb3f7e2f48944d949d4b413b11"},
+    {file = "azure_search_documents-11.5.2.tar.gz", hash = "sha256:98977dd1fa4978d3b7d8891a0856b3becb6f02cc07ff2e1ea40b9c7254ada315"},
 ]
 
 [package.dependencies]
@@ -2431,17 +2431,6 @@ telegram = ["requests"]
 
 [[package]]
 name = "typing-extensions"
-version = "4.12.0"
-description = "Backported and Experimental Type Hints for Python 3.8+"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "typing_extensions-4.12.0-py3-none-any.whl", hash = "sha256:b349c66bea9016ac22978d800cfff206d5f9816951f12a7d0ec5578b0a819594"},
-    {file = "typing_extensions-4.12.0.tar.gz", hash = "sha256:8cbcdc8606ebcb0d95453ad7dc5065e6237b6aa230a31e81d0f440c30fed5fd8"},
-]
-
-[[package]]
-name = "typing-extensions"
 version = "4.12.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
 optional = false
@@ -2661,4 +2650,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "ec0a731892799c04fcf0bfbee7a71ea731a56ecd22948923189ea885762f2106"
+content-hash = "f775b95c8e296e98d2464efa7592575ce2c4115772521f049e5709eeed02c313"

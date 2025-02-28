@@ -34,6 +34,7 @@ mate_label_system_messages: list[str] = ast.literal_eval(os.environ.get("OPENAI_
 azure_openai_service = os.environ.get("AZURE_OPENAI_SERVICE")
 api_version = os.environ.get("AZURE_OPENAI_API_VERSION") or "2023-09-15-preview"
 model = os.environ.get("OPENAI_MODEL", "gpt-4o")
+embedding_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "embedding")
 jira_mate_tenant_id = os.environ.get("AZURE_TENANT_ID")
 jira_mate_sp_client_di = os.environ.get("JIRA_MATE_SP_CLIENT_ID")
 jira_mate_secret = os.environ.get("JIRA_MATE_SECRET")
@@ -62,7 +63,9 @@ else:
     )
 
 
-async def categorize_content(message_text: str, system_messages: List[str] = [], openai_max_message_length: int = 1000):
+async def categorize_content(
+    message_text: str, openai_client, system_messages: List[str] = [], openai_max_message_length: int = 1000
+):
     """
     The categorize_content function is a custom function designed to categorize the content of a message
     according to the system messages.
@@ -88,11 +91,7 @@ async def categorize_content(message_text: str, system_messages: List[str] = [],
     first message in the list, the response is also set as the ai_search_filter. Finally, the OpenAIClient
     is closed and the function returns the ai_search_filter and the category.
     """
-    openai_client = OpenAIClient(
-        azure_openai_service=azure_openai_service,
-        api_version=api_version,
-        model=model,
-    )
+
     category = None
     ai_search_filter = None
 
@@ -109,7 +108,6 @@ async def categorize_content(message_text: str, system_messages: List[str] = [],
         if i == 0:
             ai_search_filter = openai_category_response
             i += 1
-    await openai_client.close()
     return ai_search_filter, category
 
 
@@ -133,9 +131,18 @@ async def main():
     if jira_server is None or jira_username is None or jira_token is None or jira_jql is None:
         raise ValueError("JIRA_SERVER, JIRA_USERNAME, JIRA_TOKEN, and JIRA_JQL must be set")
 
+    logging.info("Authenticating OpenAI client")
+    openai_client: OpenAIClient = OpenAIClient(
+        azure_openai_service=azure_openai_service,
+        api_version=api_version,
+        embedding_model=embedding_model,
+        model=model,
+    )
     # Authenticate and initialize the Jira client
     logging.info("Authenticating Jira client")
-    jira_client = JiraClient(server=jira_server, username=jira_username, token=jira_token)
+    jira_client = JiraClient(
+        server=jira_server, username=jira_username, token=jira_token, openai_client=openai_client, simulate=SIMULATE
+    )
     logging.info("Authenticating Mate client")
     mate_client = MateClient(
         jira_mate_tenant_id,
@@ -143,12 +150,6 @@ async def main():
         jira_mate_secret,
         jira_mate_scope,
         mate_backend_url,
-    )
-    logging.info("Authenticating OpenAI client")
-    openai_client = OpenAIClient(
-        azure_openai_service=azure_openai_service,
-        api_version=api_version,
-        model=model,
     )
     # Get categories from Mate
     logging.info("Getting Mate categories")
@@ -201,7 +202,7 @@ async def main():
 
             if len(mate_label_system_messages) > 0 and len(mate_label_system_messages) < 11:
                 (ai_search_category_filter, categories) = await categorize_content(
-                    system_messages=mate_label_system_messages, message_text=openai_summarized_issue
+                    system_messages=mate_label_system_messages, openai_client=openai_client, message_text=openai_summarized_issue
                 )
                 logging.info(f"Mate categories are {categories}")
                 mate_category_filter = next(
@@ -348,6 +349,23 @@ async def main():
                         logging.warning(
                             f"Transitioning issue {issue.key} failed, because it may transitioned already automatically -- please check the issue in Jira."  # noqa
                         )
+    logging.info("Ticket bot finished")
+
+    if str.lower(os.getenv("AUTOMATIC_LEARNING", "false")) == "true":
+        logging.info("Automatic Learning from answered tickets")
+
+        answered_tickets = jira_client.identify_answered_tickets(
+            str.lower(os.getenv("JIRA_ANSWERED_TICKET_KEYWORD", "goodanswerbyccoe"))
+        )
+
+        await jira_client.index_answered_tickets(
+            answered_tickets,
+            search_index=os.getenv("AZURE_SEARCH_INDEX", "gptkbindex"),
+            search_service=os.getenv("AZURE_SEARCH_SERVICE", "service"),
+        )
+    else:
+        logging.info("Automatic Learning is disabled")
+
     await openai_client.close()
 
 
