@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
 # extract ENV_NAME from Environment (.env)
 line=$(grep "AZURE_ENV_NAME=" "$ENVIRONMENT")
@@ -60,7 +60,9 @@ fi
 cp $CONTEXT app/backend/core/context.py
 
 # Copy Abbrevations
-cp $ABBREV app/backend/core/abbrev.csv
+if [ -n "${ABBREV}" ]; then
+  cp $ABBREV app/backend/core/abbrev.csv
+fi
 
 #navigate there
 cd app/backend/core
@@ -96,10 +98,11 @@ else
     echo "}" >> $python_file
 fi
 
-echo "Abbreviations dictionary exported to $python_file"
+echo "Abbreviations dictionary exported to '$python_file'"
 
-ls
-
-rm abbrev.csv
-
-cd ../../../
+if [[ -f "$csv_file" ]]; then
+  rm "$csv_file"
+  echo "File '$csv_file' has been removed."
+else
+  echo "File '$csv_file' does not exist."
+fi

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
 function prepareLocalFiles {
   # Setup git credentials to be able to authenticate with the repository
@@ -89,7 +89,9 @@ fi
 
 
 if [[ $DATA_PROCESS == "v2" ]]; then
-    cp $ROLE_CONFIG ./app/dataloader/role_config.json
+    if [ -n "${ROLE_CONFIG}" ]; then
+      cp $ROLE_CONFIG ./app/dataloader/role_config.json
+    fi
     cd app/dataloader
     ./start.sh
     cd ../..
@@ -98,7 +100,9 @@ if [[ $DATA_PROCESS == "v2" ]]; then
     rm -rf app/dataloader/role_config.json
     rm -rf app/dataloader/data
 else
-    cp $ROLE_CONFIG role_config.json
+    if [ -n "${ROLE_CONFIG}" ]; then
+      cp $ROLE_CONFIG role_config.json
+    fi
     ./scripts/prepdocs.sh
     echo "Cleaning up..."
     rm -rf langchain_config.json
