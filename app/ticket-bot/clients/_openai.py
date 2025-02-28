@@ -30,6 +30,7 @@ class OpenAIClient:
         self,
         azure_openai_service,
         model,
+        embedding_model,
         api_version="2023-09-15-preview",
     ):
         """
@@ -44,6 +45,7 @@ class OpenAIClient:
         """
         print(f"Initializing OpenAIClient with host: {azure_openai_service}")
         self.model = model
+        self.embedding_model = embedding_model
         self.azure_openai_service = azure_openai_service
 
         self.azure_credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
@@ -99,6 +101,19 @@ class OpenAIClient:
             else:
                 logging.critical(f"ERROR: {e}")
                 raise
+
+    async def create_embedding(self, text: str):
+        """get_embedding method sends a message to the OpenAI API and receives a response."""
+        try:
+            response = await self.openaiClient.embeddings.create(
+                model=self.embedding_model,
+                input=text,
+            )
+            return response.data[0].embedding
+
+        except Exception as e:
+            logging.critical(f"ERROR: {e}")
+            raise
 
     async def close(self):
         await self.openaiClient.close()

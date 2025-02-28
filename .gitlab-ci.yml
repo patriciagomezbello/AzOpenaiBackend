@@ -229,8 +229,7 @@ ticket_bot_task:
   script:
     - bash ./deploy/setup_env.sh
     - . $ENVIRONMENT
-    - cd app/ticket-bot
-    - python main.py
+    - python app/ticket-bot/main.py
   tags:
     - $RUNNER_TAG
   rules:

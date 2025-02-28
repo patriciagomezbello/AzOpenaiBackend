@@ -17,6 +17,9 @@ msal = "1.28.0"
 openai = "1.40.2"
 requests = "2.31.0"
 dataloader = {path = "../dataloader"}
+pycountry = "^24.6.1"
+azure-search-documents = "^11.5.2"
+lingua-language-detector = "^2.0.2"
 
 [build-system]
 requires = ["poetry-core"]
