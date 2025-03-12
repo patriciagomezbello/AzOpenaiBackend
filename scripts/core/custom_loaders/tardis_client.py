@@ -4,6 +4,7 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import TypedDict
+from urllib.parse import urljoin
 
 import requests
 
@@ -59,10 +60,7 @@ class TardisClient:
         kwargs["headers"] = headers
 
         url = self.api_url
-
-        if not endpoint.startswith("/"):
-            endpoint = f"/{endpoint}"
-        url_with_endpoint: str = f"{url}{endpoint}"
+        url_with_endpoint: str = urljoin(url, endpoint)
 
         response = requests.request(method, url_with_endpoint, **kwargs)
         return response
