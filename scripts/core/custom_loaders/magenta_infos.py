@@ -99,6 +99,10 @@ class MagentaInfosClient:
         self.page = page
         self.type: DocumentType | None = type
 
+    def get_categories(self, endpoint: str) -> List[Category]:
+        response = self.api_client.get(endpoint)
+        return response.json()
+
     def get_document_list(
         self,
         category: str,
@@ -159,7 +163,7 @@ class MagentaInfosClient:
         for document in document_list:
             data = {"id": document["id"], "type": document["type"]}
             try:
-                response = self.api_client.post("/document", json=data).json()
+                response = self.api_client.post("/document", json=data)
             except HTTPError as e:
                 if e.response.status_code != 404:
                     print(e)
@@ -176,7 +180,7 @@ class MagentaInfosClient:
 
     def _build_url(self, document_id: str, document_type: str) -> str:
 
-        parsed_url = urlparse(self.api_url)
+        parsed_url = urlparse(self.api_client.api_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
         return f"{base_url}/{document_type}/{document_id}"
