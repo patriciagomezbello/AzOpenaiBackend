@@ -4,13 +4,12 @@ import os
 from abc import ABC
 from abc import abstractmethod
 from typing import cast
-from typing import Generator
 from typing import List
 from typing import Optional
 
 import pycountry
 import requests
-from _openai import OpenAIClient
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity.aio import DefaultAzureCredential
 from azure.search.documents.aio import SearchClient
 from jira import Issue
@@ -21,6 +20,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lingua import Language
 from lingua import LanguageDetector
 from lingua import LanguageDetectorBuilder
+
+from ._openai import OpenAIClient
 
 
 class Jira(ABC):
@@ -214,7 +215,6 @@ class JiraClient(Jira):
             if comments:
                 return comments[-1].body
             else:
-                logging.error(f"No comments found for issue {issue_id}.")
                 return None
         except Exception as e:
             logging.error(f"An error occurred while retrieving the comment: {e}")
@@ -266,7 +266,7 @@ class JiraClient(Jira):
             logging.error(e)
             raise
 
-    def identify_answered_tickets(self, keyword: str) -> list[str]:
+    def identify_answered_tickets(self, keyword: str) -> List[tuple[str, str]]:
         """
         Identifies if a ticket has been answered by checking the last comment.
 
@@ -289,7 +289,7 @@ class JiraClient(Jira):
                 if keyword not in last_comment:
                     continue
                 logging.info(f"Identified answered ticket: {issue.key}")
-                answered_tickets.append(issue.id)
+                answered_tickets.append((issue.id, issue.key))
 
         except Exception as e:
             logging.error(f"An error occurred while identifying the answered ticket: {e}")
@@ -308,9 +308,7 @@ class JiraClient(Jira):
         url_hash = base64.b16encode(url.encode("utf-8")).decode("ascii")
         return f"url-{url_hash}-{str(counter_dict[url])}"
 
-    def _split_text(
-        self, document_map: List[tuple[str, str, str]], section_overlap=100, max_section_length=1500
-    ) -> Generator[tuple[str, str, str]]:
+    def _split_text(self, document_map: List[tuple[str, str, str]], section_overlap=100, max_section_length=1500):
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=max_section_length,
             chunk_overlap=section_overlap,
@@ -331,7 +329,9 @@ class JiraClient(Jira):
             print(e)
             return defaultLang
 
-    async def index_answered_tickets(self, answered_tickets: list[str], search_service: str, search_index: str) -> None:
+    async def index_answered_tickets(
+        self, answered_tickets: list[tuple[str, str]], search_service: str, search_index: str, keyword: str
+    ):
         """
         Indexes the answered tickets.
 
@@ -346,30 +346,59 @@ class JiraClient(Jira):
                 logging.info("No answered tickets found.")
                 return
 
-            credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
+            credential = DefaultAzureCredential(
+                exclude_shared_token_cache_credential=True,
+                exclude_managed_identity_credential=True,
+                exclude_workload_identity_credential=True,
+            )
+
+            logging.info(f"search service {search_service}, search index: {search_index}")
+
             search_client = SearchClient(
-                endpoint=f"https://{search_service}.search.windows.net/",
+                endpoint=f"https://{search_service}.search.windows.net",
                 index_name=search_index,
                 credential=credential,
             )
 
             documents: list[tuple[str, str, str]] = []
-            for ticket_id in answered_tickets:
+            for ticket_id, ticket_key in answered_tickets:
                 summary, description, _, _, comments = self.read_ticket(ticket_id)
 
-                link = f"{self.server}/browse/{ticket_id}"  # TODO: check correct link
+                comments_text = ""
+
+                for comment in comments:
+
+                    # skip automatic jira comment
+                    if "This issue requires your attention" in comment.body:
+                        continue
+                    if keyword in comment.body:
+                        final_comment = comment.body.replace(keyword, "")
+                        comments_text += f"{final_comment}"
+                        break
+                    else:
+                        comments_text += f"{comment.body}\n\n"
+
+                link = f"{self.server}/servicedesk/customer/portal/301/{ticket_key}"  # TODO: parameterise
 
                 document: tuple[str, str, str] = (
                     link,
                     f"{self.server}/browse",
-                    f" Issue: {description} \n\n, Summary: {summary} \n\n Solution and comments: {comments}",
+                    f"Issue: {description} \n\n Summary: {summary} \n\n Solution and comments: {comments_text}",
                 )
 
                 documents.append(document)
 
             for doc in documents:
-                exists = await search_client.get_document(key=self._url_to_id(doc[0], {}))
-                if not exists:
+                try:
+                    exists = await search_client.get_document(key=self._url_to_id(doc[0], {}))
+                except ResourceNotFoundError:
+                    logging.info(f"Document with id{self._url_to_id(doc[0], {})} does not exist in the index")
+                    exists = None
+                except Exception as e:
+                    logging.error(f"An error occurred while checking if the document exists: {e}")
+                    raise e
+
+                if exists:
                     logging.info("Document already exists in the index, will be removed for indexing")
                     documents.remove(doc)
 
@@ -391,7 +420,7 @@ class JiraClient(Jira):
 
                 # Attempt to create an OpenAI Embedding for the input text section
                 if self.simulate:
-                    logging.info(f"Simulating indexing section {id} from source {source} with content: \n\n {section}")
+                    logging.info(f"Simulating indexing section {id} from source {source} \n\ncontent: \n\n {section}")
                     break
 
                 emb = await self.openai_client.create_embedding(text=section)
@@ -420,6 +449,14 @@ class JiraClient(Jira):
 
                 await search_client.upload_documents(documents=[section])
 
+            await credential.close()
+            await search_client.close()
+
         except Exception as e:
             logging.error(f"An error occurred while indexing the answered tickets: {e}")
+            await credential.close()
+            await search_client.close()
             raise
+
+    def close(self):
+        self.jira.close()

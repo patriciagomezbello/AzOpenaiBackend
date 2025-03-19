@@ -7,11 +7,10 @@ import tempfile
 from typing import List
 from urllib.parse import quote
 
+from bot_clients import JiraClient
+from bot_clients import MateClient
+from bot_clients import OpenAIClient
 from jira import Issue
-
-from .clients import JiraClient
-from .clients import MateClient
-from .clients import OpenAIClient
 
 
 def str_to_bool(s: str) -> bool:
@@ -25,29 +24,32 @@ def str_to_bool(s: str) -> bool:
 
 
 # Geeting environment variables
-jira_server = os.environ.get("JIRA_SERVER")
-jira_username = os.environ.get("JIRA_USERNAME")
-jira_token = os.environ.get("JIRA_TOKEN")
-jira_jql = os.environ.get("JIRA_JQL")
-jira_categorization_field = os.environ.get("JIRA_CATEGORIZATION_FIELD")
-mate_label_system_messages: list[str] = ast.literal_eval(os.environ.get("OPENAI_CATEGORIZE_MESSAGES", "")) or []
-azure_openai_service = os.environ.get("AZURE_OPENAI_SERVICE")
-api_version = os.environ.get("AZURE_OPENAI_API_VERSION") or "2023-09-15-preview"
-model = os.environ.get("OPENAI_MODEL", "gpt-4o")
-embedding_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "embedding")
-jira_mate_tenant_id = os.environ.get("AZURE_TENANT_ID")
-jira_mate_sp_client_di = os.environ.get("JIRA_MATE_SP_CLIENT_ID")
-jira_mate_secret = os.environ.get("JIRA_MATE_SECRET")
-jira_mate_scope = os.environ.get("JIRA_MATE_SCOPE")
-jira_transition_name = os.environ.get("JIRA_TRANSITION_NAME")
-openai_max_message_length = int(os.environ.get("OPENAI_MAX_MESSAGE_LENGTH", "1000"))
-jira_message_text = os.environ.get("JIRA_MESSAGE_TEXT")
-excluded_categories = ast.literal_eval(os.environ.get("EXCLUDED_CATEGORIES", "")) or []
-mate_filter_label_mapping = ast.literal_eval(os.environ.get("MATE_CATEGORY_FILTER_TO_PROMPT_LABELS", "")) or {}
-jira_transition_name_if_unable_to_assist = os.environ.get("JIRA_TRANSITION_NAME_IF_UNABLE_TO_ASSIST", "")
-mate_backend_url = os.environ.get("BACKEND_URI")
-SIMULATE = str_to_bool(os.environ.get("SIMULATE", "true"))
-DEBUG_MODE = bool(os.environ.get("DEBUG_MODE")) or False
+jira_server = os.getenv("JIRA_SERVER")
+jira_username = os.getenv("JIRA_USERNAME")
+jira_token = os.getenv("JIRA_TOKEN")
+jira_jql = os.getenv("JIRA_JQL")
+jira_categorization_field = os.getenv("JIRA_CATEGORIZATION_FIELD")
+mate_label_system_messages: list[str] = ast.literal_eval(os.getenv("OPENAI_CATEGORIZE_MESSAGES", "")) or []
+azure_openai_service = os.getenv("AZURE_OPENAI_SERVICE")
+api_version = os.getenv("AZURE_OPENAI_API_VERSION") or "2023-09-15-preview"
+model = os.getenv("OPENAI_MODEL", "gpt-4o")
+embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "embedding")
+jira_mate_tenant_id = os.getenv("AZURE_TENANT_ID")
+jira_mate_sp_client_di = os.getenv("JIRA_MATE_SP_CLIENT_ID")
+jira_mate_secret = os.getenv("JIRA_MATE_SECRET")
+jira_mate_scope = os.getenv("JIRA_MATE_SCOPE")
+jira_transition_name = os.getenv("JIRA_TRANSITION_NAME")
+openai_max_message_length = int(os.getenv("OPENAI_MAX_MESSAGE_LENGTH", "1000"))
+jira_message_text = os.getenv("JIRA_MESSAGE_TEXT")
+excluded_categories = ast.literal_eval(os.getenv("EXCLUDED_CATEGORIES", "")) or []
+mate_filter_label_mapping = ast.literal_eval(os.getenv("MATE_CATEGORY_FILTER_TO_PROMPT_LABELS", "")) or {}
+jira_transition_name_if_unable_to_assist = os.getenv("JIRA_TRANSITION_NAME_IF_UNABLE_TO_ASSIST", "")
+mate_backend_url = os.getenv("BACKEND_URI")
+search_index = os.getenv("AZURE_SEARCH_INDEX")
+search_service = os.getenv("AZURE_SEARCH_SERVICE")
+
+SIMULATE = str_to_bool(os.getenv("SIMULATE", "true"))
+DEBUG_MODE = bool(os.getenv("DEBUG_MODE")) or False
 
 if DEBUG_MODE:
     logging.basicConfig(
@@ -155,16 +157,22 @@ async def main():
     logging.info("Getting Mate categories")
     mate_categories = json.loads(mate_client.get_mate_categories())["categories"]
     # Get the issues from Jira
-    logging.info(f"Getting issues from Jira with JQL {jira_jql}")
-    issues = jira_client.get_issues(jira_jql)
 
-    # Loop through the issues
-    for issue in issues:
-        if isinstance(issue, Issue):
+    if str.lower(os.getenv("SKIP_ANSWERING", "false")) == "true":
+        logging.info("Skipping answering tickets\n\n")
+    else:
+        logging.info(f"Getting issues from Jira with JQL {jira_jql}\n\n")
+        issues = jira_client.get_issues(jira_jql)
+        # Loop through the issues
+        for issue in issues:
+            if not isinstance(issue, Issue):
+                logging.warning(f"Skipping issue {issue} because it is not an instance of Jira Issue")
+                continue
+
             transition_to_an_agent = False
             categorization_input = None
             issue_contains_enough_detailed_information = None
-            logging.info(f"Processing issue {issue.key}")
+            logging.info(f"\n\n -----> Processing issue {issue.key} \n\n")
 
             if jira_categorization_field is not None:
                 categorization_input = issue
@@ -176,14 +184,14 @@ async def main():
                     else:
                         break
 
-            if jira_client.get_last_comment(issue.key) is not None:
-                last_comment = str(jira_client.get_last_comment(issue.key))
-                description = str(jira_client.read_ticket(issue.key)[1])
-                categorization_input = last_comment + " " + description
+            last_comment_content = jira_client.get_last_comment(issue.key)
+            description = str(jira_client.read_ticket(issue.key)[1])
+            if last_comment_content is not None:
+                last_comment = str(last_comment_content)
+                categorization_input = f"{last_comment}  {description}"
                 logging.debug(f"Categorization input for issue {issue.key} is {categorization_input}")
-
             else:
-                description = str(jira_client.read_ticket(issue.key)[1])
+                logging.info("No comments found for the issue")
                 categorization_input = description
                 logging.debug(f"Categorization input for issue {issue.key} is {categorization_input}")
 
@@ -197,6 +205,9 @@ async def main():
                 message_text=categorization_input,
                 openai_max_message_length=openai_max_message_length,
             )
+
+            if not openai_summarized_issue:
+                raise ValueError(f"Unable to summarize issue {issue.key}")
 
             logging.debug(f"Summarized issue for issue {issue.key} is {openai_summarized_issue}")
 
@@ -240,6 +251,9 @@ async def main():
                     message_text=mate_response["answer"],
                     openai_max_message_length=openai_max_message_length,
                 )
+
+                if not mate_response_evaluation:
+                    raise ValueError(f"Unable to evaluate Mate response for issue {issue.key}")
 
                 logging.debug(f"Mate response evaluation for issue {issue.key} is {mate_response_evaluation}")
                 sources = ""
@@ -299,7 +313,7 @@ async def main():
     {'='*50}"""
                 if SIMULATE:
                     logging.info(f"Simulating issue {issue.key} - not adding comment to the issue or transitioning issue")
-                    print(issue_response_text)
+                    logging.info(issue_response_text)
                 else:
                     try:
                         jira_client.add_comment(issue.key, issue_response_text)
@@ -349,24 +363,29 @@ async def main():
                         logging.warning(
                             f"Transitioning issue {issue.key} failed, because it may transitioned already automatically -- please check the issue in Jira."  # noqa
                         )
-    logging.info("Ticket bot finished")
-
+        logging.info("Ticket bot finished\n\n")
     if str.lower(os.getenv("AUTOMATIC_LEARNING", "false")) == "true":
-        logging.info("Automatic Learning from answered tickets")
+        logging.info("Automatic Learning from answered tickets\n\n")
 
         answered_tickets = jira_client.identify_answered_tickets(
             str.lower(os.getenv("JIRA_ANSWERED_TICKET_KEYWORD", "goodanswerbyccoe"))
         )
 
+        if search_index is None or search_service is None:
+            logging.error("Search service and search index must be set")
+            raise ValueError("Search service and search index must be set")
+
         await jira_client.index_answered_tickets(
             answered_tickets,
-            search_index=os.getenv("AZURE_SEARCH_INDEX", "gptkbindex"),
-            search_service=os.getenv("AZURE_SEARCH_SERVICE", "service"),
+            search_service=search_service,
+            search_index=search_index,
+            keyword=str.lower(os.getenv("JIRA_ANSWERED_TICKET_KEYWORD", "goodanswerbyccoe")),
         )
     else:
-        logging.info("Automatic Learning is disabled")
+        logging.info("Automatic Learning is disabled\n\n")
 
     await openai_client.close()
+    jira_client.close()
 
 
 if __name__ == "__main__":

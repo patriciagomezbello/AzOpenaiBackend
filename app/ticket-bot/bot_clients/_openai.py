@@ -43,12 +43,15 @@ class OpenAIClient:
         api_version: The version of the OpenAI API to use. The default value is "2023-09-15-preview".
 
         """
-        print(f"Initializing OpenAIClient with host: {azure_openai_service}")
         self.model = model
         self.embedding_model = embedding_model
         self.azure_openai_service = azure_openai_service
 
-        self.azure_credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
+        self.azure_credential = DefaultAzureCredential(
+            exclude_shared_token_cache_credential=True,
+            exclude_managed_identity_credential=True,
+            exclude_workload_identity_credential=True,
+        )
 
         # OpenAI setup
         self.token_provider = get_bearer_token_provider(self.azure_credential, "https://cognitiveservices.azure.com/.default")

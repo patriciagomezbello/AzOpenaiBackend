@@ -67,7 +67,6 @@ class MateClient:
         if not token:
             raise Exception("Failed to get token")
         headers = {"Authorization": "Bearer " + token}
-        print(self.config["mate_backend_url"])
         response = requests.get(str(self.config["mate_backend_url"]) + "/categories", headers=headers)
         return response.text
 
