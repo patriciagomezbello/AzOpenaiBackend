@@ -18,8 +18,8 @@ class PromptResponse:
 
 
 @dataclass
-class PromptCreationResponse:
-    """PromptCreationResponse represents the prompt creation response data."""
+class PromptModificationResponse:
+    """PromptModificationResponse represents the response data of the prompt creating/updating/deleting function."""
 
     response: str
 
@@ -30,3 +30,19 @@ class PromptRequest:
 
     prompt: str
     name: str
+
+
+@dataclass
+class UpdatePromptRequest:
+    """PromptRequest represents the prompt request data."""
+
+    key: str
+    prompt: str
+    name: str
+
+
+@dataclass
+class DeletePromptRequest:
+    """DeletePromptRequest represents the prompt request data."""
+
+    key: str
