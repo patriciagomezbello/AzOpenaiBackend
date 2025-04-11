@@ -10,6 +10,7 @@ from services.logger import new_logger
 from services.prompts._interface import PromptService
 from services.schemas import NewPrompt
 from services.schemas import SavedPrompt
+from services.schemas import UpdatePrompt
 
 logger = new_logger(__name__)
 
@@ -117,3 +118,31 @@ class AzurePromptService(PromptService):
             await self.client.table_client.create_table()
         except Exception as e:
             raise InvalidConfigError(f"Error while creating table: {str(e)}")
+
+    async def update_prompt(self, prompt: UpdatePrompt) -> None:
+        """update_prompt updates the prompt in the storage account table."""
+        try:
+            await self.client.table_client.update_entity(
+                entity={
+                    "PartitionKey": prompt.key,
+                    "RowKey": prompt.key,
+                    "Timestamp": datetime.datetime.now().isoformat(),
+                    "PromptName": prompt.name,
+                    "Prompt": prompt.prompt,
+                }
+            )
+        except Exception as e:
+            logger.exception("Error while updating prompt", {"error": str(e)})
+            raise InvalidConfigError("Error while updating prompt")
+
+    async def delete_prompt(self, key: str) -> None:
+        """delete_prompt deletes the prompt in the storage account table."""
+        try:
+            await self.client.table_client.delete_entity(partition_key=key, row_key=key)
+        except ResourceNotFoundError as e:
+            if "ErrorCode:ResourceNotFound" in e.message:
+                logger.error("Table entity not found", {"error": str(e)})
+                raise PromptNotFoundError()
+        except Exception as e:
+            logger.exception("Error while deleting prompt", {"error": str(e)})
+            raise InvalidConfigError("Error while deleting prompt")

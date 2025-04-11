@@ -388,3 +388,50 @@ class NewPrompt:
         if not self.name or not self.prompt:
             return False
         return True
+
+
+class UpdatePrompt:
+    """UpdatePrompt is a model for updateing an existing prompt."""
+
+    key: str
+    name: str
+    prompt: str
+
+    def __init__(
+        self,
+        key: str,
+        name: str,
+        prompt: str,
+    ):
+        self.key = key
+        self.name = name
+        self.prompt = prompt
+
+    def to_dict(self) -> dict:
+        """to_dict converts the dataclass to a dictionary."""
+        return {"key": self.key, "name": self.name, "prompt": self.prompt}
+
+    def is_valid(self) -> bool:
+        """is_valid returns whether the new prompt is valid."""
+        if not self.name or not self.prompt or not self.key:
+            return False
+        return True
+
+
+class DeletePrompt:
+    """DeletePrompt is a model for deleting an existing prompt."""
+
+    key: str
+
+    def __init__(self, key: str):
+        self.key = key
+
+    def to_dict(self) -> dict:
+        """to_dict converts the dataclass to a dictionary."""
+        return {"key": self.key}
+
+    def is_valid(self) -> bool:
+        """is_valid returns whether the prompt is valid."""
+        if not self.key:
+            return False
+        return True

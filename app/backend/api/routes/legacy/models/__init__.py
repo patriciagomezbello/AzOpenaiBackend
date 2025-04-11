@@ -7,9 +7,11 @@ from .content_models import ContentQueryString
 from .content_models import ContentResponse
 from .feedback_models import FeedbackRequest
 from .feedback_models import FeedbackResponse
-from .prompt_models import PromptCreationResponse
+from .prompt_models import DeletePromptRequest
+from .prompt_models import PromptModificationResponse
 from .prompt_models import PromptRequest
 from .prompt_models import PromptResponse
+from .prompt_models import UpdatePromptRequest
 
 __all__ = [
     "CategoryResponse",
@@ -22,6 +24,8 @@ __all__ = [
     "ContentResponse",
     "ContentQueryString",
     "PromptResponse",
-    "PromptCreationResponse",
+    "PromptModificationResponse",
     "PromptRequest",
+    "UpdatePromptRequest",
+    "DeletePromptRequest",
 ]
