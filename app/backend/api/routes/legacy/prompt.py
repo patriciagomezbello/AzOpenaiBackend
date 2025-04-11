@@ -74,8 +74,8 @@ async def create_prompt(
 
         try:
             new_prompt = NewPrompt(
-                name=data["PromptName"],
-                prompt=data["Prompt"],
+                name=data["name"],
+                prompt=data["prompt"],
             )
             if not new_prompt.is_valid():
                 return ErrorProvider.error_response_with_message(ErrorProvider.MALFORMED_REQUEST)

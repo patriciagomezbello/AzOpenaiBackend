@@ -28,5 +28,5 @@ class PromptCreationResponse:
 class PromptRequest:
     """PromptRequest represents the prompt request data."""
 
-    Prompt: str
-    PromptName: str
+    prompt: str
+    name: str
