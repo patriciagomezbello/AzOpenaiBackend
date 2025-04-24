@@ -36,8 +36,8 @@ Before using your own instance of Mate, you need to have the following prerequis
     1. One with at least the prefix `/28` (e.g. `sn-mate`)
     2. The other with at least `/28` (e.g. `sn-mate-appservice`)
 - If you deploy a second instance of Mate in the same subscription, these things are important:
-    1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
-    2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service, Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
+  1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
+  2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service, Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
 
 ## Post-Deployment Steps
 
@@ -71,7 +71,9 @@ You also need to set the following file variables in your GitLab project:
 The environment file is a `.env` file that contains the environment variables for the deployment.
 
 <!-- markdownlint-disable MD024 -->
+
 ##### Variables
+
 <!-- markdownlint-enable MD024 -->
 
 | Variable                             | Description                                                                                                                                                                                | Mandatory |
@@ -123,14 +125,18 @@ AZURE_AUTH_ROLE="MyRole.User"
 The context file is a python file that contains the context for the large language model. It provides the model with an understanding of the context of the conversation.
 
 <!-- markdownlint-disable MD024 -->
+
 ##### Variables
+
 <!-- markdownlint-enable MD024 -->
 
 - `system_message_chat_conversation` (str): The system message for the chat conversation
 - `query_prompt_template` (str): The query prompt for enhancing the search keywords for the knowledge base
 
 <!-- markdownlint-disable MD024 -->
+
 ##### Example
+
 <!-- markdownlint-enable MD024 -->
 
 ```python
@@ -159,7 +165,9 @@ The abbreviations file is a csv file that contains the abbreviations the user ma
 **Note**: You need to provide at least one abbreviation.
 
 <!-- markdownlint-disable MD024 -->
+
 ##### Example
+
 <!-- markdownlint-enable MD024 -->
 
 ```csv
