@@ -40,4 +40,3 @@ For more information on the available CI/CD variables for the data loading proce
 ### LangChain Integration
 
 For more information on the LangChain integration, see the [LangChain Integration](langchain.md) page.
-

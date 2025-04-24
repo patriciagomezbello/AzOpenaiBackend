@@ -57,60 +57,60 @@ To be able to use the Azure services locally, you need to set up the Azure confi
 
 1. Make sure you or the service account you are using has the following access roles.
 
-    - Cognitive Services OpenAI User
-    - Cognitive Services User
-    - Search Index Data Contributor
-    - Search Index Data Reader
-    - Search Service Contributor
-    - Storage Blob Data Contributor
-    - Storage Blob Storage Data Reader
+   - Cognitive Services OpenAI User
+   - Cognitive Services User
+   - Search Index Data Contributor
+   - Search Index Data Reader
+   - Search Service Contributor
+   - Storage Blob Data Contributor
+   - Storage Blob Storage Data Reader
 
-    You also have to enable access for your IP-Address for each resource individually:
+   You also have to enable access for your IP-Address for each resource individually:
 
-    - Search Service
-    - OpenAI Services
-    - Blob Storage Accounts
+   - Search Service
+   - OpenAI Services
+   - Blob Storage Accounts
 
 2. Log in to Azure using the Azure CLI:
 
-    ```bash
-    az login
-    # If the redirection does not work:
-    az login --use-device-code
-    ```
+   ```bash
+   az login
+   # If the redirection does not work:
+   az login --use-device-code
+   ```
 
 3. Log in to the Azure Developer CLI:
 
-    ```bash
-    azd auth login
-    # If the redirection does not work:
-    azd auth login --use-device-code # Visit: https://microsoft.com/devicelogin
-    ```
+   ```bash
+   azd auth login
+   # If the redirection does not work:
+   azd auth login --use-device-code # Visit: https://microsoft.com/devicelogin
+   ```
 
 4. Add the azure configuration to `./.azure/config.json`:
 
-    ```json
-    {
-        "version": 1,
-        "defaultEnvironment": "<AZURE_ENV_NAME>"
-    }
-    ```
+   ```json
+   {
+     "version": 1,
+     "defaultEnvironment": "<AZURE_ENV_NAME>"
+   }
+   ```
 
-    Replace `<AZURE_ENV_NAME>` with the `azd-env-name` tag of your Azure Resource Group.
+   Replace `<AZURE_ENV_NAME>` with the `azd-env-name` tag of your Azure Resource Group.
 
 5. Add the environment configuration to `./.azure/<AZURE_ENV_NAME>/config.json`:
 
-    ```json
-    {
-        "infra": {
-            "parameters": {
-            "openAiResourceGroupLocation": "<OpenAILocation>"
-            }
-        }
-    }
-    ```
+   ```json
+   {
+     "infra": {
+       "parameters": {
+         "openAiResourceGroupLocation": "<OpenAILocation>"
+       }
+     }
+   }
+   ```
 
-    Replace `<OpenAILocation>` with the location of the OpenAI resource group (e.g. `westeurope`, `swedencentral`, etc.).
+   Replace `<OpenAILocation>` with the location of the OpenAI resource group (e.g. `westeurope`, `swedencentral`, etc.).
 
 6. Add a `.env` file to `./.azure/<AZURE_ENV_NAME>` with the [`ENVIRONMENT` configuration](/docs/deployment.md#file-environment).
 
@@ -221,15 +221,15 @@ ABBREVIATIONS={"DTAG": "Deutsche Telekom AG"}
 ANSWER_SYSTEM_PROMPT='You are an AI-Assistant for Telekom-internal topics. You have to answer the question abiding by the following rules:
 - You will answer questions related to the prompted data that is retrieved beforehand.
 - Take only the information provided in the prompt into account for your answer.
-- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response. 
-- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data]. 
-- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets. 
+- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response.
+- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data].
+- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets.
 - In case of ambiguity regarding the questions ask clarifying questions back
 - If there is nothing relevant provided in the prompt say {noidea}.
 {injected_prompt}'
 
 QUERY_SYSTEM_PROMPT='Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about questions.
-    Generate a search query based on the conversation and the new question. 
+    Generate a search query based on the conversation and the new question.
     Do not include cited source filenames, links or numbers in brackets e.g. [1] or [3] in the search query terms.
     If the question is not in {language}, translate the question to {language} before generating the search query.'
 

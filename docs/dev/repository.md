@@ -25,12 +25,12 @@ graph TD
     subgraph router
     CL[API Server]
     end
-    
+
     CL -->|/categories| CatR[Category Controller]
     CL -->|/chat| ChatR[Chat Controller]
     CL -->|/content| ConR[Content Controller]
     CL -->|/feedback| FeedR[Feedback Controller]
-    
+
     subgraph controllers
     CatR
     ChatR
@@ -61,17 +61,17 @@ graph TD
     end
 
     controllers --> AS
-    
+
     CatR --> CS
     CS --> SC
 
     ChatR --> CR --> CA
     ConR --> CoS
     FeedR --> FS
-    
-    
+
+
     CoS --> StC
-    
+
     CA --> LS --> LLM
     LLM --> LLMC
     CA --> LLM

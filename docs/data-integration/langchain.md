@@ -3,7 +3,6 @@
 The LangChain Data Loader enables you to import data from various web sources into Mate. For a list of supported LangChain data integrations, refer to [this document](./README.md). You can also extend these integrations with [other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.  
 It also possible to extend integration with [LlamaIndex readers](https://docs.llamaindex.ai/en/stable/api_reference/readers/).
 
-
 ## Table of Contents<!-- omit in toc -->
 
 - [Available Variables](#available-variables)
@@ -92,11 +91,12 @@ Specifies the configuration settings for the selected loader. Below are the conf
 - `language`: Language code for the content (`"de"` or `"en"`).
 
 **Jira**
+
 - `url`: Base URL of Jira instance
 - `username`: User’s email address.
 - `token_ref`: Variable name where the API key is stored. **Do not include the API key directly in the config.**
 - `project_key`: Project key in Jira
-  
+
 #### Loader Examples
 
 Below are example configurations for different loaders:
@@ -162,23 +162,23 @@ Below are example configurations for different loaders:
     "category": "mystaffbasedata",
     "splitter": "standard",
     "config": {
-        "url": "https://myown.staffbase.com",
-        "api_key_reference": "API_KEY",
-        "channels": [],
-        "news_pages": [],
-        "posts": ["123", "456"],
-        "publish_filter": "all",
-        "language": "de"
+      "url": "https://myown.staffbase.com",
+      "api_key_reference": "API_KEY",
+      "channels": [],
+      "news_pages": [],
+      "posts": ["123", "456"],
+      "publish_filter": "all",
+      "language": "de"
     }
   },
-    {
-        "loader": "jira",
-        "config": {
-            "username": "user.name@example.com",
-            "token_ref": "JIRA_API_TOKEN",
-            "url": "https://jira.example.com",
-            "project_key": "PROJECT_KEY"
-        }
+  {
+    "loader": "jira",
+    "config": {
+      "username": "user.name@example.com",
+      "token_ref": "JIRA_API_TOKEN",
+      "url": "https://jira.example.com",
+      "project_key": "PROJECT_KEY"
     }
+  }
 ]
 ```
