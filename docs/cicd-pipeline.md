@@ -1,8 +1,8 @@
-# CI/CD Pipeline<!-- omit in toc -->
+# CI/CD Pipeline
 
 This page provides information on the CI/CD pipeline for Mate. The pipeline is responsible for multiple tasks, such as deploying the infrastructure, deploying the backend, syncing the storage data, and more.
 
-- [Prequisites](#prequisites)
+- [Prerequisites](#Prerequisites)
 - [Pipeline Overview](#pipeline-overview)
 - [Jobs](#jobs)
   - [`all-start` Job](#all-start-job)
@@ -10,7 +10,7 @@ This page provides information on the CI/CD pipeline for Mate. The pipeline is r
   - [`data-start` Job](#data-start-job)
   - [`jira-bot-start` Job](#jira-bot-start-job)
 
-## Prequisites
+## Prerequisites
 
 You will need to have a private GitLab Runner for CI/CD pipeline. You can find our GitLab Runner package [here](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private).
 
