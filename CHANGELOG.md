@@ -31,7 +31,7 @@ This file includes all the changes made to the Mate as a Service project.
 - `/docs`, `/redocs`, `/openapi.yaml` and `/openapi.json` are not reachable under /v1 routes anymore
 - `/health` endpoint is now available. It returns a 200 OK status code if the service is healthy and running
 
-## Previous versions
+## Previous Versions
 
 Have a look at the documentation for already existing features, if you have any questions, please create an issue
 in the repository.
