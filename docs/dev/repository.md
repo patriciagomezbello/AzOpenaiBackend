@@ -1,6 +1,8 @@
-# Mate Architecture Documentation<!-- omit in toc -->
+# Mate Architecture Documentation
 
-The backend of the Mate application is built using a service-oriented architecture (SOA) with the dependency injection pattern. This architecture enhances maintainability, testability, and scalability. The backend is organized into several layers and services, each with specific responsibilities.
+The backend of the Mate application is built using a service-oriented architecture (SOA) with the dependency injection
+pattern. This architecture enhances maintainability, testability, and scalability. The backend is organized into several
+layers and services, each with specific responsibilities.
 
 - [Architecture Diagram](#architecture-diagram)
 - [Layers](#layers)
@@ -87,25 +89,31 @@ graph TD
 
 ## Layers
 
-The layers are responsible for different aspects of the application. They are organized in a way that allows for easy maintenance and extension. The layers are as follows (from top to bottom):
+The layers are responsible for different aspects of the application. They are organized in a way that allows for easy
+maintenance and extension. The layers are as follows (from top to bottom):
 
 ### Controller Layer
 
-Handles incoming HTTP requests, routes them to the appropriate layer, validates requests, and formats responses. The controllers are thin, delegating most work to the next layer.
+Handles incoming HTTP requests, routes them to the appropriate layer, validates requests, and formats responses. The
+controllers are thin, delegating most work to the next layer.
 
 ### Orchestration Layer
 
-Manages communication between controllers and services for complex requests involving multiple services. It also handles transaction management and error handling.
+Manages communication between controllers and services for complex requests involving multiple services. It also handles
+transaction management and error handling.
 
 This layer may only be necessary for complex requests that require coordination between multiple services.
 
 ### Service Layer
 
-Contains the business logic of the application. Each service is responsible for a specific domain or functionality. Services are loosely coupled and can be easily replaced or extended. They interact with the data access layer to retrieve data if needed.
+Contains the business logic of the application. Each service is responsible for a specific domain or functionality.
+Services are loosely coupled and can be easily replaced or extended. They interact with the data access layer to
+retrieve data if needed.
 
 ### Data Access Layer
 
-Contains clients for external services like Azure Search, Azure Blob Storage, OpenAI API, etc. The clients handle communication with these external services.
+Contains clients for external services like Azure Search, Azure Blob Storage, OpenAI API, etc. The clients handle
+communication with these external services.
 
 ## Services
 

@@ -122,7 +122,8 @@ AZURE_AUTH_ROLE="MyRole.User"
 
 #### File: `CONTEXT`
 
-The context file is a python file that contains the context for the large language model. It provides the model with an understanding of the context of the conversation.
+The context file is a python file that contains the context for the large language model.
+It provides the model with an understanding of the context of the conversation.
 
 <!-- markdownlint-disable MD024 -->
 
@@ -140,18 +141,25 @@ The context file is a python file that contains the context for the large langua
 <!-- markdownlint-enable MD024 -->
 
 ```python
-system_message_chat_conversation = """You are an AI-Assistant for Telekom-internal topics. You have to answer the question abiding by the following rules:
+system_message_chat_conversation = """
+You are an AI-Assistant for Telekom-internal topics.
+You have to answer the question abiding by the following rules:
 - You will answer questions related to the prompted data that is retrieved beforehand.
 - Take only the information provided in the prompt into account for your answer.
-- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response.
-- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data].
-- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets.
+- Each source has a name followed by a colon.
+- You have to always include the source name in front of the colon for information you use in the response.
+- Always use square brackets to reference the source, for example [data.pdf] or [https://test.de/data].
+- List each source seperately.
+- Only include sources with ".pdf" at the end or "https://" in the beginning.
+- Never include anything else besides the source name in the square brackets.
 - In case of ambiguity regarding the questions ask clarifying questions back
 - If there is nothing relevant provided in the prompt say {noidea}.
 {injected_prompt}
 """
 
-query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about questions.
+query_prompt_template = """
+    Below is a history of the conversation so far, and a new question asked by the user.
+    This question needs to be answered by searching in a knowledge base about questions.
     Generate a search query based on the conversation and the new question.
     Do not include cited source filenames, links or numbers in brackets e.g. [1] or [3] in the search query terms.
     If the question is not in {language}, translate the question to {language} before generating the search query.
@@ -160,7 +168,8 @@ query_prompt_template = """Below is a history of the conversation so far, and a 
 
 #### File: `ABBREV`
 
-The abbreviations file is a csv file that contains the abbreviations the user may use in the chat conversation that the model should be aware of. This is especially useful for company-specific abbreviations or acronyms.
+The abbreviations file is a csv file that contains the abbreviations the user may use in the chat conversation that the
+model should be aware of. This is especially useful for company-specific abbreviations or acronyms.
 
 **Note**: You need to provide at least one abbreviation.
 
