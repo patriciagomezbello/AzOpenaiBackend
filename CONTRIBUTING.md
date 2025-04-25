@@ -20,8 +20,8 @@ Merge Requests are the best way to propose changes to the codebase.
 Merge requests are the best way to propose changes to the codebase. We actively welcome your merge requests:
 
 1. Fork the repo and create your branch from `main`.
-2. If you've added code that should be tested, add tests.
-   (in our case this is kind of complex, but for functions this can be done)
+2. If you've added code that should be tested, add tests. (in our case this is kind of complex, but for functions this
+   can be done)
 3. If you've changed APIs, have a look at the document functionality of our api package (quart)
 4. Issue that merge request!
 
@@ -34,13 +34,13 @@ If you are unsure, just ask in the MR or issue.
 ## Any Contributions You Make Will Be Under the [Software License](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/LICENSE)
 
 In short, when you submit code changes, your submissions are understood to be under the same
-[Software License](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/LICENSE)
-that covers the project. Feel free to contact the maintainers if that's a concern.
+[Software License](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/LICENSE) that
+covers the project. Feel free to contact the maintainers if that's a concern.
 
 ## Use a Consistent Coding Style
 
-Let's ensure code consistency throughout the project.
-(But recommendations are fine, python is "interesting" for backend purposes)
+Let's ensure code consistency throughout the project. (But recommendations are fine, python is "interesting" for backend
+purposes)
 
 ## License
 

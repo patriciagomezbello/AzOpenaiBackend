@@ -29,15 +29,17 @@ Before using your own instance of Mate, you need to have the following prerequis
 - **A subscription on the DTIT Azure Tenant (no sandbox allowed)**
 - **Contributor access to the Azure Subscription** for the service principal
 - **A resource group in the subscription named `rg-<AZURE_ENV_NAME>`** (e.g. `rg-mate`)
-- **A location policy exemption for your resource group, for example if you want to use `swedencentral`, can be asked for via [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906)**
+- **A location policy exemption for your resource group, for example if you want to use `swedencentral`, can be asked
+  for via [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906)**
 - **A private GitLab Runner for CI/CD**:
-  - You can find our GitLab Runner package [here](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
+  - You can find our GitLab Runner package
+    [here](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private)
   - You need to create two subnets in your existing VNet (`vnet_dtit_cix00xx` of your subscription):
     1. One with at least the prefix `/28` (e.g. `sn-mate`)
     2. The other with at least `/28` (e.g. `sn-mate-appservice`)
 - If you deploy a second instance of Mate in the same subscription, these things are important:
-  1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK`
-     variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
+  1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable
+     to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
   2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service,
      Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
 
@@ -102,7 +104,8 @@ The environment file is a `.env` file that contains the environment variables fo
 | `AZURE_DEPLOY_KEY`                   | Deploy the keyvault key ( manually set to `false` if first deployment fails) (default: `true`)                                                                                              |           |
 | `AZURE_GATEWAY_RESTRICTION_IP`       | **FOR PRODUCTION USAGE:** Static IP Address of Application Gateway or [Tardis Spacegate IP Range](https://developer.telekom.de/docs/src/tardis_customer_handbook/support/ip-addresses-env/) |           |
 
-Check the [Parameter File](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/infra/parameters.json)
+Check the
+[Parameter File](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/infra/parameters.json)
 for more variables, please only use them if you are proficient with bicep.
 
 ##### Example
@@ -126,8 +129,8 @@ AZURE_AUTH_ROLE="MyRole.User"
 
 #### File: `CONTEXT`
 
-The context file is a python file that contains the context for the large language model.
-It provides the model with an understanding of the context of the conversation.
+The context file is a python file that contains the context for the large language model. It provides the model with an
+understanding of the context of the conversation.
 
 <!-- markdownlint-disable MD024 -->
 
@@ -194,9 +197,9 @@ DT, Deutsche Telekom
 
 #### First Deployment
 
-If the first deployment fails, try to redeploy the resources.
-If the keyvault is already deployed, set the `AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file.
-This will prevent a deployment error related to the keyvault.
+If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, set the
+`AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file. This will prevent a deployment error related to the
+keyvault.
 
 #### Second Instance
 
@@ -214,7 +217,6 @@ If the error message is `No module named 'main'`, consider redeploying the backe
 ### Changing OpenAI Model
 
 If you want to change your OpenAI model from for example GPT35Turbo to GPT4o, you need to change the
-`AZURE_OPENAI_CHATGPT_MODEL_NAME` and `AZURE_OPENAI_CHATGPT_MODEL_VERSION` in the `ENVIRONMENT` file. This will cause
-an error, if you do not delete the old model manually in the Azure OpenAI Studio. So option 1 is deleting it
-beforehand, option 2 is deleting it and creating it in the Azure OpenAI Studio, then it will be recognized by the
-deployment.
+`AZURE_OPENAI_CHATGPT_MODEL_NAME` and `AZURE_OPENAI_CHATGPT_MODEL_VERSION` in the `ENVIRONMENT` file. This will cause an
+error, if you do not delete the old model manually in the Azure OpenAI Studio. So option 1 is deleting it beforehand,
+option 2 is deleting it and creating it in the Azure OpenAI Studio, then it will be recognized by the deployment.
