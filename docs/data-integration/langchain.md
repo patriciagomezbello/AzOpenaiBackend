@@ -1,9 +1,14 @@
-# LangChain Data Loader<!-- omit in toc -->
+# LangChain Data Loader
 
-The LangChain Data Loader enables you to import data from various web sources into Mate. For a list of supported LangChain data integrations, refer to [this document](./README.md). You can also extend these integrations with [other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.  
-It also possible to extend integration with [LlamaIndex readers](https://docs.llamaindex.ai/en/stable/api_reference/readers/).
+The LangChain Data Loader enables you to import data from various web sources into Mate. For a list of supported
+LangChain data integrations, refer to
+[this document](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/data-integration/README.md).
+You can also extend these integrations with
+[other document loaders](https://python.langchain.com/docs/integrations/providers/) as needed.  
+It also possible to extend integration with
+[LlamaIndex readers](https://docs.llamaindex.ai/en/stable/api_reference/readers/).
 
-## Table of Contents<!-- omit in toc -->
+## Table of Contents
 
 - [Available Variables](#available-variables)
   - [`LC_MODE`](#lc_mode)
@@ -25,7 +30,8 @@ This variable sets the mode for the LangChain integration. The available options
 
 ### `LANGCHAIN_CONFIG`
 
-This variable configures the LangChain integration based on the mode set in `LC_MODE`. You must set this as a `file` variable.
+This variable configures the LangChain integration based on the mode set in `LC_MODE`. You must set this as a `file`
+variable.
 
 #### Configuration Options
 
@@ -42,7 +48,8 @@ Specifies the loader to use. The available options are:
 
 ##### `category` - Optional
 
-Groups the data source into a category for frontend organization. If you do not wish to use a category, remove the `category` key from the configuration.
+Groups the data source into a category for frontend organization. If you do not wish to use a category, remove the
+`category` key from the configuration.
 
 ##### `config` - Mandatory
 
@@ -90,7 +97,7 @@ Specifies the configuration settings for the selected loader. Below are the conf
 - `publish_filter`: Filter specifying which posts to publish.
 - `language`: Language code for the content (`"de"` or `"en"`).
 
-**Jira**
+**Jira:**
 
 - `url`: Base URL of Jira instance
 - `username`: User’s email address.

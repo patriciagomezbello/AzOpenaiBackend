@@ -1,4 +1,4 @@
-# Development Guide<!-- omit in toc -->
+# Development Guide
 
 - [Prerequisites](#prerequisites)
 - [Architecture](#architecture)
@@ -23,7 +23,8 @@
 
 In order to develop Mate, you need to have the following prerequisites:
 
-- [Python 3.11](https://www.python.org/downloads/) or higher (we recommend using [pyenv](https://github.com/pyenv/pyenv))
+- [Python 3.11](https://www.python.org/downloads/) or higher (we recommend using
+  [pyenv](https://github.com/pyenv/pyenv))
 - [Flake8](https://flake8.pycqa.org/en/latest/) Linter
 - [Black](https://black.readthedocs.io/en/stable/getting_started.html) Formatter
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
@@ -37,7 +38,9 @@ Optional:
 
 ## Architecture
 
-To learn more about the architecture of Mate, please refer to the [architecture](./repository.md) documentation.
+To learn more about the architecture of Mate, please refer to the
+[architecture](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/dev/repository.md)
+documentation.
 
 ## Testing
 
@@ -47,7 +50,7 @@ To run the tests, you can use the following command:
 make mate-test
 ```
 
-## Run locally
+## Run Locally
 
 Before running the application locally, you need to set up the azure and mate configuration.
 
@@ -112,15 +115,20 @@ To be able to use the Azure services locally, you need to set up the Azure confi
 
    Replace `<OpenAILocation>` with the location of the OpenAI resource group (e.g. `westeurope`, `swedencentral`, etc.).
 
-6. Add a `.env` file to `./.azure/<AZURE_ENV_NAME>` with the [`ENVIRONMENT` configuration](/docs/deployment.md#file-environment).
+6. Add a `.env` file to `./.azure/<AZURE_ENV_NAME>` with the
+   [`ENVIRONMENT` configuration](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md#file-environment).
 
-7. Add the [`CONTEXT` configuration](/docs/deployment.md#file-context) to `./app/backend/core/context.py`.
+7. Add the
+   [`CONTEXT` configuration](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md#file-context)
+   to `./app/backend/core/context.py`.
 
 ### Mate Configuration
 
-To configure the Mate application, you need to set up the environment variables. You can do this by creating the `.env` file mentioned before in the [Azure configuration](#azure-configuration).
+To configure the Mate application, you need to set up the environment variables. You can do this by creating the `.env`
+file mentioned before in the [Azure configuration](#azure-configuration).
 
-Our configuration is split into different sections, each with its own set of environment variables. The following sections are available:
+Our configuration is split into different sections, each with its own set of environment variables. The following
+sections are available:
 
 - [General Configuration](#general-configuration)
 - [Azure Services Configuration](#azure-services-configuration)
@@ -129,7 +137,8 @@ Our configuration is split into different sections, each with its own set of env
 
 #### General Configuration
 
-The general configuration is used to set up the basic configuration of the application. The following environment variables are available:
+The general configuration is used to set up the basic configuration of the application. The following environment
+variables are available:
 
 | Environment Variable | Description                                                                                                             | Default Value | Mandatory |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------- | --------- |
@@ -138,7 +147,8 @@ The general configuration is used to set up the basic configuration of the appli
 
 #### Azure Services Configuration
 
-The Azure services configuration is used to set up the connection to the Azure services. The following environment variables are available:
+The Azure services configuration is used to set up the connection to the Azure services. The following environment
+variables are available:
 
 | Environment Variable              | Description                                                                                                                                                                              | Default Value | Mandatory |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------- |
@@ -166,7 +176,8 @@ The chat configuration is used to set up the chat conversation. The following en
 
 #### Authentication Configuration
 
-The authentication configuration is used to set up the authentication for the application. The following environment variables are available:
+The authentication configuration is used to set up the authentication for the application. The following environment
+variables are available:
 
 | Environment Variable        | Description                                                                                                         | Default Value | Mandatory |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------- | --------- |
@@ -176,9 +187,14 @@ The authentication configuration is used to set up the authentication for the ap
 | `AZURE_AUTH_ICU_CLIENT`     | The client ID of the ICU OpenID Connect client.                                                                     |               |           |
 | `AZURE_AUTH_ICU_ISSUER_URL` | The issuer URL of the ICU OpenID Connect realm.                                                                     |               |           |
 
-> Note: Setting `AZURE_AUTH_ICU_CLIENT` and `AZURE_AUTH_ICU_ISSUER_URL` will enable ICU as the sole auth provider for Mate. For this you have to manually remove the authentication client after each deployment in the Azure Portal.
+> Note: Setting `AZURE_AUTH_ICU_CLIENT` and `AZURE_AUTH_ICU_ISSUER_URL` will enable ICU as the sole auth provider for
+> Mate. For this you have to manually remove the authentication client after each deployment in the Azure Portal.
 
-In case you need another Open ID Connect Provider, you can open an [issue](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/issues) to discuss your requirements or append your own provider to the [authentication client](/app/backend/clients/_auth.py) and open a merge request.
+In case you need another Open ID Connect Provider, you can open an
+[issue](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/issues) to discuss your requirements
+or append your own provider to the
+[authentication client](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/app/backend/clients/_auth.py)
+and open a merge request.
 
 #### Logging Configuration
 
@@ -218,17 +234,22 @@ AZURE_USE_DEFAULT_CREDENTIAL=false
 # Chat Configuration
 ABBREVIATIONS={"DTAG": "Deutsche Telekom AG"}
 
-ANSWER_SYSTEM_PROMPT='You are an AI-Assistant for Telekom-internal topics. You have to answer the question abiding by the following rules:
+ANSWER_SYSTEM_PROMPT='You are an AI-Assistant for Telekom-internal topics.
+You have to answer the question abiding by the following rules:
 - You will answer questions related to the prompted data that is retrieved beforehand.
 - Take only the information provided in the prompt into account for your answer.
-- Each source has a name followed by a colon. You have to always include the source name in front of the colon for information you use in the response.
-- Always use square brackets to reference the source and list each source separately, for example [data-1.pdf] or [https://telekom.de/data].
-- Only include sources with ".pdf" at the end or "https://" in the beginning, never include anything else besides the source name in the square brackets.
+- Each source has a name followed by a colon.
+- You have to always include the source name in front of the colon for information you use in the response.
+- Always use square brackets to reference the source, for example [data-1.pdf] or [https://telekom.de/data].
+- List each source seperately.
+- Only include sources with ".pdf" at the end or "https://" in the beginning.
+- Never include anything else besides the source name in the square brackets.
 - In case of ambiguity regarding the questions ask clarifying questions back
 - If there is nothing relevant provided in the prompt say {noidea}.
 {injected_prompt}'
 
-QUERY_SYSTEM_PROMPT='Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about questions.
+QUERY_SYSTEM_PROMPT='Below is a history of the conversation so far, and a new question asked by the user.
+    This question needs to be answered by searching in a knowledge base about questions.
     Generate a search query based on the conversation and the new question.
     Do not include cited source filenames, links or numbers in brackets e.g. [1] or [3] in the search query terms.
     If the question is not in {language}, translate the question to {language} before generating the search query.'
@@ -257,22 +278,26 @@ LOG_SENSITIVE_DATA=false
 </details>
 <!-- markdownlint-enable MD033 -->
 
-### Run the application
+### Run the Application
 
 Now you're ready to run the application. To do so, we recommend using the Makefile commands.
 
 To get a list of all available commands, you can run `make help`.
 
-#### Run the backend only
+#### Run the Backend Only
 
 ```bash
 # To run the backend only
 make mate
 ```
 
-After running the command, you can test the backend locally by visiting [`http://localhost:50505/docs`](http://localhost:50505/docs). This may vary if you have set `API_BASE_PATH` to a different value.
+After running the command, you can test the backend locally by visiting
+[`http://localhost:50505/docs`](http://localhost:50505/docs). This may vary if you have set `API_BASE_PATH` to a
+different value.
 
-To access protected endpoints, you need to authorize your requests. You can do this by copying a JWT Token from a live application or the local frontend. Alternatively, you can use the following script if you have a working machine account/service principal:
+To access protected endpoints, you need to authorize your requests. You can do this by copying a JWT Token from a live
+application or the local frontend. Alternatively, you can use the following script if you have a working machine
+account/service principal:
 
 ```python
 import requests
@@ -303,16 +328,18 @@ access_token = response_token.json().get("access_token")
 print(access_token)
 ```
 
-#### Run the whole application
+#### Run the Whole Application
 
 ```bash
 # To run the whole application
 make dev
 ```
 
-This may not work if you haven't set up the `./frontend.env` file for the frontend. For more information about the configuration, please refer to the [frontend documentation](https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend#run-the-application).
+This may not work if you haven't set up the `./frontend.env` file for the frontend. For more information about the
+configuration, please refer to the
+[frontend documentation](https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend#run-the-application).
 
-#### Deploy the infrastructure
+#### Deploy the Infrastructure
 
 If you haven't already deployed the infrastructure, you can do so by running the following command:
 
@@ -321,7 +348,7 @@ If you haven't already deployed the infrastructure, you can do so by running the
 azd provision
 ```
 
-#### Deploy the backend
+#### Deploy the Backend
 
 To deploy the backend to the Azure App Service, you can run the following command:
 
@@ -331,7 +358,7 @@ To deploy the backend to the Azure App Service, you can run the following comman
 azd up
 ```
 
-#### Update the storage data
+#### Update the Storage Data
 
 In order to sync the local data with the storage account, you can run the following command:
 
@@ -339,4 +366,5 @@ In order to sync the local data with the storage account, you can run the follow
 ./scripts/prepdocs.sh
 ```
 
-This will upload the data from the `./data` directory to the storage account. It will also convert data in the `./data2convert` directory to the required format and upload it to the storage account.
+This will upload the data from the `./data` directory to the storage account. It will also convert data in the
+`./data2convert` directory to the required format and upload it to the storage account.
