@@ -1,4 +1,4 @@
-# Deployment Guide<!-- omit in toc -->
+# Deployment Guide
 
 To deploy your own instance of Mate, follow the steps below.
 
@@ -36,12 +36,15 @@ Before using your own instance of Mate, you need to have the following prerequis
     1. One with at least the prefix `/28` (e.g. `sn-mate`)
     2. The other with at least `/28` (e.g. `sn-mate-appservice`)
 - If you deploy a second instance of Mate in the same subscription, these things are important:
-  1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
-  2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service, Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
+  1. If you deploy to a Voyager subscription (cn in Subscription Name), you have to set the `AZURE_DEPLOY_LINK`
+     variable to `false` in the `ENVIRONMENT` file. See also in [Known Issues](#known-issues).
+  2. After deployment, you need to manually add the subnet of the runner to the VNET integration of the OpenAI Service,
+     Document Intelligence and Storage Service (you can find it under networking in each service in the Azure Portal).
 
 ## Post-Deployment Steps
 
-- You need to create a [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906) in our service desk to add the Search Service to our central DNS.
+- You need to create a [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906) in our service desk
+  to add the Search Service to our central DNS.
 
 ## Configuration
 
@@ -99,7 +102,8 @@ The environment file is a `.env` file that contains the environment variables fo
 | `AZURE_DEPLOY_KEY`                   | Deploy the keyvault key ( manually set to `false` if first deployment fails) (default: `true`)                                                                                              |           |
 | `AZURE_GATEWAY_RESTRICTION_IP`       | **FOR PRODUCTION USAGE:** Static IP Address of Application Gateway or [Tardis Spacegate IP Range](https://developer.telekom.de/docs/src/tardis_customer_handbook/support/ip-addresses-env/) |           |
 
-Check the [Parameter File](./infra/parameters.json) for more variables, please only use them if you are proficient with bicep.
+Check the [Parameter File](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/infra/parameters.json)
+for more variables, please only use them if you are proficient with bicep.
 
 ##### Example
 
@@ -190,16 +194,27 @@ DT, Deutsche Telekom
 
 #### First Deployment
 
-If the first deployment fails, try to redeploy the resources. If the keyvault is already deployed, set the `AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file. This will prevent a deployment error related to the keyvault.
+If the first deployment fails, try to redeploy the resources.
+If the keyvault is already deployed, set the `AZURE_DEPLOY_KEY` variable to `false` in the `ENVIRONMENT` file.
+This will prevent a deployment error related to the keyvault.
 
 #### Second Instance
 
-When deploying a second instance of mate to your subscription, set the `AZURE_DEPLOY_LINK` variable to `false` in the `ENVIRONMENT` file. This will prevent a deployment error related to the second instance.
+When deploying a second instance of mate to your subscription, set the `AZURE_DEPLOY_LINK` variable to `false` in the
+`ENVIRONMENT` file. This will prevent a deployment error related to the second instance.
 
 ### Backend Issues
 
-If the backend is not working after deployment, try accessing the `/docs` endpoint to check if the backend is running. You can also check the Deployment Logs in the App Service. If the backend is still not working, try restarting or bumping the App Service Tier. Check the logs via the App Service in Azure, accessible through the Advanced Tools Menu. If the error message is `No module named 'main'`, consider redeploying the backend as the [deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
+If the backend is not working after deployment, try accessing the `/docs` endpoint to check if the backend is running.
+You can also check the Deployment Logs in the App Service. If the backend is still not working, try restarting or
+bumping the App Service Tier. Check the logs via the App Service in Azure, accessible through the Advanced Tools Menu.
+If the error message is `No module named 'main'`, consider redeploying the backend as the
+[deployment might have failed](https://github.com/Azure-Samples/azure-search-openai-demo/issues/951).
 
-### Changing OpenAI model
+### Changing OpenAI Model
 
-If you want to change your OpenAI model from for example GPT35Turbo to GPT4o, you need to change the `AZURE_OPENAI_CHATGPT_MODEL_NAME` and `AZURE_OPENAI_CHATGPT_MODEL_VERSION` in the `ENVIRONMENT` file. This will cause an error, if you do not delete the old model manually in the Azure OpenAI Studio. So option 1 is deleting it beforehand, option 2 is deleting it and creating it in the Azure OpenAI Studio, then it will be recognized by the deployment.
+If you want to change your OpenAI model from for example GPT35Turbo to GPT4o, you need to change the
+`AZURE_OPENAI_CHATGPT_MODEL_NAME` and `AZURE_OPENAI_CHATGPT_MODEL_VERSION` in the `ENVIRONMENT` file. This will cause
+an error, if you do not delete the old model manually in the Azure OpenAI Studio. So option 1 is deleting it
+beforehand, option 2 is deleting it and creating it in the Azure OpenAI Studio, then it will be recognized by the
+deployment.
