@@ -59,6 +59,7 @@ async def feedback(
                     ],
                     message=feedback.message,
                     rating=feedback.rating,
+                    categories=feedback.categories,
                 )
             )
         return jsonify({"response": "Feedback received."}), 200
