@@ -2,6 +2,12 @@
 
 This file includes all the changes made to the Mate as a Service project.
 
+## 2.2.0 _(2025-05-22)_
+
+**Features:**
+
+- `.docx`, `.pptx` and `.xlsx` files are now supported in the data loading process.
+
 ## 2.1.1 _(2024-10-10)_
 
 **Bug Fixes:**

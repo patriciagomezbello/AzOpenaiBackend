@@ -31,7 +31,7 @@ from core.document import get_document_text
 from core.document import get_document_text_from_blob
 from core.document import split_text
 from core.helper import check_time
-from core.helper import delete_non_pdf_files
+from core.helper import delete_uncompatible_files
 from core.helper import detectLang
 from core.helper import file_path_to_id
 from core.helper import get_md5_hash
@@ -417,8 +417,8 @@ async def main():
     if args.data_mode == "file" or args.data_mode == "all":
         # data conversion and deleting
 
-        # delete non pdf files from data
-        delete_non_pdf_files(args.files)
+        # delete uncompatible files from data
+        delete_uncompatible_files(args.files)
 
         # FILE CONVERTION BEGINS
 
@@ -704,6 +704,9 @@ async def main():
             # check regarding updating/adding files
             print("---> checking data blob files...")
             for blob in blobs:
+                if not blob.name:
+                    print("!!! blob name is empty, will be skipped")
+                    continue
                 if invalid_filename(blob.name):
                     raise Exception(
                         f"!!! The filename {blob.name} is invalid, it is not allowed to end with -012.pdf and not contain  -> ' <-"

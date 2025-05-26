@@ -105,10 +105,11 @@ def check_time(start_time, seconds=300):
         return True
 
 
-def delete_non_pdf_files(directory):
+def delete_uncompatible_files(directory):
+    allowed_extensions = os.getenv("ALLOWED_EXTENSIONS", ".pdf,.jpg,.jpeg,.png,.tiff,.bmp,.docx,.xlsx,.pptx").split(",")
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if not file.endswith(".pdf"):
+            if not file.lower().endswith(tuple(allowed_extensions)):
                 file_path = os.path.join(root, file)
                 try:
                     os.remove(file_path)
