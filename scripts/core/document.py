@@ -1,4 +1,6 @@
-from azure.ai.formrecognizer import DocumentAnalysisClient
+import io
+
+from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.storage.blob import BlobClient
 from pypdf import PdfReader
 
@@ -50,14 +52,15 @@ def get_document_text(file_path, formrecognizer_creds, formrecognizerservice, lo
             offset += len(page_text)
     else:
         if verbose:
-            print(f"Extracting text from '{file_path}' using Azure Form Recognizer")
-        form_recognizer_client = DocumentAnalysisClient(
+            print(f"Extracting text from '{file_path}' using Azure Document Intelligence")
+        document_intelligence_client = DocumentIntelligenceClient(
             endpoint=f"https://{formrecognizerservice}.cognitiveservices.azure.com/",
             credential=formrecognizer_creds,
             headers={"x-ms-useragent": "azure-search-chat/1.0.0"},
         )
+
         with open(file_path, "rb") as f:
-            poller = form_recognizer_client.begin_analyze_document("prebuilt-layout", document=f)
+            poller = document_intelligence_client.begin_analyze_document(model_id="prebuilt-layout", body=f)
         form_recognizer_results = poller.result()
 
         for page_num, page in enumerate(form_recognizer_results.pages):
@@ -76,16 +79,16 @@ def get_document_text_from_blob(
     offset = 0
     page_map = []
 
-    print(f"Extracting text from '{blob_client.blob_name}' using Azure Form Recognizer")
+    print(f"Extracting text from '{blob_client.blob_name}' using Azure Document Intelligence")
 
-    form_recognizer_client = DocumentAnalysisClient(
+    document_intelligence_client = DocumentIntelligenceClient(
         endpoint=f"https://{formrecognizerservice}.cognitiveservices.azure.com/",
         credential=formrecognizer_creds,
         headers={"x-ms-useragent": "azure-search-chat/1.0.0"},
     )
-    blob_stream = blob_client.download_blob().readall()
+    byte_stream = io.BytesIO(blob_client.download_blob().readall())
 
-    poller = form_recognizer_client.begin_analyze_document("prebuilt-layout", document=blob_stream)
+    poller = document_intelligence_client.begin_analyze_document(model_id="prebuilt-layout", body=byte_stream)
     form_recognizer_results = poller.result()
 
     for page_num, page in enumerate(form_recognizer_results.pages):

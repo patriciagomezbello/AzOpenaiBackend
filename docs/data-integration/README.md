@@ -16,6 +16,9 @@ concepts and functionalities.**
 Mate supports the following data formats:
 
 - PDF files
+- Excel files (.xlsx)
+- Word files (.docx)
+- Powerpoint files (.pptx)
 - [LangChain Integration](https://python.langchain.com/docs/modules/data_connection/), currently we have document
   loaders for the following data sources:
   - [Confluence / MyWiki](https://www.atlassian.com/software/confluence)
