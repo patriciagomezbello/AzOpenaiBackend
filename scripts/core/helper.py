@@ -27,13 +27,13 @@ def table_to_html(table):
     for row_cells in rows:
         table_html += "<tr>"
         for cell in row_cells:
-            tag = "th" if (cell.kind == "columnHeader" or cell.kind == "rowHeader") else "td"
+            tag = "th" if (cell.get("kind") == "columnHeader" or cell.get("kind") == "rowHeader") else "td"
             cell_spans = ""
-            if cell.column_span > 1:
-                cell_spans += f" colSpan={cell.column_span}"
-            if cell.row_span > 1:
-                cell_spans += f" rowSpan={cell.row_span}"
-            table_html += f"<{tag}{cell_spans}>{html.escape(cell.content)}</{tag}>"
+            if cell["columnIndex"] > 1:
+                cell_spans += f" colSpan={cell['columnIndex']}"
+            if cell["rowIndex"] > 1:
+                cell_spans += f" rowSpan={cell['rowIndex']}"
+            table_html += f"<{tag}{cell_spans}>{html.escape(cell['content'])}</{tag}>"
         table_html += "</tr>"
     table_html += "</table>"
     return table_html
