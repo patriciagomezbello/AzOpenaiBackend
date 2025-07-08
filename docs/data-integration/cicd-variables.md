@@ -39,6 +39,8 @@ The following variables are available:
 - `FILE_MODE`: This allows you to use Azure Storage Blobs directly for the data integration. Available values are:
   - `git` (default): Load the data from the Git repository.
   - `blob`: Load the data from Azure Storage Blobs.
+  - `all`: Load data from both Git and Azure Storage Blobs.
+
 
 ### Git Mode
 

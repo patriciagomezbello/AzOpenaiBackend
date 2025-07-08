@@ -64,6 +64,7 @@ except OSError:
 MAX_SECTION_LENGTH: int = int(os.getenv("MAX_SECTION_LENGTH", 1100))
 SENTENCE_SEARCH_LIMIT: int = 100
 SECTION_OVERLAP: int = 100
+ALLOWED_FORMATS = (".pdf", ".docx", ".pptx", ".xlsx")
 
 
 # build languages for usage
@@ -446,8 +447,8 @@ async def main():
 
         print("---> file indexing")
 
-        if args.file_mode == "git":
-            print("---> file mode is git, local/git files will be used as source for indexing")
+        if args.file_mode in ("git", "all"):
+            print(f"---> file mode is {args.file_mode}, local/git files will be used as source for indexing")
 
             print("---> File validity check and renaming...")
             for root, dirs, files in os.walk(args.files):
@@ -473,11 +474,12 @@ async def main():
 
             # creation of the blob hashmap with the blob.name (file_name) and the md5hash as value
             for blob in blob_list:
-                if blob.content_settings.content_md5 is not None:
-                    blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
-                else:
-                    blob_hashmap[blob.name] = bytes()
-                    print(f"no hash for blob found for {blob.name}")
+                if blob.name.endswith(ALLOWED_FORMATS):
+                    if blob.content_settings.content_md5 is not None:
+                        blob_hashmap[blob.name] = bytes(blob.content_settings.content_md5)
+                    else:
+                        blob_hashmap[blob.name] = bytes()
+                        print(f"no hash for blob found for {blob.name}")
 
             # loop through local files
             print("checking local files...")
@@ -649,8 +651,8 @@ async def main():
                         print("Error:", e)
                         break
         # -------- FILE MODE BLOB -------- #
-        elif args.file_mode == "blob":
-            print("---> file mode is blob, blob will be used as source for indexing")
+        elif args.file_mode in ("blob", "all"):
+            print(f"---> file mode is {args.file_mode}, blob will be used as source for indexing")
             container_data = docs_service.get_container_client(args.containerdata)
 
             blobs = list(container_data.list_blobs())
@@ -711,8 +713,8 @@ async def main():
                     raise Exception(
                         f"!!! The filename {blob.name} is invalid, it is not allowed to end with -012.pdf and not contain  -> ' <-"
                     )
-                if not blob.name.endswith(".pdf"):
-                    print(f"-----> {blob.name} is not a pdf file, will be skipped")
+                if not blob.name.endswith(ALLOWED_FORMATS):
+                    print(f"-----> {blob.name} is invalid, it has an invalid format (allowed: {ALLOWED_FORMATS})")
                     continue
                 blob_name = blob.name
                 try:
