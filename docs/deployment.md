@@ -93,9 +93,10 @@ The environment file is a `.env` file that contains the environment variables fo
 | `AZURE_SUBNET_NAME`                  | The name of the existing subnet inside the existing VNet                                                                                                                                    | X         |
 | `AZURE_SUBNET_NAME_APPSERVICE`       | The name of the existing subnet inside the existing VNet for the App Service                                                                                                                | X         |
 | `AZURE_ALLOWED_CORS`                 | The list of allowed CORS origins                                                                                                                                                            | X         |
-| `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `gpt-35-turbo`, `gpt-4o`,)                                           |           |
-| `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `1106` for GPT35Turbo, `2024-05-13` for GPT40)                    |           |
+| `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `gpt-4o`,)                                                           |           |
+| `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `2024-11-20` for GPT4o)                                           |           |
 | `AZURE_OPENAI_CHATGPT_CAPACITY`      | The capacity of the Chat model (60 is default)                                                                                                                                              |           |
+| `AZURE_OPENAI_CHATGPT_SKU_NAME`      | The name of the sku deployment type (Standard is default) (e.g. `DataZoneStandard`)                                                                                                         |           |
 | `AZURE_OPENAI_EMBEDDING_CAPACITY`    | The capacity of the Embedding model (100 is default)                                                                                                                                        |           |
 | `AZURE_AUTH_ROLE`                    | The allowed Azure AD role (if not set all authenticated users can access), naming convention -> Role_Name. User                                                                             |           |
 | `AZURE_AUTH_TENANT`                  | The tenant ID of the Azure AD (only required if `AZURE_AUTH_ROLE` is set and another tenant is used)                                                                                        |           |
@@ -120,8 +121,8 @@ AZURE_VNET_NAME="vnet_dtit_cix00xx"
 AZURE_SUBNET_NAME="sn-mate"
 AZURE_SUBNET_NAME_APPSERVICE="sn-mate-appservice"
 AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
-AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-35-turbo"
-AZURE_OPENAI_CHATGPT_MODEL_VERSION="1106"
+AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-4o"
+AZURE_OPENAI_CHATGPT_MODEL_VERSION="2024-11-20"
 AZURE_SEARCH_SERVICE_SKU="standard"
 AZURE_AUTH_ClIENT="xxxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx"
 AZURE_AUTH_ROLE="MyRole.User"
