@@ -57,13 +57,13 @@ param formRecognizerSkuName string = 'S0'
 @description('Deploy new Form Recognizer resource. If set to false the existing one will be used')
 param formRecognizerDeployNewResource bool = true
 
-
 param chatGptDeploymentName string // = 'chat' as default, see main.parameters.json
 param gptCapacity string // = '60' as default, see main.parameters.json
 param chatGptDeploymentCapacity int = int(gptCapacity)
+param chatGptDeploymentSkuName string // 'Standard' as default, see main.parameters.json
 
-param chatGptModelName string // = 'gpt-3.5-turbo' as default, see main.parameters.json
-param chatGptModelVersion string // = '1106' as default, see main.parameters.json
+param chatGptModelName string // = 'gpt-4o' as default, see main.parameters.json
+param chatGptModelVersion string // = '2024-11-20' as default, see main.parameters.json
 
 param embeddingDeploymentName string = 'embedding'
 param embCapacity string // = '100' as default, see main.parameters.json
@@ -322,7 +322,7 @@ module openAi 'core/ai/cognitiveservices.bicep' = {
           version: chatGptModelVersion
         }
         sku: {
-          name: 'Standard'
+          name: chatGptDeploymentSkuName
           capacity: chatGptDeploymentCapacity
         }
       }

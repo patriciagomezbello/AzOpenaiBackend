@@ -32,7 +32,7 @@
     "formRecognizerSkuName": {
       "value": "S0"
     },
-    "formRecognizerDeployNewResource":{
+    "formRecognizerDeployNewResource": {
       "value": "${AZURE_FORMRECOGNIZER_DEPLOY_NEW_RESOURCE='true'}"
     },
     "searchIndexName": {
@@ -44,7 +44,7 @@
     "searchServiceResourceGroupName": {
       "value": "${AZURE_SEARCH_SERVICE_RESOURCE_GROUP}"
     },
-    "searchServiceDeployNewResource":{ 
+    "searchServiceDeployNewResource": {
       "value": "${AZURE_SEARCH_SERVICE_DEPLOY_NEW_RESOURCE='true'}"
     },
     "storageAccountName": {
@@ -57,16 +57,19 @@
       "value": "${AZURE_OPENAI_CHATGPT_DEPLOYMENT=chat}"
     },
     "chatGptModelName": {
-      "value": "${AZURE_OPENAI_CHATGPT_MODEL_NAME=gpt-35-turbo}"
+      "value": "${AZURE_OPENAI_CHATGPT_MODEL_NAME=gpt-4o}"
     },
     "chatGptModelVersion": {
-      "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=1106}"
+      "value": "${AZURE_OPENAI_CHATGPT_MODEL_VERSION=2024-11-20}"
     },
     "embCapacity": {
       "value": "${AZURE_OPENAI_EMBEDDING_CAPACITY=100}"
     },
     "gptCapacity": {
       "value": "${AZURE_OPENAI_CHATGPT_CAPACITY=60}"
+    },
+    "chatGptDeploymentSkuName": {
+      "value": "${AZURE_OPENAI_CHATGPT_SKU_NAME=Standard}"
     },
     "useApplicationInsights": {
       "value": "${AZURE_USE_APPLICATION_INSIGHTS=true}"
@@ -80,7 +83,7 @@
     "authTenant": {
       "value": "${AZURE_AUTH_TENANT}"
     },
-    "openAiDeployNewResource":{ 
+    "openAiDeployNewResource": {
       "value": "${AZURE_OPENAI_DEPLOY_NEW_RESOURCE='true'}"
     },
     "allowed_cors": {
