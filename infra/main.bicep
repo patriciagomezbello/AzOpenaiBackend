@@ -92,6 +92,9 @@ param allowed_cors string
 
 var allowed_cors_list = split(allowed_cors, ',')
 
+@description('The tls_cipher_suite to use for the backend app service')
+param tls_cipher_suite string = 'TLS_AES_128_GCM_SHA256'
+
 param vnetName string
 param subnetName string
 param subnetName_AppService string
@@ -272,6 +275,7 @@ module backend 'core/host/appservice.bicep' = {
     authTenant: (!empty(authTenant)) ? authTenant : 'same'
     apiBasePath: apiBasePath
     allowedOrigins: allowed_cors_list
+    tls_cipher_suite: tls_cipher_suite
     virtualNetworkSubnetId_AppService: subnet_AppService.id
     ipSecurityRestrictionIp: ipSecurityRestrictionIp
     appSettings: {

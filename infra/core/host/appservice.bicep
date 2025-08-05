@@ -58,6 +58,7 @@ param use32BitWorkerProcess bool = false
 param healthCheckPath string = ''
 param clientId string = ''
 param tenantId string = ''
+param tls_cipher_suite string
 
 #disable-next-line no-hardcoded-env-urls
 var commonLogin = 'https://login.microsoftonline.com/common/v2.0'
@@ -108,7 +109,7 @@ resource appService 'Microsoft.Web/sites@2024-04-01' = {
       minimumElasticInstanceCount: minimumElasticInstanceCount != -1 ? minimumElasticInstanceCount : null
       minTlsVersion: '1.3'
       scmMinTlsVersion: '1.3'
-      minTlsCipherSuite: 'TLS_RSA_WITH_AES_256_CBC_SHA256'
+      minTlsCipherSuite: tls_cipher_suite
       use32BitWorkerProcess: use32BitWorkerProcess
       functionAppScaleLimit: functionAppScaleLimit != -1 ? functionAppScaleLimit : null
       healthCheckPath: healthCheckPath

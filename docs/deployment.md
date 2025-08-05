@@ -93,6 +93,7 @@ The environment file is a `.env` file that contains the environment variables fo
 | `AZURE_SUBNET_NAME`                  | The name of the existing subnet inside the existing VNet                                                                                                                                    | X         |
 | `AZURE_SUBNET_NAME_APPSERVICE`       | The name of the existing subnet inside the existing VNet for the App Service                                                                                                                | X         |
 | `AZURE_ALLOWED_CORS`                 | The list of allowed CORS origins                                                                                                                                                            | X         |
+| `AZURE_TLS_CIPHER_SUITE` | The cipher suite for the TLS connection (default: `TLS_AES_128_GCM_SHA256`)| |
 | `AZURE_OPENAI_CHATGPT_MODEL_NAME`    | The name of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `gpt-4o`,)                                                           |           |
 | `AZURE_OPENAI_CHATGPT_MODEL_VERSION` | The version of the [Azure OpenAI model](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) (e.g. `2024-11-20` for GPT4o)                                           |           |
 | `AZURE_OPENAI_CHATGPT_CAPACITY`      | The capacity of the Chat model (60 is default)                                                                                                                                              |           |
@@ -121,6 +122,7 @@ AZURE_VNET_NAME="vnet_dtit_cix00xx"
 AZURE_SUBNET_NAME="sn-mate"
 AZURE_SUBNET_NAME_APPSERVICE="sn-mate-appservice"
 AZURE_ALLOWED_CORS="https://your.ui.url,https://yourother.ui.url"
+AZURE_TLS_CIPHER_SUITE="TLS_AES_128_GCM_SHA256"
 AZURE_OPENAI_CHATGPT_MODEL_NAME="gpt-4o"
 AZURE_OPENAI_CHATGPT_MODEL_VERSION="2024-11-20"
 AZURE_SEARCH_SERVICE_SKU="standard"

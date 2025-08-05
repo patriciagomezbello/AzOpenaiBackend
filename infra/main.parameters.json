@@ -89,6 +89,9 @@
     "allowed_cors": {
       "value": "${AZURE_ALLOWED_CORS}"
     },
+    "tls_cipher_suite": {
+      "value": "${AZURE_TLS_CIPHER_SUITE=TLS_AES_128_GCM_SHA256}"
+    },
     "authClient": {
       "value": "${AZURE_AUTH_ClIENT}"
     },
