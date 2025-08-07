@@ -6,6 +6,7 @@ from azure.identity.aio import get_bearer_token_provider
 from config import OpenAIConfig
 from dependency_injector import resources
 from openai import AsyncAzureOpenAI
+from openai import BadRequestError
 from openai.types.chat import ChatCompletion
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 from services.logger import new_logger
@@ -20,7 +21,7 @@ class LLMClient(resources.AsyncResource):
     """LLMClient provides an interface for interacting with the large language model."""
 
     @abstractmethod
-    def create_completion(self, opts: ChatCompletionsOptions) -> Awaitable[ChatCompletion]:
+    async def create_completion(self, opts: ChatCompletionsOptions) -> ChatCompletion:
         """create_completion generates a response based on the provided options.
 
         If no model is provided, the configuration completion model is used.
@@ -47,7 +48,7 @@ class OpenAIClient(LLMClient):
     """
 
     # API_VERSION is the version of the OpenAI API to use.
-    API_VERSION = "2023-07-01-preview"
+    API_VERSION = "2025-04-01-preview"
 
     async def init(self, config: OpenAIConfig, credentials: ChainedTokenCredential):
         endpoint = f"https://{config.service}.openai.azure.com"
@@ -64,7 +65,7 @@ class OpenAIClient(LLMClient):
         self.cfg = config
         return self
 
-    def create_completion(self, opts: ChatCompletionsOptions) -> Awaitable[ChatCompletion]:
+    async def create_completion(self, opts: ChatCompletionsOptions) -> ChatCompletion:
         """create_completion generates a response based on the provided options."""
 
         if opts.messages is None:
@@ -75,17 +76,30 @@ class OpenAIClient(LLMClient):
         if opts.model is None:
             opts.model = self.cfg.gpt.deployment
 
-        return self.client.chat.completions.create(
-            messages=opts.messages,
-            model=opts.model,
-            temperature=opts.temperature,
-            max_tokens=opts.max_tokens,
-            n=opts.n,
-            top_p=opts.top_p,
-            frequency_penalty=opts.frequency_penalty,
-            presence_penalty=opts.presence_penalty,
-            stop=opts.stop,
-        )
+        try:
+            return await self.client.chat.completions.create(
+                messages=opts.messages,
+                model=opts.model,
+                temperature=opts.temperature,
+                max_completion_tokens=opts.max_tokens,
+                n=opts.n,
+                top_p=opts.top_p,
+                frequency_penalty=opts.frequency_penalty,
+                presence_penalty=opts.presence_penalty,
+                stop=opts.stop,
+            )
+        except BadRequestError:
+            # This Catch is necessary for reasoning models that do not support the temperature parameter.
+            return await self.client.chat.completions.create(
+                messages=opts.messages,
+                model=opts.model,
+                max_completion_tokens=opts.max_tokens,
+                n=opts.n,
+                top_p=opts.top_p,
+                frequency_penalty=opts.frequency_penalty,
+                presence_penalty=opts.presence_penalty,
+                stop=opts.stop,
+            )
 
     def create_embedding(self, opts: CreateEmbeddingOptions) -> Awaitable[CreateEmbeddingResponse]:
         """create_embedding creates an embedding vector representing the input text."""
