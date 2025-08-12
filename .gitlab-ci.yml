@@ -13,7 +13,7 @@ image: mtr.devops.telekom.de/ccoe_azure/azd-deploy
 
 ### default runner (can be overridden by setting the variable in the pipeline)
 variables:
-  DEFAULT_RUNNER: otc_run_sysbox_m
+  DEFAULT_RUNNER: aws_run_sysbox_m
 
 ### auth setup for each step to login and logout before and after
 # TODO: remove az from the auth template and only use azd auth
