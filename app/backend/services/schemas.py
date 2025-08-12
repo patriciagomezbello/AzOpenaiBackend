@@ -251,6 +251,13 @@ class Model:
         "gpt-4-32k": 32768,
         "gpt-4o": 128000,
         "gpt-4o-mini": 128000,
+        "gpt-5": 400000,
+        "gpt-5-mini": 400000,
+        "gpt-5-nano": 400000,
+        "o1": 200000,
+        "o3": 200000,
+        "o3-mini": 200000,
+        "o4-mini": 200000,
     }
 
     # _AZURE_OPENAI lists all the supported OpenAI model names for Azure.
@@ -262,6 +269,13 @@ class Model:
         "gpt-4-32k",
         "gpt-4o",
         "gpt-4o-mini",
+        "gpt-5",
+        "gpt-5-mini",
+        "gpt-5-nano",
+        "o1",
+        "o3",
+        "o3-mini",
+        "o4-mini",
     ]
 
     def __init__(self, value: str):
