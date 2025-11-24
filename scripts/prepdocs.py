@@ -64,7 +64,7 @@ except OSError:
 MAX_SECTION_LENGTH: int = int(os.getenv("MAX_SECTION_LENGTH", 1100))
 SENTENCE_SEARCH_LIMIT: int = 100
 SECTION_OVERLAP: int = 100
-ALLOWED_FORMATS = (".pdf", ".docx", ".pptx", ".xlsx")
+ALLOWED_FORMATS = (".pdf", ".docx", ".pptx", ".xlsx", ".json")
 
 
 # build languages for usage
