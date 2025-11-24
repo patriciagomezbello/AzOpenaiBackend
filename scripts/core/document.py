@@ -1,4 +1,5 @@
 import io
+import json
 
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.storage.blob import BlobClient
@@ -50,6 +51,14 @@ def get_document_text(file_path, formrecognizer_creds, formrecognizerservice, lo
             page_text = p.extract_text()
             page_map.append((page_num, offset, page_text))
             offset += len(page_text)
+    elif str(file_path).endswith(".json"):
+        with open(file_path, "rb") as f:
+            try:
+                data = json.load(f)
+                page_map.append((1, offset, json.dumps(data)))
+            except json.JSONDecodeError as e:
+                print(f"!!!!!!!Something went wrong decoding the json {file_path}. {e}")
+                raise e
     else:
         if verbose:
             print(f"Extracting text from '{file_path}' using Azure Document Intelligence")

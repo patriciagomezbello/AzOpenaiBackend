@@ -106,7 +106,7 @@ def check_time(start_time, seconds=300):
 
 
 def delete_uncompatible_files(directory):
-    allowed_extensions = os.getenv("ALLOWED_EXTENSIONS", ".pdf,.jpg,.jpeg,.png,.tiff,.bmp,.docx,.xlsx,.pptx").split(",")
+    allowed_extensions = os.getenv("ALLOWED_EXTENSIONS", ".pdf,.jpg,.jpeg,.png,.tiff,.bmp,.docx,.xlsx,.pptx,.json").split(",")
     for root, dirs, files in os.walk(directory):
         for file in files:
             if not file.lower().endswith(tuple(allowed_extensions)):
