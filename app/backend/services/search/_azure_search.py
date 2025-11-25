@@ -87,7 +87,7 @@ class AzureSearchService(SearchService):
         if resp.strip() == "0":
             return last_msg.content()
 
-        return resp
+        return resp.strip('"').strip("\\")
 
     @timer()
     async def cognitive_search(
