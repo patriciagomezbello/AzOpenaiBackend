@@ -15,8 +15,8 @@ image: mtr.devops.telekom.de/ccoe_azure/azd-deploy
 variables:
   DEFAULT_RUNNER: aws_run_sysbox_m
 
-### auth setup for each step to login and logout before and after
 # TODO: remove az from the auth template and only use azd auth
+### auth setup for each step to login and logout before and after
 .auth_template: &auth
   before_script:
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
@@ -62,6 +62,7 @@ variables:
         } || {
           echo "Something went wrong setting the gitlab pipeline tag. Skipping it."
         }
+      fi
   allow_failure: false
   tags:
     - $DEFAULT_RUNNER
