@@ -46,14 +46,22 @@ variables:
         echo "start private runner"
         az vm start -g $RUNNER_RG -n $RUNNER_NAME > /dev/null
         echo "Checking for tags older than 12 hours"
-        now=$(date +%s)
-        tags_to_remove=$(az vm show -g ${RUNNER_RG} -n ${RUNNER_NAME} --query "tags" -o json | jq -r 'to_entries | .[] | select(.key | startswith("gitlab_pipeline_")) | select((.value | tonumber) < ('$now' - 43200)) | .key')
-        for tag in $tags_to_remove; do
-          echo "Removing old tag: $tag"
-          az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags."$tag" > /dev/null
-        done
-        az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --set tags.gitlab_pipeline_${CI_PROJECT_ID}-${CI_PIPELINE_ID}=$(date +%s) > /dev/null
-      fi
+        {
+          now=$(date +%s)
+          tags_to_remove=$(az vm show -g ${RUNNER_RG} -n ${RUNNER_NAME} --query "tags" -o json | jq -r 'to_entries | .[] | select(.key | startswith("gitlab_pipeline_")) | select((.value | tonumber) < ('$now' - 43200)) | .key')
+          for tag in $tags_to_remove; do
+            echo "Removing old tag: $tag"
+            az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --remove tags."$tag" > /dev/null
+          done
+        } || {
+          echo "Skipping tag cleanup because Azure CLI command failed"
+        }
+        {
+        timestamp="$(date +%s)"
+        az vm update -g ${RUNNER_RG} -n ${RUNNER_NAME} --set tags.gitlab_pipeline_${CI_PROJECT_ID}-${CI_PIPELINE_ID}="\"${timestamp}\"" > /dev/null
+        } || {
+          echo "Something went wrong setting the gitlab pipeline tag. Skipping it."
+        }
   allow_failure: false
   tags:
     - $DEFAULT_RUNNER
