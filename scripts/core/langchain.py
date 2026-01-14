@@ -5,12 +5,12 @@ from typing import Generator
 from typing import List
 
 from bs4 import BeautifulSoup as Soup
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import ConfluenceLoader
 from langchain_community.document_loaders import DocusaurusLoader
 from langchain_community.document_loaders import GitLoader
 from langchain_community.document_loaders import RecursiveUrlLoader
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .custom_loaders.loaders import custom_load_magentainfos
 from .custom_loaders.loaders import custom_load_staffbase
@@ -38,7 +38,14 @@ def lc_load_docusaurus_docs(url):
 
 
 def lc_load_confluence_docs(
-    url: str, username: str, token_ref: str, space_key: str, include_att=False, limit=50, max_pages=50
+    url: str,
+    username: str,
+    token_ref: str,
+    space_key: str,
+    include_att=False,
+    limit=50,
+    max_pages=50,
+    show_restricted_content=False,
 ) -> List[Document]:
 
     if include_att:
@@ -55,6 +62,7 @@ def lc_load_confluence_docs(
             include_attachments=include_att,
             limit=limit,
             max_pages=max_pages,
+            include_restricted_content=show_restricted_content,
         )
     else:
         print("using username and api_token")
@@ -66,6 +74,7 @@ def lc_load_confluence_docs(
             include_attachments=include_att,
             limit=limit,
             max_pages=max_pages,
+            include_restricted_content=show_restricted_content,
         )
     documents = loader.load()
     return documents
