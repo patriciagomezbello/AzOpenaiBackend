@@ -3,9 +3,9 @@ name = "scripts"
 version = "0.1.0"
 description = ""
 authors = [
-    "Leander Kunstmann <leander.kunstmann@telekom.de",
-    "Matthias Nega <m.nega@telekom.de>",
-    "Tom Vendolsky <tom.vendolsky@telekom.de>",
+  "Leander Kunstmann <leander.kunstmann@telekom.de",
+  "Matthias Nega <m.nega@telekom.de>",
+  "Tom Vendolsky <tom.vendolsky@telekom.de>",
 ]
 package-mode = false
 
@@ -24,12 +24,13 @@ reportlab = "4.0.4"
 lingua-language-detector = "2.0.2"
 pycryptodome = "3.18.0"
 pycountry = "22.3.5"
-langchain = "0.1.12"
-langchain-community = "0.0.28"
+langchain = "1.2.3"
+langchain-community = "0.4.1"
 beautifulsoup4 = "4.12.2"
 atlassian-python-api = "3.41.4"
 lxml = "4.9.3"
 nest-asyncio = "1.6.0"
+langchain-text-splitters = "^1.1.0"
 
 
 [build-system]

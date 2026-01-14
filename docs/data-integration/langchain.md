@@ -64,6 +64,7 @@ Specifies the configuration settings for the selected loader. Below are the conf
 - `include_att`: Option to include attachments (Note: May cause issues with uncommon file types).
 - `limit`: Number of pages to load.
 - `max_pages`: Maximum number of pages to load.
+- `show_restricted_content`: Also show the restricted pages of your Wiki page. (defaults to `False`)
 
 **Docusaurus:**
 
