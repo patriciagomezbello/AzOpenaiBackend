@@ -58,7 +58,7 @@ Before deploying Mate, you need to set the variables below in your GitLab projec
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `OpenAILocation`      | Available regions are: `francecentral`, `swedencentral`, `westeurope` (Exemption required for any location besides westeurope)                                       |
 | `REPO_URL`            | The URL of the data repository (e.g. `https://gitlab.devops.telekom.de/red-october/ccoe-data`)                                                                       |
-| `ACCESS_TOKEN`        | The access token for the data repository ([How-To Guide](https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html#create-a-project-access-token)) |
+| `ACCESS_TOKEN`        | The Access token of this Mate repository ([How-To Guide](https://docs.gitlab.com/ee/user/project/settings/project_access_tokens.html#create-a-project-access-token)) |
 | `AZURE_CLIENT_ID`     | The service principal id                                                                                                                                             |
 | `AZURE_CLIENT_SECRET` | The service principal secret                                                                                                                                         |
 | `AZURE_TENANT_ID`     | The tenant id (e.g. `628242bd-7e70-4aa9-8ee1-72586b4540fe` for the DTIT tenant)                                                                                      |
