@@ -61,7 +61,8 @@ Specifies the configuration settings for the selected loader. Below are the conf
 - `username`: User’s email address.
 - `token_ref`: Variable name where the API key is stored. **Do not include the API key directly in the config.**
 - `space_key`: Space key of the Confluence/Wiki space to load.
-- `include_att`: Option to include attachments (Note: May cause issues with uncommon file types).
+- `include_att`: Option to include attachments . The supported and tested file types are: `.pdf`, `.docx`, `.png`,
+  `.jpeg`, `.jpg`, `.svg` (Note: Can cause issues with other file types)
 - `limit`: Number of pages to load.
 - `max_pages`: Maximum number of pages to load.
 - `show_restricted_content`: Also show the restricted pages of your Wiki page. (defaults to `False`)

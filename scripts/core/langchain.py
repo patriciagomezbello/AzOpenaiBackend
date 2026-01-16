@@ -48,10 +48,10 @@ def lc_load_confluence_docs(
     show_restricted_content=False,
 ) -> List[Document]:
 
-    if include_att:
-        include_att = False
-
     token = os.getenv(token_ref)
+
+    if not token:
+        raise ValueError("Token for ConfluenceLoader is not set in Environment")
 
     if username.lower() == "token":
         print("using token only")
@@ -80,12 +80,12 @@ def lc_load_confluence_docs(
     return documents
 
 
-def lc_load_git_docs(url: str, path: str, filter: str):
-    if filter != "" or filter is not None:
+def lc_load_git_docs(url: str, path: str, file_suffix: str | None):
+    if file_suffix is not None and file_suffix != "":
         loader = GitLoader(
             clone_url=url,
             repo_path=path,
-            file_filter=lambda file_path: file_path.endswith(filter),
+            file_filter=lambda file_path: file_path.endswith(file_suffix),
         )
     else:
         loader = GitLoader(
