@@ -135,6 +135,10 @@ def split_text(
         length = len(all_text)
         start = 0
         end = length
+
+        if length < max_section_length:
+            yield all_text
+
         while start + section_overlap < length:
             last_word = -1
             end = start + max_section_length
@@ -172,6 +176,7 @@ def split_text(
                 start += 1
 
             section_text = all_text[start:end]
+
             yield (section_text, p[0])
 
             last_table_start = section_text.rfind("<table")
