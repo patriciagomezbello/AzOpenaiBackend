@@ -20,6 +20,7 @@ Mate supports the following data formats:
 - Word files (.docx)
 - Powerpoint files (.pptx)
 - Json files (.json)
+- XML files (.xml)
 - Images (.png, .jpg, .jpeg, .bmp, .tiff, .heif)
 - [LangChain Integration](https://python.langchain.com/docs/modules/data_connection/), currently we have document
   loaders for the following data sources:
