@@ -1,5 +1,6 @@
 import io
 import json
+import xml.etree.ElementTree as ET
 
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.storage.blob import BlobClient
@@ -40,6 +41,46 @@ def process_page(page, form_recognizer_results):
     return page_text
 
 
+def extract_xml_content(element: ET.Element[str], depth=0) -> str:
+    """
+    Recursively extracts all relevant content from an XML element.
+    Includes tag names, attributes, and text content in a structured format.
+    """
+    result_parts = []
+
+    # Get the tag name without namespace
+    tag = element.tag
+    if "}" in tag:
+        tag = tag.split("}", 1)[1]
+
+    # Build attribute string if present
+    attrs = ""
+    if element.attrib:
+        attr_pairs = [f"{k}={v}" for k, v in element.attrib.items()]
+        attrs = " (" + ", ".join(attr_pairs) + ")"
+
+    # Add element opening with attributes
+    indent = "  " * depth
+    result_parts.append(f"{indent}{tag}{attrs}:")
+
+    # Add direct text content if present
+    if element.text and element.text.strip():
+        text = element.text.strip()
+        result_parts.append(f"{indent}  {text}")
+
+    # Recursively process child elements
+    for child in element:
+        child_content = extract_xml_content(child, depth + 1)
+        if child_content:
+            result_parts.append(child_content)
+
+        # Handle tail text (text after child element)
+        if child.tail and child.tail.strip():
+            result_parts.append(f"{indent}  {child.tail.strip()}")
+
+    return "\n".join(result_parts)
+
+
 def get_document_text(file_path, formrecognizer_creds, formrecognizerservice, localpdf, verbose=False):
     offset = 0
     page_map = []
@@ -55,9 +96,22 @@ def get_document_text(file_path, formrecognizer_creds, formrecognizerservice, lo
         with open(file_path, "rb") as f:
             try:
                 data = json.load(f)
-                page_map.append((1, offset, json.dumps(data)))
+                text = json.dumps(data)
+                page_map.append((1, offset, text))
+                offset += len(text)
             except json.JSONDecodeError as e:
                 print(f"!!!!!!!Something went wrong decoding the json {file_path}. {e}")
+                raise e
+    elif str(file_path).endswith(".xml"):
+        with open(file_path, "rb") as f:
+            try:
+                tree = ET.parse(f)
+                root = tree.getroot()
+                extracted_text = extract_xml_content(root)
+                page_map.append((1, offset, extracted_text))
+                offset += len(extracted_text)
+            except ET.ParseError as e:
+                print(f"!!!!!!!Something went wrong parsing the XML {file_path}. {e}")
                 raise e
     else:
         if verbose:
