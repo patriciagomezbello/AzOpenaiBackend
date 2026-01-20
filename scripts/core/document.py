@@ -41,7 +41,7 @@ def process_page(page, form_recognizer_results):
     return page_text
 
 
-def extract_xml_content(element: ET.Element[str], depth=0) -> str:
+def extract_xml_content(element: ET.Element, depth=0) -> str:
     """
     Recursively extracts all relevant content from an XML element.
     Includes tag names, attributes, and text content in a structured format.
