@@ -191,7 +191,7 @@ def split_text(
         end = length
 
         if length < max_section_length:
-            yield all_text
+            yield (all_text, p[0])
 
         while start + section_overlap < length:
             last_word = -1
