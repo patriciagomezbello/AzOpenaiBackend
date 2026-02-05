@@ -255,6 +255,8 @@ class Model:
         "gpt-5": 400000,
         "gpt-5-mini": 400000,
         "gpt-5-nano": 400000,
+        "gpt-5.1": 400000,
+        "gpt-5.2": 400000,
         "o1": 200000,
         "o3": 200000,
         "o3-mini": 200000,
@@ -274,6 +276,8 @@ class Model:
         "gpt-5",
         "gpt-5-mini",
         "gpt-5-nano",
+        "gpt-5.1",
+        "gpt-5.2",
         "o1",
         "o3",
         "o3-mini",
@@ -292,8 +296,16 @@ class Model:
         return self.value in self._AZURE_OPENAI
 
     def token_limit(self) -> int:
-        """token_limit returns the token limit for the model."""
-        return self._TOKEN_MAPPING[self.value]
+        """token_limit returns the token limit for the model.
+
+        Raises:
+            ValueError: If the model does not have a defined token limit in the mapping.
+        """
+        try:
+            return self._TOKEN_MAPPING[self.value]
+        except KeyError as exc:
+            # Raise a clearer exception for callers instead of a raw KeyError
+            raise ValueError(f"token limit for model '{self.value}' is not defined") from exc
 
     def parse(self) -> str:
         """parse returns the associated openai model string for the given model.
