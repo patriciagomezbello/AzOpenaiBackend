@@ -29,7 +29,7 @@ pyjwt = "^2.8.0"
 quart = "^0.19.5"
 quart-cors = "^0.7.0"
 quart-schema = "^0.19.1"
-tiktoken = "^0.11.0"
+tiktoken = "^0.12.0"
 uvicorn = { extras = ["standard"], version = "^0.29.0" }
 pyyaml = "^6.0.1"
 dependency-injector = "^4.42.0b1"
