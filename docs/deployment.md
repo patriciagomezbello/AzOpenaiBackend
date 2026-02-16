@@ -105,6 +105,7 @@ The environment file is a `.env` file that contains the environment variables fo
 | `AZURE_SEARCH_SERVICE_SKU`           | The SKU of the Azure Search service (e.g. `basic`, `standard`, `standard2`, `standard3`)                                                                                                    |           |
 | `AZURE_DEPLOY_KEY`                   | Deploy the keyvault key ( manually set to `false` if first deployment fails) (default: `true`)                                                                                              |           |
 | `AZURE_GATEWAY_RESTRICTION_IP`       | **FOR PRODUCTION USAGE:** Static IP Address of Application Gateway or [Tardis Spacegate IP Range](https://developer.telekom.de/docs/src/tardis_customer_handbook/support/ip-addresses-env/) |           |
+| `MAX_TOKENS_ANSWER`                  | The maximum amount of tokens used for generating an answer. (defaults to 16,384)                                                                                                            |           |
 
 Check the
 [Parameter File](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/infra/parameters.json)
