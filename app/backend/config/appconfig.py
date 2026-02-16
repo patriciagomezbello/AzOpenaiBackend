@@ -150,7 +150,7 @@ class AnswerSettings:
     """AnswerSettings is a class that holds the configuration for the answer service."""
 
     system_prompt: str = os.getenv("ANSWER_SYSTEM_PROMPT", system_message_chat_conversation or "")
-    max_tokens: int = int(os.getenv("MAX_TOKENS_ANSWER", 32896))
+    max_tokens: int = int(os.getenv("MAX_TOKENS_ANSWER") or 16384)
 
     def validate(self) -> None:
         """validate validates the configuration."""

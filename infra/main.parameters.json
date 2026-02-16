@@ -136,6 +136,9 @@
     },
     "ipSecurityRestrictionIp": {
       "value": "${AZURE_GATEWAY_RESTRICTION_IP}"
+    },
+    "maxTokensAnswer": {
+      "value": "${MAX_TOKENS_ANSWER}"
     }
   }
 }

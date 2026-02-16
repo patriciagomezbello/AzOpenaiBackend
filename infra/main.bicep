@@ -28,6 +28,9 @@ param searchServiceLocation string
 
 param searchIndexName string = 'gptkbindex'
 
+@description('Maximum amounts of Tokens used for creating an answer.')
+param maxTokensAnswer string = ''
+
 @description('Deploy new Search Service resource. If set to false the existing one will be used')
 param searchServiceDeployNewResource bool = true
 
@@ -296,6 +299,7 @@ module backend 'core/host/appservice.bicep' = {
       APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights
         ? monitoring.outputs.applicationInsightsConnectionString
         : ''
+      MAX_TOKENS_ANSWER: maxTokensAnswer
     }
   }
 }
