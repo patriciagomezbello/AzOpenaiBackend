@@ -433,7 +433,7 @@ module openAiRoleUser 'core/security/role.bicep' = {
   name: 'openai-role-user'
   params: {
     principalId: principalId
-    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
+    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd' // Cognitive Services OpenAI User
     principalType: 'ServicePrincipal'
   }
 }
@@ -443,7 +443,7 @@ module formRecognizerRoleUser 'core/security/role.bicep' = {
   name: 'formrecognizer-role-user'
   params: {
     principalId: principalId
-    roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908'
+    roleDefinitionId: 'a97b65f3-24c7-4388-baec-2e87135dc908' // Cognitive Services User
     principalType: 'ServicePrincipal'
   }
 }
@@ -453,7 +453,7 @@ module storageRoleUser 'core/security/role.bicep' = {
   name: 'storage-role-user'
   params: {
     principalId: principalId
-    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1' // Storage Blob Data Reader
     principalType: 'ServicePrincipal'
   }
 }
@@ -463,7 +463,7 @@ module storageContribRoleUser 'core/security/role.bicep' = {
   name: 'storage-contribrole-user'
   params: {
     principalId: principalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
     principalType: 'ServicePrincipal'
   }
 }
@@ -473,7 +473,7 @@ module searchRoleUser 'core/security/role.bicep' = {
   name: 'search-role-user'
   params: {
     principalId: principalId
-    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
+    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f' // Search Index Data Reader
     principalType: 'ServicePrincipal'
   }
 }
@@ -483,7 +483,7 @@ module searchContribRoleUser 'core/security/role.bicep' = {
   name: 'search-contrib-role-user'
   params: {
     principalId: principalId
-    roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
+    roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7' // Search Index Data Contributor
     principalType: 'ServicePrincipal'
   }
 }
@@ -493,7 +493,7 @@ module searchSvcContribRoleUser 'core/security/role.bicep' = {
   name: 'search-svccontrib-role-user'
   params: {
     principalId: principalId
-    roleDefinitionId: '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
+    roleDefinitionId: '7ca78c08-252a-4471-8644-bb5ff32d4ba0' // Search Service Contributor
     principalType: 'ServicePrincipal'
   }
 }
@@ -504,17 +504,27 @@ module openAiRoleBackend 'core/security/role.bicep' = {
   name: 'openai-role-backend'
   params: {
     principalId: backend.outputs.identityPrincipalId
-    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
+    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd' // Cognitive Services OpenAI User
     principalType: 'ServicePrincipal'
   }
 }
 
-module storageRoleBackend 'core/security/role.bicep' = {
+module storageBlobReader 'core/security/role.bicep' = {
   scope: storageResourceGroup
-  name: 'storage-role-backend'
+  name: 'storage-blob-reader'
   params: {
     principalId: backend.outputs.identityPrincipalId
-    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1' // Storage Blob Data Reader
+    principalType: 'ServicePrincipal'
+  }
+}
+
+module storageTableContributor 'core/security/role.bicep' = {
+  scope: storageResourceGroup
+  name: 'storage-table-contributor'
+  params: {
+    principalId: backend.outputs.identityPrincipalId
+    roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Storage Table Data Contributor
     principalType: 'ServicePrincipal'
   }
 }
@@ -524,7 +534,7 @@ module searchRoleBackend 'core/security/role.bicep' = {
   name: 'search-role-backend'
   params: {
     principalId: backend.outputs.identityPrincipalId
-    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
+    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f' // Search Index Data Reader
     principalType: 'ServicePrincipal'
   }
 }
