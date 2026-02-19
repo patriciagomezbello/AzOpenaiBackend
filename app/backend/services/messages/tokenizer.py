@@ -28,7 +28,12 @@ class Tokenization(Tokenizer):
 
     def __init__(self, model: Model):
         self.model = model.parse()
-        self.encoder = encoding_for_model(self.model)
+        try:
+            self.encoder = encoding_for_model(self.model)
+        except KeyError:
+            self.encoder = encoding_for_model("gpt-4o")
+        except Exception as e:
+            raise RuntimeError(f"Something went wrong at getting the encoding model: {e}") from e
 
     def tokenize_messages(self, msgs: List[Message]) -> int:
         """tokenize_messages calculates the number of tokens required to encode the given messages.
