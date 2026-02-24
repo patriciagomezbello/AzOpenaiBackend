@@ -382,17 +382,7 @@ async def main():
                             formrecognizer_creds,
                         ) = get_credentials()
                         start_time = time.time()
-                    document_map = handle_lc_config_item(
-                        item,
-                        formrecognizer_creds=formrecognizer_creds,
-                        formrecognizerservice=args.formrecognizerservice,
-                        storageaccount=args.storageaccount,
-                        storage_creds=storage_creds,
-                        containerdocs=args.containerdocs,
-                        search_creds=search_creds,
-                        searchservice=args.searchservice,
-                        index_name=args.index,
-                    )
+                    document_map = handle_lc_config_item(item)
                     if not document_map:
                         continue
                     splitter = item.get("splitter")

@@ -149,18 +149,13 @@ async def sync_docs_container(
             logger.info(f"File '{blob.name}' found in data container while reconciling docs container. Skipping.")
             continue
 
-        safe_metadata = blob.metadata or {}
-        if is_url(safe_metadata.get("name", "")):
+        if is_url(blob.metadata.get("name", "")):
             logger.info(f"'{blob.name}' is a web document. Skipping.")
             continue
 
         logger.info(f"File '{blob.name}' not found in data container. Deleting from docs container.")
         _ = await blob_interactor.delete_file(blob.name)
-        rbac_json = safe_metadata.get("rbac", "{}")
-        try:
-            access = AccessModel.model_validate_json(rbac_json)
-        except Exception:
-            access = AccessModel(category="", roles=["public"])
+        access = AccessModel.model_validate_json(blob.metadata.get("rbac", "{}"))
         to_remove.append(DocumentInfo(name=blob.name, category=access.category, roles=access.roles))
     return files, to_remove
 

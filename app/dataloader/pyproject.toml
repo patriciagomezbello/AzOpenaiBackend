@@ -31,7 +31,6 @@ pytest = "^8.2.0"
 flake8 = "*"
 black = "*"
 pre-commit = "*"
-types-requests = "^2.32.4.20260107"
 
 [build-system]
 requires = ["poetry-core"]
