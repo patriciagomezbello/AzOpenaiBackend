@@ -45,6 +45,7 @@ Specifies the loader to use. The available options are:
 - `magentainfos`: Loads data from Magentainfos.
 - `staffbase`: Loads data from Staffbase.
 - `jira`: Loads data from Jira.
+- `sharepoint`: Loads data from SharePoint.
 
 ##### `category` - Optional
 
@@ -105,6 +106,18 @@ Specifies the configuration settings for the selected loader. Below are the conf
 - `username`: User’s email address.
 - `token_ref`: Variable name where the API key is stored. **Do not include the API key directly in the config.**
 - `project_key`: Project key in Jira
+
+**SharePoint:**
+
+- `tenant_id`: Azure AD Tenant ID.
+- `client_id`: Azure AD App (Client) ID.
+- `client_secret_ref`: Client Secret (as a secret variable in CI/CD).
+- `sharepoint_url`: Full SharePoint URL to the library or folder. **No manual URL encoding needed** – copy the URL directly from the browser (spaces are automatically encoded as `%20`).
+- `library_name`: Name of the SharePoint document library (e.g., "Documents").
+- `folder`: Path to the target folder within the library (e.g., "Documents/Fiberchatbot/dev/FiberChat").
+- `file_pattern`: File pattern to load specific file types (e.g., `*.pdf` for PDFs, `*.docx` for Word, `*.xlsx` for Excel, `*.csv` for CSV, `*.pptx` for PowerPoint). To load multiple types, use pipe-separated patterns: `*.pdf|*.docx|*.xlsx|*.csv|*.pptx`.
+- `ignore_folders`: List of folders to ignore (e.g., `["Archiv", "Deleted"]`).
+- `recursive`: Whether to recursively search subdirectories (`true`/`false`).
 
 #### Loader Examples
 
@@ -187,6 +200,22 @@ Below are example configurations for different loaders:
       "token_ref": "JIRA_API_TOKEN",
       "url": "https://jira.example.com",
       "project_key": "PROJECT_KEY"
+    }
+  },
+  {
+    "loader": "sharepoint",
+    "category": "example_category",
+    "splitter": "standard",
+    "config": {
+      "tenant_id": "sharepoint_tenant_example",
+      "client_id": "clien_id_example",
+      "client_secret_ref": "SP_CLIENT_SECRET",
+      "sharepoint_url": "https://telekom.sharepoint.de/sites/<YOUR SHAREPOINT NAME>/Shared Documents",
+      "library_name": "Documents",
+      "folder": "/your/path/to/folder/to/load",
+      "file_pattern": "*.pdf|*.docx|*.xlsx|*.csv|*.pptx",
+      "ignore_folders": ["Archiv", "Deleted"],
+      "recursive": true
     }
   }
 ]

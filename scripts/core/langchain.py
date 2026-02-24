@@ -3,6 +3,8 @@ from typing import Callable
 from typing import Dict
 from typing import Generator
 from typing import List
+from typing import TypedDict
+from typing import Unpack
 
 from bs4 import BeautifulSoup as Soup
 from langchain_community.document_loaders import ConfluenceLoader
@@ -16,6 +18,7 @@ from .custom_loaders.loaders import custom_load_magentainfos
 from .custom_loaders.loaders import custom_load_staffbase
 from .custom_loaders.loaders import get_magentainfos_map
 from .custom_loaders.loaders import get_staffbase_map
+from .custom_loaders.sharepoint import custom_load_sharepoint
 
 
 def lc_load_url_docs(url: str, max_depth=2):
@@ -112,7 +115,53 @@ custom_loader_map: Dict[str, Callable] = {
 }
 
 
-def handle_lc_config_item(config_item: dict) -> list[tuple[str, str, str]] | int:
+class LCConfigOptions(TypedDict, total=False):
+    """Optional keyword arguments for handle_lc_config_item.
+
+    Attributes:
+        formrecognizer_creds: Azure Form Recognizer credentials (required for sharepoint loader).
+        formrecognizerservice: Azure Form Recognizer service name (required for sharepoint loader).
+        storageaccount: Azure Storage Account name for blob storage operations.
+        storage_creds: Azure Storage Account credentials.
+        containerdocs: Container name for storing document blobs.
+        search_creds: Azure Cognitive Search credentials.
+        searchservice: Azure Cognitive Search service name.
+        index_name: Name of the search index for cleanup operations.
+    """
+
+    formrecognizer_creds: object
+    formrecognizerservice: str
+    storageaccount: str
+    storage_creds: object
+    containerdocs: str
+    search_creds: object
+    searchservice: str
+    index_name: str
+
+
+def handle_lc_config_item(
+    config_item: dict,
+    **kwargs: Unpack[LCConfigOptions],
+) -> list[tuple[str, str, str]] | int:
+    """Handle loading and processing of a single LangChain config item.
+
+    Args:
+        config_item: Configuration dictionary with 'loader' and 'config' keys.
+        **kwargs: Optional configuration parameters. See LCConfigOptions for available options.
+
+    Returns:
+        List of tuples containing (source, base, text) or empty list on error.
+
+    Keyword Arguments:
+        formrecognizer_creds: Azure Form Recognizer credentials (required for sharepoint loader).
+        formrecognizerservice: Azure Form Recognizer service name (required for sharepoint loader).
+        storageaccount: Azure Storage Account name for blob storage operations.
+        storage_creds: Azure Storage Account credentials.
+        containerdocs: Container name for storing document blobs.
+        search_creds: Azure Cognitive Search credentials.
+        searchservice: Azure Cognitive Search service name.
+        index_name: Name of the search index for cleanup operations.
+    """
     if config_item["loader"] in loader_map:
         try:
             documents = loader_map[config_item["loader"]](**config_item["config"])
@@ -124,6 +173,27 @@ def handle_lc_config_item(config_item: dict) -> list[tuple[str, str, str]] | int
         except Exception as e:
             print(e)
             print(f"no valid config for {config_item['loader']}, checking custom loaders...")
+            return []
+    elif config_item["loader"] == "sharepoint":
+        try:
+            formrecognizer_creds = kwargs.get("formrecognizer_creds")
+            formrecognizerservice = kwargs.get("formrecognizerservice")
+            if formrecognizer_creds is None or not formrecognizerservice:
+                raise ValueError("formrecognizer_creds and formrecognizerservice are required for sharepoint loader")
+            return custom_load_sharepoint(
+                config_item["config"],
+                formrecognizer_creds,
+                formrecognizerservice,
+                storageaccount=kwargs.get("storageaccount"),
+                storage_creds=kwargs.get("storage_creds"),
+                containerdocs=kwargs.get("containerdocs"),
+                search_creds=kwargs.get("search_creds"),
+                searchservice=kwargs.get("searchservice"),
+                index_name=kwargs.get("index_name"),
+            )
+        except Exception as e:
+            print(e)
+            print(f"no valid custom config for {config_item['loader']}, please check docs")
             return []
     elif config_item["loader"] in custom_loader_map:
         try:
