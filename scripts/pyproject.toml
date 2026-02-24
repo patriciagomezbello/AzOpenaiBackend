@@ -36,6 +36,7 @@ docx2txt = "^0.9"
 svglib = "^1.6.0"
 pdf2image = "^1.17.0"
 six = "^1.17.0"
+msgraph-sdk = "^1.55.0"
 
 
 [build-system]
