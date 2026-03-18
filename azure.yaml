@@ -6,3 +6,5 @@ services:
     project: ./app/backend
     language: py
     host: appservice
+infra:
+  provider: "bicep"
