@@ -24,7 +24,7 @@ param searchServiceResourceGroupName string = ''
 param searchServiceResourceGroupLocation string = location
 
 param searchServiceSkuName string = 'standard'
-param searchServiceLocation string
+param searchServiceLocation string = ''
 
 param searchIndexName string = 'gptkbindex'
 
@@ -120,12 +120,12 @@ var resourceGroupLGAWS = isContainsCN ? 'cloud-native-infrastructure' : 'cloud-i
 
 param authClient string
 
-param icuClientId string
-param icuIssuerUrl string
+param icuClientId string = ''
+param icuIssuerUrl string = ''
 
-param apiBasePath string
+param apiBasePath string = ''
 
-param ipSecurityRestrictionIp string
+param ipSecurityRestrictionIp string = ''
 
 resource logAnalyticWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' existing = {
   name: 'lgaws-${replace(subscriptionName, '_', '-')}'

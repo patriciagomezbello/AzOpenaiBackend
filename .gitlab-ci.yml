@@ -178,7 +178,7 @@ all_task:
     - when: always
   script:
     - bash ./deploy/setup_env.sh
-    - azd up
+    - azd up --no-prompt
     - azd env get-values
     - bash ./deploy/set_env.sh
   artifacts:
@@ -198,7 +198,7 @@ app_task:
     - when: always
   script:
     - bash ./deploy/setup_env.sh
-    - azd deploy
+    - azd deploy --no-prompt
   tags:
     - $RUNNER_TAG
 
