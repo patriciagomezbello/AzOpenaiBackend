@@ -28,7 +28,7 @@ Azure services like Azure Cognitive Services, Azure Blob Storage, and Azure Open
 by employees to get answers to their questions quickly and efficiently.
 
 The Mate application is security approved. If you want to use this software for production, please reach out to
-[Patricia Gómez Bello][https://www.linkedin.com/in/patriciagomezbello/](https://www.linkedin.com/in/patriciagomezbello/)
+(Patricia Gómez Bello)[https://www.linkedin.com/in/patriciagomezbello/]
 for preparation.
 
 This repository was initially inspired by the
