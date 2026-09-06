@@ -27,10 +27,8 @@ base. The knowledge base is built from various sources like PDFs, websites, and 
 Azure services like Azure Cognitive Services, Azure Blob Storage, and Azure OpenAI. The service is designed to be used
 by employees to get answers to their questions quickly and efficiently.
 
-The Mate application is PSA approved, that means you can reference our PSA in your own PSA. The only thing you need to
-clarify is the data you want to use. Furthermore, each user must obtain separate approval from the Group Workers Council
-(KBR) before the data can be used in production. If you want to use this software for production, please reach out to
-[Jerome Chevaillier](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/mailto:Jerome.Chevaillier@telekom.de)
+The Mate application is security approved. If you want to use this software for production, please reach out to
+[Patricia Gómez Bello]([https://www.linkedin.com/in/patriciagomezbello/](https://www.linkedin.com/in/patriciagomezbello/))
 for preparation.
 
 This repository was initially inspired by the
