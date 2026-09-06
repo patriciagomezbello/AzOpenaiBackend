@@ -42,18 +42,13 @@ currently not planned.
 This repository contains the data integration pipeline for Mate. The pipeline is responsible for loading data into the
 Mate knowledge base.
 
-For more information on our CI/CD pipeline, see the
-[CI/CD Pipeline](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/cicd-pipeline.md)
+For more information on our CI/CD pipeline...
 page.
 
 ### CI/CD Variables
 
-For more information on the available CI/CD variables for the data loading process, see the
-[CI/CD Variables](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/data-integration/cicd-variables.md)
-page.
+For more information on the available CI/CD variables for the data loading process...
 
 ### LangChain Integration
 
-For more information on the LangChain integration, see the
-[LangChain Integration](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/data-integration/langchain.md)
-page.
+For more information on the LangChain integration...

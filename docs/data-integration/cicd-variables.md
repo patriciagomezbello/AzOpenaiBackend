@@ -54,18 +54,15 @@ data repository must allow the Mate repository to access its data with the
 Here is how you can set up the connection:
 
 - Step 1: Go to Settings and CI/CD -> Token Access
-  ![DATA_ACCESS_1](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/img/DATA_ACCESS_1.png)
 
 - Step 2: Put in your data (group or personal name / project name)
-  ![DATA_ACCESS_2](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/img/DATA_ACCESS_2.png)
 
 - Step 3: Check if it has been added
-  ![DATA_ACCESS_3](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/img/DATA_ACCESS_3.png)
 
 ### Blob Mode
 
 In order to connect your data from another directory in your storage account, you will need a policy exemption on your
-storage account. Therefore, please create a [ticket](https://jira.telekom.de/servicedesk/customer/portal/301/group/906).
+storage account.
 
 The exemption will allow you to put your IP address into the storage account networking settings, to be able to connect
 and upload data in the private setup.
@@ -86,6 +83,4 @@ Directories must not contain any underscores (`_`) or special characters, as thi
 
 ## LangChain Integration Variables
 
-For more information on the LangChain integration, refer to the
-[LangChain Integration](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/data-integration/langchain.md)
-page.
+For more information on the LangChain integration ...

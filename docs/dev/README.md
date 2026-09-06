@@ -38,9 +38,7 @@ Optional:
 
 ## Architecture
 
-To learn more about the architecture of Mate, please refer to the
-[architecture](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/dev/repository.md)
-documentation.
+To learn more about the architecture of Mate ...
 
 ## Testing
 
@@ -116,10 +114,10 @@ To be able to use the Azure services locally, you need to set up the Azure confi
    Replace `<OpenAILocation>` with the location of the OpenAI resource group (e.g. `westeurope`, `swedencentral`, etc.).
 
 6. Add a `.env` file to `./.azure/<AZURE_ENV_NAME>` with the
-   [`ENVIRONMENT` configuration](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md#file-environment).
+   [`ENVIRONMENT` configuration](#deployment.md#file-environment).
 
 7. Add the
-   [`CONTEXT` configuration](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md#file-context)
+   [`CONTEXT` configuration](#deployment.md#file-context)
    to `./app/backend/core/context.py`.
 
 ### Mate Configuration
@@ -190,10 +188,9 @@ variables are available:
 > Note: Setting `AZURE_AUTH_ICU_CLIENT` and `AZURE_AUTH_ICU_ISSUER_URL` will enable ICU as the sole auth provider for
 > Mate. For this you have to manually remove the authentication client after each deployment in the Azure Portal.
 
-In case you need another Open ID Connect Provider, you can open an
-[issue](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/issues) to discuss your requirements
+In case you need another Open ID Connect Provider, ...
 or append your own provider to the
-[authentication client](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/app/backend/clients/_auth.py)
+[authentication client](#_auth.py)
 and open a merge request.
 
 #### Logging Configuration
@@ -232,7 +229,7 @@ AZURE_STORAGE_CONTAINER_DOCS=
 AZURE_USE_DEFAULT_CREDENTIAL=false
 
 # Chat Configuration
-ABBREVIATIONS={"DTAG": "Deutsche Telekom AG"}
+ABBREVIATIONS={"PGB": "Patricia Gómez Bello"}
 
 ANSWER_SYSTEM_PROMPT='You are an AI-Assistant for Telekom-internal topics.
 You have to answer the question abiding by the following rules:
@@ -240,7 +237,7 @@ You have to answer the question abiding by the following rules:
 - Take only the information provided in the prompt into account for your answer.
 - Each source has a name followed by a colon.
 - You have to always include the source name in front of the colon for information you use in the response.
-- Always use square brackets to reference the source, for example [data-1.pdf] or [https://telekom.de/data].
+- Always use square brackets to reference the source, for example [data-1.pdf] or [https://www.linkedin.com/in/patriciagomezbello/].
 - List each source seperately.
 - Only include sources with ".pdf" at the end or "https://" in the beginning.
 - Never include anything else besides the source name in the square brackets.
@@ -336,8 +333,7 @@ make dev
 ```
 
 This may not work if you haven't set up the `./frontend.env` file for the frontend. For more information about the
-configuration, please refer to the
-[frontend documentation](https://gitlab.devops.telekom.de/red-october/telit-azure-openai-gpt-frontend#run-the-application).
+configuration, please refer to ...
 
 #### Deploy the Infrastructure
 

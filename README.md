@@ -19,12 +19,6 @@
 > responsibility to keep up with the changes in the project.
 
 - [What is Mate?](#what-is-mate)
-- [Documentation](#documentation)
-  - [Deployment](#deployment)
-  - [Data Integration](#data-integration)
-- [Roadmap and Information](#roadmap-and-information)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## What Is Mate?
 
@@ -42,36 +36,6 @@ for preparation.
 This repository was initially inspired by the
 [Microsoft Azure Sample Repository](https://github.com/Azure-Samples/azure-search-openai-demo/tree/main).
 
-## Documentation
 
-You can find the documentation with deployment instructions, data integration, and more in the
-[docs](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/README.md) directory of
-this repository.
 
-### Deployment
 
-To deploy Mate, you can follow the instructions in the
-[deployment guide](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/deployment.md).
-
-### Data Integration
-
-To integrate your data into Mate, you can follow the instructions in the
-[data integration guide](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/data-integration/README.md).
-
-## Roadmap and Information
-
-You can find the roadmap and more information about the project on our
-[YAM page](https://yam-united.telekom.com/pages/azure-dtit-cloud/apps/content/mate).
-
-## Contributing
-
-If you want to contribute to Mate or get a local copy running, please follow the instructions in the
-[contributing guide](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/CONTRIBUTING.md).
-
-You can learn more about the project structure and how to get started in the
-[development guide](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/docs/dev/README.md).
-
-## License
-
-The code in this repository is licensed under a dual license. You can find more information in the
-[LICENSE](https://gitlab.devops.telekom.de/red-october/azure-search-openai-backend/-/blob/main/LICENSE) file.

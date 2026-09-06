@@ -13,8 +13,7 @@ deploying the infrastructure, deploying the backend, syncing the storage data, a
 
 ## Prerequisites
 
-You will need to have a private GitLab Runner for CI/CD pipeline. You can find our GitLab Runner package
-[here](https://gitlab.devops.telekom.de/red-october/public/azure-gitlab-runner-private).
+You will need to have a private GitLab Runner for CI/CD pipeline. You can find our GitLab Runner package at azure-gitlab-runner-private.
 
 The pipeline automatically starts and stops the GitLab Runner based on the pipeline activity.
 
